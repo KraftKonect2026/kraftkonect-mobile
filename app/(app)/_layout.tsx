@@ -81,6 +81,30 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="home"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="filter"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="provider"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
