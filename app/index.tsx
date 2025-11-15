@@ -34,7 +34,7 @@ export default function SplashScreen() {
     const timer = setTimeout(() => {
       if (!isLoading) {
         if (user) {
-          router.replace("/(app)/home" as any);
+          router.replace("/(app)/explore" as any);
         } else {
           router.replace("/get-started" as any);
         }

@@ -20,7 +20,7 @@ function RootLayoutNav() {
       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       <Stack.Screen name="forgot-password/index" options={{ headerShown: false }} />
       <Stack.Screen name="forgot-password/reset" options={{ headerShown: false }} />
-      <Stack.Screen name="(app)/home" options={{ headerShown: false }} />
+      <Stack.Screen name="(app)" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -60,7 +60,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     
     await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
     setUser(newUser);
-    router.replace("/(app)/home" as any);
+    router.replace("/(app)/explore" as any);
   }, [router]);
 
   const signOut = useCallback(async () => {
