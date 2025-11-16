@@ -111,7 +111,7 @@ export default function ExploreScreen() {
                   {IconComponent && (
                     <IconComponent
                       size={18}
-                      color={isSelected ? "#FFFFFF" : Colors.primary}
+                      color={isSelected ? "#FFFFFF" : "#2C2C2C"}
                       strokeWidth={2}
                     />
                   )}
@@ -189,7 +189,7 @@ export default function ExploreScreen() {
         </Animated.ScrollView>
 
         <TouchableOpacity
-          style={[styles.filterButton, { bottom: insets.bottom + 24 }]}
+          style={[styles.filterButton, { bottom: insets.bottom + 80 }]}
           activeOpacity={0.9}
           onPress={() => router.push("/(app)/filter" as any)}
         >
@@ -257,19 +257,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 24,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F3F4F6",
     borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: "#E5E7EB",
     gap: 8,
   },
   categoryChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: "#2C2C2C",
+    borderColor: "#2C2C2C",
   },
   categoryText: {
     fontSize: 14,
     fontWeight: "600" as const,
-    color: Colors.primary,
+    color: "#2C2C2C",
   },
   categoryTextActive: {
     color: "#FFFFFF",
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 22,
     fontWeight: "700" as const,
-    color: Colors.primary,
+    color: "#2C2C2C",
   },
   priceLabel: {
     fontSize: 14,
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     position: "absolute",
-    bottom: 24,
+    bottom: 80,
     right: 20,
     backgroundColor: Colors.primary,
     flexDirection: "row",

@@ -136,11 +136,9 @@ export default function ProviderProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Services</Text>
             {provider.services.map((service) => (
-              <TouchableOpacity
+              <View
                 key={service.id}
                 style={styles.serviceCard}
-                activeOpacity={0.8}
-                onPress={() => router.push(`/(app)/booking/${provider.id}/${service.id}` as any)}
               >
                 <View style={styles.serviceHeader}>
                   <Text style={styles.serviceTitle}>{service.title}</Text>
@@ -151,7 +149,7 @@ export default function ProviderProfileScreen() {
                   <Clock size={14} color="#9CA3AF" />
                   <Text style={styles.durationText}>{service.duration} min</Text>
                 </View>
-              </TouchableOpacity>
+              </View>
             ))}
           </View>
 
@@ -205,7 +203,11 @@ export default function ProviderProfileScreen() {
         <TouchableOpacity style={styles.chatButton} activeOpacity={0.8}>
           <MessageCircle size={20} color={Colors.primary} strokeWidth={2} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bookButton} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.bookButton}
+          activeOpacity={0.8}
+          onPress={() => router.push(`/(app)/booking/${provider.id}/select-service` as any)}
+        >
           <Calendar size={20} color="#FFFFFF" strokeWidth={2} />
           <Text style={styles.bookButtonText}>Book Now</Text>
         </TouchableOpacity>
