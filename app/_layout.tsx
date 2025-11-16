@@ -21,6 +21,12 @@ function RootLayoutNav() {
       <Stack.Screen name="forgot-password/index" options={{ headerShown: false }} />
       <Stack.Screen name="forgot-password/reset" options={{ headerShown: false }} />
       <Stack.Screen name="(app)" options={{ headerShown: false }} />
+      <Stack.Screen name="booking-detail/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="chat/[providerId]" options={{ headerShown: false }} />
+      <Stack.Screen name="review/[bookingId]" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+      <Stack.Screen name="payment-methods" options={{ headerShown: false }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
     </Stack>
   );
 }
