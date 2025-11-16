@@ -77,6 +77,13 @@ export default function ExploreScreen() {
             <Search size={20} color="#9CA3AF" />
             <Text style={styles.searchPlaceholder}>What service do you need?</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterIcon}
+            activeOpacity={0.7}
+            onPress={() => router.push("/(app)/filter" as any)}
+          >
+            <SlidersHorizontal size={22} color="#2C2C2C" strokeWidth={2} />
+          </TouchableOpacity>
         </Animated.View>
 
         <Animated.ScrollView
@@ -187,15 +194,6 @@ export default function ExploreScreen() {
             ))}
           </View>
         </Animated.ScrollView>
-
-        <TouchableOpacity
-          style={[styles.filterButton, { bottom: insets.bottom + 80 }]}
-          activeOpacity={0.9}
-          onPress={() => router.push("/(app)/filter" as any)}
-        >
-          <SlidersHorizontal size={20} color="#FFFFFF" strokeWidth={2} />
-          <Text style={styles.filterButtonText}>Filters</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -210,11 +208,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
+    gap: 12,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -228,6 +229,7 @@ const styles = StyleSheet.create({
     }),
   },
   searchBar: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F9FAFB",
@@ -235,6 +237,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     gap: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  filterIcon: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 22,
+    backgroundColor: "#F9FAFB",
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
@@ -396,33 +408,5 @@ const styles = StyleSheet.create({
   distance: {
     fontSize: 14,
     color: "#9CA3AF",
-  },
-  filterButton: {
-    position: "absolute",
-    bottom: 80,
-    right: 20,
-    backgroundColor: Colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 28,
-    gap: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  filterButtonText: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#FFFFFF",
   },
 });
