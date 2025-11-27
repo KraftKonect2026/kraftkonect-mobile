@@ -27,6 +27,14 @@ function RootLayoutNav() {
       <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
       <Stack.Screen name="payment-methods" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="provider" options={{ headerShown: false }} />
+      <Stack.Screen name="provider-onboarding/welcome" options={{ headerShown: false }} />
+      <Stack.Screen name="provider-onboarding/basic-info" options={{ headerShown: false }} />
+      <Stack.Screen name="provider-onboarding/category" options={{ headerShown: false }} />
+      <Stack.Screen name="provider-onboarding/verification" options={{ headerShown: false }} />
+      <Stack.Screen name="provider-onboarding/experience" options={{ headerShown: false }} />
+      <Stack.Screen name="provider-onboarding/submit" options={{ headerShown: false }} />
+      <Stack.Screen name="provider-onboarding/pending-approval" options={{ headerShown: false }} />
     </Stack>
   );
 }

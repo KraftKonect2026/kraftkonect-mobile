@@ -15,7 +15,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -85,6 +84,13 @@ export default function ProfileScreen() {
           key={index}
           style={styles.specialMenuItem}
           activeOpacity={0.7}
+          onPress={() => {
+            if (item.route) {
+              router.push(item.route);
+            } else {
+              router.push("/provider-onboarding/welcome" as any);
+            }
+          }}
         >
           <View style={styles.specialMenuItemContent}>
             <View style={styles.menuItemLeft}>
@@ -185,6 +191,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.switchToProviderButton}
           activeOpacity={0.9}
+          onPress={() => router.push("/provider/(tabs)/today" as any)}
         >
           <Text style={styles.switchToProviderText}>Switch to Provider</Text>
           <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
