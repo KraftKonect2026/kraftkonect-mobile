@@ -5,6 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -14,6 +16,28 @@ import Colors from "@/constants/colors";
 export default function PendingApprovalScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  const handleContactSupport = () => {
+    Alert.alert(
+      "Contact Support",
+      "Email: support@app.com\nPhone: +1 (555) 123-4567\n\nHow would you like to contact us?",
+      [
+        {
+          text: "Call",
+          onPress: () => Linking.openURL("tel:+15551234567"),
+        },
+        {
+          text: "Email",
+          onPress: () => Linking.openURL("mailto:support@app.com"),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -93,7 +117,11 @@ export default function PendingApprovalScreen() {
         </View>
 
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.supportButton} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.supportButton}
+            activeOpacity={0.8}
+            onPress={handleContactSupport}
+          >
             <MessageCircle size={20} color={Colors.primary} strokeWidth={2} />
             <Text style={styles.supportButtonText}>Contact Support</Text>
           </TouchableOpacity>
