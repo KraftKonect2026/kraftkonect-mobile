@@ -67,7 +67,11 @@ export default function TodayDashboardScreen() {
             <Text style={styles.summaryCardLabel}>Today&apos;s Earnings</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.summaryCard} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={styles.summaryCard} 
+            activeOpacity={0.8}
+            onPress={() => router.push("/provider/(tabs)/calendar" as any)}
+          >
             <View style={styles.summaryCardIconSecondary}>
               <Calendar size={24} color="#6B7280" strokeWidth={2} />
             </View>
@@ -77,7 +81,11 @@ export default function TodayDashboardScreen() {
             <Text style={styles.summaryCardLabelSecondary}>Today&apos;s Jobs</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.summaryCard} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={styles.summaryCard} 
+            activeOpacity={0.8}
+            onPress={() => router.push("/provider/(tabs)/messages" as any)}
+          >
             <View style={styles.summaryCardIconSecondary}>
               <MessageCircle size={24} color="#6B7280" strokeWidth={2} />
             </View>
@@ -163,7 +171,10 @@ export default function TodayDashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Jobs</Text>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity 
+              activeOpacity={0.7}
+              onPress={() => router.push("/provider/(tabs)/calendar" as any)}
+            >
               <Text style={styles.sectionLink}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -199,11 +210,19 @@ export default function TodayDashboardScreen() {
           <View style={styles.quickActionsCard}>
             <Text style={styles.quickActionsTitle}>Quick Actions</Text>
             <View style={styles.quickActionButtons}>
-              <TouchableOpacity style={styles.quickActionButton} activeOpacity={0.8}>
+              <TouchableOpacity 
+                style={styles.quickActionButton} 
+                activeOpacity={0.8}
+                onPress={() => router.push("/provider/add-listing" as any)}
+              >
                 <Plus size={20} color={Colors.primary} strokeWidth={2} />
                 <Text style={styles.quickActionButtonText}>Add Listing</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionButton} activeOpacity={0.8}>
+              <TouchableOpacity 
+                style={styles.quickActionButton} 
+                activeOpacity={0.8}
+                onPress={() => router.push("/provider/(tabs)/calendar" as any)}
+              >
                 <Calendar size={20} color={Colors.primary} strokeWidth={2} />
                 <Text style={styles.quickActionButtonText}>Availability</Text>
               </TouchableOpacity>

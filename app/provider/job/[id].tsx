@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Linking,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
@@ -184,7 +186,16 @@ export default function JobDetailScreen() {
               </View>
             </View>
             <View style={styles.customerActions}>
-              <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+              <TouchableOpacity 
+                style={styles.iconButton} 
+                activeOpacity={0.7}
+                onPress={() => {
+                  const phoneNumber = Platform.OS === "ios" ? "telprompt:+1234567890" : "tel:+1234567890";
+                  Linking.openURL(phoneNumber).catch(() => {
+                    Alert.alert("Error", "Unable to make phone call");
+                  });
+                }}
+              >
                 <Phone size={20} color={Colors.primary} strokeWidth={2} />
               </TouchableOpacity>
               <TouchableOpacity

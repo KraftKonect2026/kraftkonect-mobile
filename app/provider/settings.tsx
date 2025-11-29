@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Linking,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
@@ -160,7 +162,17 @@ export default function ProviderSettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>PAYMENT</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                Alert.alert(
+                  "Payout Methods",
+                  "This feature allows you to manage your payout bank accounts and payment methods.",
+                  [{ text: "OK" }]
+                );
+              }}
+            >
               <View style={styles.iconContainer}>
                 <CreditCard size={20} color="#6B7280" strokeWidth={2} />
               </View>
@@ -169,7 +181,17 @@ export default function ProviderSettingsScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                Alert.alert(
+                  "Payout History",
+                  "This feature shows all your past payouts and transaction history.",
+                  [{ text: "OK" }]
+                );
+              }}
+            >
               <View style={styles.iconContainer}>
                 <FileText size={20} color="#6B7280" strokeWidth={2} />
               </View>
@@ -181,7 +203,15 @@ export default function ProviderSettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>PRIVACY & LEGAL</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                Linking.openURL("https://yourwebsite.com/privacy").catch(() => {
+                  Alert.alert("Error", "Unable to open Privacy Policy");
+                });
+              }}
+            >
               <View style={styles.iconContainer}>
                 <Shield size={20} color="#6B7280" strokeWidth={2} />
               </View>
@@ -190,7 +220,15 @@ export default function ProviderSettingsScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                Linking.openURL("https://yourwebsite.com/terms").catch(() => {
+                  Alert.alert("Error", "Unable to open Terms of Service");
+                });
+              }}
+            >
               <View style={styles.iconContainer}>
                 <FileText size={20} color="#6B7280" strokeWidth={2} />
               </View>
@@ -202,7 +240,15 @@ export default function ProviderSettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SUPPORT</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                Linking.openURL("https://yourwebsite.com/help").catch(() => {
+                  Alert.alert("Error", "Unable to open Help Center");
+                });
+              }}
+            >
               <View style={styles.iconContainer}>
                 <HelpCircle size={20} color="#6B7280" strokeWidth={2} />
               </View>
@@ -211,7 +257,25 @@ export default function ProviderSettingsScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                Alert.alert(
+                  "Contact Support",
+                  "Email: support@yourapp.com\nPhone: +1 (555) 123-4567",
+                  [
+                    { text: "OK" },
+                    {
+                      text: "Email",
+                      onPress: () => {
+                        Linking.openURL("mailto:support@yourapp.com");
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
               <View style={styles.iconContainer}>
                 <HelpCircle size={20} color="#6B7280" strokeWidth={2} />
               </View>

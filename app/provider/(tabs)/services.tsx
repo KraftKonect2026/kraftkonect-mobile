@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -112,7 +113,20 @@ export default function ServicesScreen() {
                   <TouchableOpacity
                     style={styles.actionButtonDanger}
                     activeOpacity={0.7}
-                    onPress={() => deleteListing(listing.id)}
+                    onPress={() => {
+                      Alert.alert(
+                        "Delete Listing",
+                        "Are you sure you want to delete this service listing?",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: () => deleteListing(listing.id),
+                          },
+                        ]
+                      );
+                    }}
                   >
                     <Trash2 size={16} color="#EF4444" strokeWidth={2} />
                     <Text style={styles.actionButtonDangerText}>Delete</Text>

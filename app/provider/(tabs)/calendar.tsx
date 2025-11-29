@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
@@ -165,7 +166,17 @@ export default function CalendarScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.saveButton} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={styles.saveButton} 
+          activeOpacity={0.8}
+          onPress={() => {
+            Alert.alert(
+              "Availability Saved",
+              `${selectedDates.size} date(s) marked as unavailable.`,
+              [{ text: "OK" }]
+            );
+          }}
+        >
           <Text style={styles.saveButtonText}>Save Availability</Text>
         </TouchableOpacity>
       </ScrollView>

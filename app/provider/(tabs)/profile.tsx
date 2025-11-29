@@ -5,6 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Linking,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -68,7 +70,11 @@ export default function ProviderProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ACCOUNT</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => router.push("/edit-profile" as any)}
+            >
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
                   <User size={20} color="#6B7280" strokeWidth={2} />
@@ -97,7 +103,15 @@ export default function ProviderProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SUPPORT</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                Linking.openURL("https://yourwebsite.com/help").catch(() => {
+                  Alert.alert("Error", "Unable to open Help Center");
+                });
+              }}
+            >
               <View style={styles.menuItemLeft}>
                 <View style={styles.iconContainer}>
                   <HelpCircle size={20} color="#6B7280" strokeWidth={2} />
