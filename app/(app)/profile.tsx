@@ -1,6 +1,5 @@
 import {
   User,
-  LogOut,
   ChevronRight,
   Edit3,
   CreditCard,
@@ -29,7 +28,7 @@ import Colors from "@/constants/colors";
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [contactModalVisible, setContactModalVisible] = useState(false);
 
   const menuSections = [
@@ -177,19 +176,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         ))}
-
-        <View style={styles.section}>
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.signOutButton}
-              onPress={signOut}
-              activeOpacity={0.7}
-            >
-              <LogOut size={20} color="#EF4444" strokeWidth={2} />
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         <View style={styles.footer}>
           <Text style={styles.version}>Version 1.0.0</Text>
@@ -397,18 +383,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
     marginLeft: 68,
   },
-  signOutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    gap: 12,
-  },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#EF4444",
-  },
+
   footer: {
     alignItems: "center",
     paddingVertical: 20,
