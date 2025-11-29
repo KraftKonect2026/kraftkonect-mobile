@@ -48,7 +48,20 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const toggleFavorite = (providerId: string) => {
+    setFavorites((prev) => {
+      const newFavorites = new Set(prev);
+      if (newFavorites.has(providerId)) {
+        newFavorites.delete(providerId);
+      } else {
+        newFavorites.add(providerId);
+      }
+      return newFavorites;
+    });
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -150,8 +163,17 @@ export default function ExploreScreen() {
                   style={styles.providerImage}
                   contentFit="cover"
                 />
-                <TouchableOpacity style={styles.favoriteButton} activeOpacity={0.7}>
-                  <Heart size={20} color="#FFFFFF" strokeWidth={2} />
+                <TouchableOpacity
+                  style={styles.favoriteButton}
+                  activeOpacity={0.7}
+                  onPress={() => toggleFavorite(provider.id)}
+                >
+                  <Heart
+                    size={20}
+                    color="#EF4444"
+                    fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
+                    strokeWidth={2}
+                  />
                 </TouchableOpacity>
 
                 <View style={styles.providerInfo}>

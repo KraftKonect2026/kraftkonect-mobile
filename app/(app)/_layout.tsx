@@ -103,6 +103,7 @@ export default function AppLayout() {
         name="provider"
         options={{
           href: null,
+          tabBarStyle: { display: "none" },
         }}
       />
       <Tabs.Screen

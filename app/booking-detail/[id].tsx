@@ -5,7 +5,7 @@ import {
   MessageCircle,
   X,
 } from "lucide-react-native";
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Modal,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -25,7 +27,17 @@ export default function BookingDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
 
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
   const booking = mockBookings.find((b) => b.id === id);
+
+  const handleCancelBooking = () => {
+    console.log("Booking cancelled with reason:", cancelReason);
+    setCancelModalVisible(false);
+    setCancelReason("");
+    router.back();
+  };
 
   if (!booking) {
     return (
@@ -320,6 +332,7 @@ export default function BookingDetailScreen() {
           <TouchableOpacity
             style={styles.cancelBookingButton}
             activeOpacity={0.8}
+            onPress={() => setCancelModalVisible(true)}
           >
             <X size={20} color="#EF4444" strokeWidth={2} />
             <Text style={styles.cancelBookingButtonText}>Cancel Booking</Text>
@@ -343,6 +356,55 @@ export default function BookingDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <Modal
+        visible={cancelModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Cancel Booking?</Text>
+            <Text style={styles.modalDescription}>
+              Please let us know why you&apos;re canceling this booking
+            </Text>
+            <TextInput
+              style={styles.reasonInput}
+              placeholder="Reason for cancellation"
+              placeholderTextColor="#9CA3AF"
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalBackButton}
+                onPress={() => {
+                  setCancelModalVisible(false);
+                  setCancelReason("");
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalBackButtonText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalConfirmButton,
+                  !cancelReason.trim() && styles.modalConfirmButtonDisabled,
+                ]}
+                onPress={handleCancelBooking}
+                activeOpacity={0.7}
+                disabled={!cancelReason.trim()}
+              >
+                <Text style={styles.modalConfirmButtonText}>Confirm Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -592,6 +654,77 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   reviewButtonLargeText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700" as const,
+    color: "#2C2C2C",
+    marginBottom: 12,
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: "#6B7280",
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  reasonInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#2C2C2C",
+    minHeight: 100,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalBackButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+  },
+  modalBackButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#6B7280",
+  },
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+  },
+  modalConfirmButtonDisabled: {
+    backgroundColor: "#FCA5A5",
+    opacity: 0.6,
+  },
+  modalConfirmButtonText: {
     fontSize: 16,
     fontWeight: "600" as const,
     color: "#FFFFFF",

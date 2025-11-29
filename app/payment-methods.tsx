@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -23,6 +25,16 @@ export default function PaymentMethodsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [methodToDelete, setMethodToDelete] = useState<string | null>(null);
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [newCard, setNewCard] = useState({
+    number: "",
+    expiry: "",
+    cvv: "",
+    name: "",
+  });
+
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
     {
       id: "1",
@@ -38,8 +50,31 @@ export default function PaymentMethodsScreen() {
     },
   ]);
 
-  const removePaymentMethod = (id: string) => {
-    setPaymentMethods((prev) => prev.filter((pm) => pm.id !== id));
+  const confirmDelete = (id: string) => {
+    setMethodToDelete(id);
+    setDeleteModalVisible(true);
+  };
+
+  const removePaymentMethod = () => {
+    if (methodToDelete) {
+      setPaymentMethods((prev) => prev.filter((pm) => pm.id !== methodToDelete));
+      setDeleteModalVisible(false);
+      setMethodToDelete(null);
+    }
+  };
+
+  const handleAddCard = () => {
+    if (newCard.number && newCard.expiry && newCard.cvv && newCard.name) {
+      const newMethod: PaymentMethod = {
+        id: Date.now().toString(),
+        type: newCard.number.startsWith("4") ? "visa" : "mastercard",
+        last4: newCard.number.slice(-4),
+        expiry: newCard.expiry,
+      };
+      setPaymentMethods((prev) => [...prev, newMethod]);
+      setAddModalVisible(false);
+      setNewCard({ number: "", expiry: "", cvv: "", name: "" });
+    }
   };
 
   const getCardIcon = (type: string) => {
@@ -103,7 +138,7 @@ export default function PaymentMethodsScreen() {
                 </View>
                 <TouchableOpacity
                   style={styles.removeButton}
-                  onPress={() => removePaymentMethod(method.id)}
+                  onPress={() => confirmDelete(method.id)}
                   activeOpacity={0.7}
                 >
                   <Trash2 size={20} color="#EF4444" strokeWidth={2} />
@@ -113,11 +148,123 @@ export default function PaymentMethodsScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.addButton}
+          activeOpacity={0.8}
+          onPress={() => setAddModalVisible(true)}
+        >
           <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
           <Text style={styles.addButtonText}>Add Payment Method</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Payment Method?</Text>
+            <Text style={styles.modalDescription}>
+              This payment method will be permanently removed from your account.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setMethodToDelete(null);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalDeleteButton}
+                onPress={removePaymentMethod}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalDeleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={addModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.addCardModal}>
+            <Text style={styles.modalTitle}>Add Payment Method</Text>
+            <TextInput
+              style={styles.cardInput}
+              placeholder="Cardholder Name"
+              placeholderTextColor="#9CA3AF"
+              value={newCard.name}
+              onChangeText={(text) => setNewCard({ ...newCard, name: text })}
+            />
+            <TextInput
+              style={styles.cardInput}
+              placeholder="Card Number"
+              placeholderTextColor="#9CA3AF"
+              value={newCard.number}
+              onChangeText={(text) => setNewCard({ ...newCard, number: text })}
+              keyboardType="numeric"
+              maxLength={16}
+            />
+            <View style={styles.cardRow}>
+              <TextInput
+                style={[styles.cardInput, styles.cardInputHalf]}
+                placeholder="MM/YY"
+                placeholderTextColor="#9CA3AF"
+                value={newCard.expiry}
+                onChangeText={(text) => setNewCard({ ...newCard, expiry: text })}
+                maxLength={5}
+              />
+              <TextInput
+                style={[styles.cardInput, styles.cardInputHalf]}
+                placeholder="CVV"
+                placeholderTextColor="#9CA3AF"
+                value={newCard.cvv}
+                onChangeText={(text) => setNewCard({ ...newCard, cvv: text })}
+                keyboardType="numeric"
+                maxLength={4}
+                secureTextEntry
+              />
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setAddModalVisible(false);
+                  setNewCard({ number: "", expiry: "", cvv: "", name: "" });
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalAddButton,
+                  (!newCard.number || !newCard.expiry || !newCard.cvv || !newCard.name) &&
+                    styles.modalAddButtonDisabled,
+                ]}
+                onPress={handleAddCard}
+                activeOpacity={0.7}
+                disabled={!newCard.number || !newCard.expiry || !newCard.cvv || !newCard.name}
+              >
+                <Text style={styles.modalAddButtonText}>Add Card</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -244,5 +391,102 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 24,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+  },
+  addCardModal: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700" as const,
+    color: "#2C2C2C",
+    marginBottom: 12,
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: "#6B7280",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  cardInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#2C2C2C",
+    marginBottom: 12,
+  },
+  cardRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  cardInputHalf: {
+    flex: 1,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+  },
+  modalCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#6B7280",
+  },
+  modalDeleteButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+  },
+  modalDeleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  modalAddButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+  },
+  modalAddButtonDisabled: {
+    backgroundColor: "#93C5FD",
+    opacity: 0.6,
+  },
+  modalAddButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
   },
 });

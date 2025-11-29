@@ -3,6 +3,9 @@ import {
   MoreVertical,
   Send,
   Image as ImageIcon,
+  FileText,
+  Flag,
+  Ban,
 } from "lucide-react-native";
 import React, { useState, useRef } from "react";
 import {
@@ -15,6 +18,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -33,6 +37,7 @@ export default function ChatScreen() {
   );
 
   const [message, setMessage] = useState("");
+  const [menuVisible, setMenuVisible] = useState(false);
 
   if (!conversation) {
     return (
@@ -104,7 +109,11 @@ export default function ChatScreen() {
             </Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.moreButton}
+          activeOpacity={0.7}
+          onPress={() => setMenuVisible(true)}
+        >
           <MoreVertical size={24} color="#2C2C2C" strokeWidth={2} />
         </TouchableOpacity>
       </View>
@@ -165,6 +174,66 @@ export default function ChatScreen() {
           />
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuSheet}>
+            <View style={styles.menuHandle} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                setMenuVisible(false);
+                if (conversation.bookingId) {
+                  router.push(`/booking-detail/${conversation.id}`);
+                }
+              }}
+            >
+              <View style={styles.menuIconContainer}>
+                <FileText size={20} color="#6B7280" strokeWidth={2} />
+              </View>
+              <Text style={styles.menuItemText}>View Booking Details</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                setMenuVisible(false);
+                console.log("Report provider");
+              }}
+            >
+              <View style={styles.menuIconContainer}>
+                <Flag size={20} color="#F59E0B" strokeWidth={2} />
+              </View>
+              <Text style={styles.menuItemText}>Report</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                setMenuVisible(false);
+                console.log("Block provider");
+              }}
+            >
+              <View style={styles.menuIconContainer}>
+                <Ban size={20} color="#EF4444" strokeWidth={2} />
+              </View>
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Block</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -320,5 +389,53 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: "#E5E7EB",
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  menuSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 34,
+  },
+  menuHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F9FAFB",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: "500" as const,
+    color: "#2C2C2C",
+  },
+  menuItemDanger: {
+    color: "#EF4444",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
+    marginLeft: 72,
   },
 });

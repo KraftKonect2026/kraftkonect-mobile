@@ -7,14 +7,18 @@ import {
   Settings as SettingsIcon,
   HelpCircle,
   ArrowRight,
+  Mail,
+  Phone,
 } from "lucide-react-native";
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -26,6 +30,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const [contactModalVisible, setContactModalVisible] = useState(false);
 
   const menuSections = [
     {
@@ -67,11 +72,13 @@ export default function ProfileScreen() {
           icon: HelpCircle,
           label: "Help Center",
           route: null,
+          onPress: () => Linking.openURL("https://artisanhubb.com/help"),
         },
         {
           icon: HelpCircle,
           label: "Contact Support",
           route: null,
+          onPress: () => setContactModalVisible(true),
         },
       ],
     },
@@ -118,6 +125,8 @@ export default function ProfileScreen() {
         onPress={() => {
           if (item.route) {
             router.push(item.route);
+          } else if (item.onPress) {
+            item.onPress();
           }
         }}
       >
@@ -197,6 +206,55 @@ export default function ProfileScreen() {
           <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={contactModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setContactModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Contact Support</Text>
+            <Text style={styles.modalDescription}>
+              Get in touch with our support team
+            </Text>
+            <TouchableOpacity
+              style={styles.contactItem}
+              activeOpacity={0.7}
+              onPress={() => Linking.openURL("mailto:support@artisanhubb.com")}
+            >
+              <View style={styles.contactIconContainer}>
+                <Mail size={20} color={Colors.primary} strokeWidth={2} />
+              </View>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactLabel}>Email</Text>
+                <Text style={styles.contactValue}>support@artisanhubb.com</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contactItem}
+              activeOpacity={0.7}
+              onPress={() => Linking.openURL("tel:+1234567890")}
+            >
+              <View style={styles.contactIconContainer}>
+                <Phone size={20} color={Colors.primary} strokeWidth={2} />
+              </View>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactLabel}>Phone</Text>
+                <Text style={styles.contactValue}>+1 (234) 567-890</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.closeButton}
+              activeOpacity={0.7}
+              onPress={() => setContactModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -379,6 +437,72 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   switchToProviderText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700" as const,
+    color: "#2C2C2C",
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: "#6B7280",
+    marginBottom: 24,
+  },
+  contactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  contactIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#EFF6FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginBottom: 4,
+  },
+  contactValue: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#2C2C2C",
+  },
+  closeButton: {
+    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+  },
+  closeButtonText: {
     fontSize: 16,
     fontWeight: "600" as const,
     color: "#FFFFFF",

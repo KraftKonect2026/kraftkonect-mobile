@@ -7,8 +7,8 @@ import {
   MessageSquare,
   ShieldAlert,
   FileText,
-  Phone,
   Trash2,
+  LogOut,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -19,6 +19,8 @@ import {
   TouchableOpacity,
   Switch,
   Modal,
+  TextInput,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -33,6 +35,8 @@ export default function SettingsScreen() {
   const [messagesNotif, setMessagesNotif] = useState(true);
   const [promotions, setPromotions] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [signOutModalVisible, setSignOutModalVisible] = useState(false);
+  const [password, setPassword] = useState("");
 
   const settingsSections = [
     {
@@ -68,16 +72,19 @@ export default function SettingsScreen() {
           icon: Eye,
           label: "Profile visibility",
           type: "link" as const,
+          onPress: () => console.log("Profile visibility"),
         },
         {
           icon: MessageSquare,
           label: "Who can message me",
           type: "link" as const,
+          onPress: () => console.log("Who can message me"),
         },
         {
           icon: ShieldAlert,
           label: "Blocked providers",
           type: "link" as const,
+          onPress: () => console.log("Blocked providers"),
         },
       ],
     },
@@ -86,29 +93,27 @@ export default function SettingsScreen() {
       items: [
         {
           icon: FileText,
-          label: "Help Center / FAQs",
-          type: "link" as const,
-        },
-        {
-          icon: FileText,
           label: "Terms of Service",
           type: "link" as const,
+          onPress: () => Linking.openURL("https://artisanhubb.com/terms"),
         },
         {
           icon: Lock,
           label: "Privacy Policy",
           type: "link" as const,
-        },
-        {
-          icon: Phone,
-          label: "Contact Support",
-          type: "link" as const,
+          onPress: () => Linking.openURL("https://artisanhubb.com/privacy"),
         },
       ],
     },
     {
       title: "Account",
       items: [
+        {
+          icon: LogOut,
+          label: "Sign out",
+          type: "action" as const,
+          onPress: () => setSignOutModalVisible(true),
+        },
         {
           icon: Trash2,
           label: "Delete account",
@@ -179,6 +184,7 @@ export default function SettingsScreen() {
         key={index}
         style={styles.settingItem}
         activeOpacity={0.7}
+        onPress={item.onPress}
       >
         <View style={styles.settingLeft}>
           <View style={styles.iconContainer}>
@@ -239,27 +245,81 @@ export default function SettingsScreen() {
               <Text style={styles.modalTitle}>Delete your account?</Text>
             </View>
             <Text style={styles.modalDescription}>
-              This action is permanent and will remove your data and bookings
-              history that can legally be removed.
+              This action is permanent. You can recover your account within 30 days.
+              After 30 days, your account will be deleted forever.
             </Text>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Enter your password to confirm"
+              placeholderTextColor="#9CA3AF"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.modalCancelButton}
-                onPress={() => setDeleteModalVisible(false)}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setPassword("");
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={styles.modalCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalDeleteButton}
+                style={[
+                  styles.modalDeleteButton,
+                  !password && styles.modalDeleteButtonDisabled,
+                ]}
                 onPress={() => {
-                  setDeleteModalVisible(false);
+                  if (password) {
+                    console.log("Account deleted");
+                    setDeleteModalVisible(false);
+                    setPassword("");
+                  }
                 }}
                 activeOpacity={0.7}
+                disabled={!password}
               >
                 <Text style={styles.modalDeleteButtonText}>
                   Delete account
                 </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={signOutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSignOutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Sign out?</Text>
+            <Text style={styles.modalDescription}>
+              Are you sure you want to sign out of your account?
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setSignOutModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={() => {
+                  setSignOutModalVisible(false);
+                  console.log("Sign out");
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalConfirmButtonText}>Sign out</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -414,7 +474,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#EF4444",
     alignItems: "center",
   },
+  modalDeleteButtonDisabled: {
+    backgroundColor: "#FCA5A5",
+    opacity: 0.6,
+  },
   modalDeleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  passwordInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#2C2C2C",
+    marginBottom: 24,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+  },
+  modalConfirmButtonText: {
     fontSize: 16,
     fontWeight: "600" as const,
     color: "#FFFFFF",

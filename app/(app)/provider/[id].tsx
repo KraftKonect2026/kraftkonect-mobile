@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   servicePrice: {
     fontSize: 20,
     fontWeight: "700" as const,
-    color: Colors.primary,
+    color: "#2C2C2C",
   },
   serviceDescription: {
     fontSize: 14,
