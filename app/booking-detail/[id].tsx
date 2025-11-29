@@ -28,14 +28,26 @@ export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams();
 
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
+  const [selectedReason, setSelectedReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
+
+  const cancellationReasons = [
+    "Found a better provider",
+    "Service no longer needed",
+    "Scheduling conflict",
+    "Provider not responding",
+    "Price too high",
+    "Other",
+  ];
 
   const booking = mockBookings.find((b) => b.id === id);
 
   const handleCancelBooking = () => {
-    console.log("Booking cancelled with reason:", cancelReason);
+    const finalReason = selectedReason === "Other" ? customReason : selectedReason;
+    console.log("Booking cancelled with reason:", finalReason);
     setCancelModalVisible(false);
-    setCancelReason("");
+    setSelectedReason("");
+    setCustomReason("");
     router.back();
   };
 
@@ -360,50 +372,108 @@ export default function BookingDetailScreen() {
       <Modal
         visible={cancelModalVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setCancelModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cancel Booking?</Text>
-            <Text style={styles.modalDescription}>
-              Please let us know why you&apos;re canceling this booking
-            </Text>
-            <TextInput
-              style={styles.reasonInput}
-              placeholder="Reason for cancellation"
-              placeholderTextColor="#9CA3AF"
-              value={cancelReason}
-              onChangeText={setCancelReason}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalBackButton}
-                onPress={() => {
-                  setCancelModalVisible(false);
-                  setCancelReason("");
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalBackButtonText}>Go Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalConfirmButton,
-                  !cancelReason.trim() && styles.modalConfirmButtonDisabled,
-                ]}
-                onPress={handleCancelBooking}
-                activeOpacity={0.7}
-                disabled={!cancelReason.trim()}
-              >
-                <Text style={styles.modalConfirmButtonText}>Confirm Cancel</Text>
-              </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setCancelModalVisible(false);
+            setSelectedReason("");
+            setCustomReason("");
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Cancel Booking?</Text>
+              <Text style={styles.modalDescription}>
+                Please select a reason for canceling this booking
+              </Text>
+
+              <View style={styles.reasonsContainer}>
+                {cancellationReasons.map((reason) => (
+                  <TouchableOpacity
+                    key={reason}
+                    style={[
+                      styles.reasonOption,
+                      selectedReason === reason && styles.reasonOptionSelected,
+                    ]}
+                    onPress={() => setSelectedReason(reason)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.reasonRadio,
+                        selectedReason === reason && styles.reasonRadioSelected,
+                      ]}
+                    >
+                      {selectedReason === reason && (
+                        <View style={styles.reasonRadioInner} />
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.reasonText,
+                        selectedReason === reason && styles.reasonTextSelected,
+                      ]}
+                    >
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {selectedReason === "Other" && (
+                <TextInput
+                  style={styles.customReasonInput}
+                  placeholder="Please specify your reason"
+                  placeholderTextColor="#9CA3AF"
+                  value={customReason}
+                  onChangeText={setCustomReason}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              )}
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalBackButton}
+                  onPress={() => {
+                    setCancelModalVisible(false);
+                    setSelectedReason("");
+                    setCustomReason("");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.modalBackButtonText}>Go Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalConfirmButton,
+                    (!selectedReason ||
+                      (selectedReason === "Other" && !customReason.trim())) &&
+                      styles.modalConfirmButtonDisabled,
+                  ]}
+                  onPress={handleCancelBooking}
+                  activeOpacity={0.7}
+                  disabled={
+                    !selectedReason ||
+                    (selectedReason === "Other" && !customReason.trim())
+                  }
+                >
+                  <Text style={styles.modalConfirmButtonText}>
+                    Confirm Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -684,7 +754,53 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 20,
   },
-  reasonInput: {
+  reasonsContainer: {
+    marginBottom: 20,
+  },
+  reasonOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
+    marginBottom: 10,
+  },
+  reasonOptionSelected: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
+  reasonRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  reasonRadioSelected: {
+    borderColor: "#EF4444",
+  },
+  reasonRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#EF4444",
+  },
+  reasonText: {
+    fontSize: 15,
+    color: "#6B7280",
+    fontWeight: "500" as const,
+  },
+  reasonTextSelected: {
+    color: "#2C2C2C",
+    fontWeight: "600" as const,
+  },
+  customReasonInput: {
     backgroundColor: "#F9FAFB",
     borderRadius: 12,
     borderWidth: 1,
@@ -693,8 +809,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: "#2C2C2C",
-    minHeight: 100,
-    marginBottom: 24,
+    minHeight: 80,
+    marginBottom: 20,
   },
   modalActions: {
     flexDirection: "row",
