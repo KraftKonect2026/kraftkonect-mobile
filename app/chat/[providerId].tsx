@@ -38,6 +38,19 @@ export default function ChatScreen() {
 
   const [message, setMessage] = useState("");
   const [menuVisible, setMenuVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+
+  const reportReasons = [
+    "Inappropriate behavior",
+    "Spam or scam",
+    "No-show",
+    "Poor service quality",
+    "Unprofessional conduct",
+    "Overcharging",
+    "Safety concerns",
+    "Other",
+  ];
 
   if (!conversation) {
     return (
@@ -209,7 +222,7 @@ export default function ChatScreen() {
               activeOpacity={0.7}
               onPress={() => {
                 setMenuVisible(false);
-                console.log("Report provider");
+                setTimeout(() => setReportModalVisible(true), 300);
               }}
             >
               <View style={styles.menuIconContainer}>
@@ -232,6 +245,97 @@ export default function ChatScreen() {
               <Text style={[styles.menuItemText, styles.menuItemDanger]}>Block</Text>
             </TouchableOpacity>
           </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setReportModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.reportSheet}>
+            <View style={styles.menuHandle} />
+            <Text style={styles.reportTitle}>Report {conversation.providerName}</Text>
+            <Text style={styles.reportSubtitle}>
+              Help us understand what&apos;s happening
+            </Text>
+
+            <ScrollView style={styles.reasonsList}>
+              {reportReasons.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reasonItem,
+                    selectedReason === reason && styles.reasonItemSelected,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedReason(reason)}
+                >
+                  <View
+                    style={[
+                      styles.reasonRadio,
+                      selectedReason === reason && styles.reasonRadioSelected,
+                    ]}
+                  >
+                    {selectedReason === reason && (
+                      <View style={styles.reasonRadioInner} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.reasonText,
+                      selectedReason === reason && styles.reasonTextSelected,
+                    ]}
+                  >
+                    {reason}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.reportActions}>
+              <TouchableOpacity
+                style={styles.reportCancelButton}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setReportModalVisible(false);
+                  setSelectedReason(null);
+                }}
+              >
+                <Text style={styles.reportCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.reportSubmitButton,
+                  !selectedReason && styles.reportSubmitButtonDisabled,
+                ]}
+                activeOpacity={0.7}
+                disabled={!selectedReason}
+                onPress={() => {
+                  if (selectedReason) {
+                    console.log("Report submitted:", selectedReason);
+                    setReportModalVisible(false);
+                    setSelectedReason(null);
+                  }
+                }}
+              >
+                <Text
+                  style={[
+                    styles.reportSubmitText,
+                    !selectedReason && styles.reportSubmitTextDisabled,
+                  ]}
+                >
+                  Submit Report
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </KeyboardAvoidingView>
@@ -437,5 +541,109 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#F3F4F6",
     marginLeft: 72,
+  },
+  reportSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 34,
+    maxHeight: "80%",
+  },
+  reportTitle: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    color: "#2C2C2C",
+    textAlign: "center",
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
+  reportSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  reasonsList: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  reasonItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  reasonItemSelected: {
+    backgroundColor: "#EFF6FF",
+    borderColor: Colors.primary,
+  },
+  reasonRadio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  reasonRadioSelected: {
+    borderColor: Colors.primary,
+  },
+  reasonRadioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.primary,
+  },
+  reasonText: {
+    fontSize: 15,
+    color: "#2C2C2C",
+    flex: 1,
+  },
+  reasonTextSelected: {
+    fontWeight: "600" as const,
+    color: Colors.primary,
+  },
+  reportActions: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  reportCancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+  },
+  reportCancelText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#6B7280",
+  },
+  reportSubmitButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: "#F59E0B",
+    alignItems: "center",
+  },
+  reportSubmitButtonDisabled: {
+    backgroundColor: "#E5E7EB",
+  },
+  reportSubmitText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  reportSubmitTextDisabled: {
+    color: "#9CA3AF",
   },
 });
