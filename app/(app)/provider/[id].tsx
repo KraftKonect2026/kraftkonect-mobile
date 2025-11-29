@@ -70,7 +70,7 @@ export default function ProviderProfileScreen() {
             <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} activeOpacity={0.8}>
-            <Heart size={24} color="#FFFFFF" strokeWidth={2} />
+            <Heart size={24} color="#F3F4F6" strokeWidth={2} />
           </TouchableOpacity>
         </View>
 

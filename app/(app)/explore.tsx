@@ -170,7 +170,7 @@ export default function ExploreScreen() {
                 >
                   <Heart
                     size={20}
-                    color="#EF4444"
+                    color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
                     fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
                     strokeWidth={2}
                   />

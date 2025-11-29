@@ -45,9 +45,9 @@ export default function FavouritesScreen() {
         >
           <Heart
             size={20}
-            color={Colors.primary}
+            color="#EF4444"
             strokeWidth={2}
-            fill={Colors.primary}
+            fill="#EF4444"
           />
         </TouchableOpacity>
       </View>
