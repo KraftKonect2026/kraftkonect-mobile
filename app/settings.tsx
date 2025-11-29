@@ -3,9 +3,7 @@ import {
   ChevronRight,
   Bell,
   Lock,
-  Eye,
   MessageSquare,
-  ShieldAlert,
   FileText,
   Trash2,
   LogOut,
@@ -65,29 +63,7 @@ export default function SettingsScreen() {
         },
       ],
     },
-    {
-      title: "Privacy",
-      items: [
-        {
-          icon: Eye,
-          label: "Profile visibility",
-          type: "link" as const,
-          onPress: () => console.log("Profile visibility"),
-        },
-        {
-          icon: MessageSquare,
-          label: "Who can message me",
-          type: "link" as const,
-          onPress: () => console.log("Who can message me"),
-        },
-        {
-          icon: ShieldAlert,
-          label: "Blocked providers",
-          type: "link" as const,
-          onPress: () => console.log("Blocked providers"),
-        },
-      ],
-    },
+
     {
       title: "Help & Legal",
       items: [
