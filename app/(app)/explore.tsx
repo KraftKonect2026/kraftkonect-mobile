@@ -192,6 +192,12 @@ export default function ExploreScreen() {
                           </View>
                         )}
                       </View>
+                      <Text style={styles.categoryLabel}>
+                        {provider.categories
+                          .map((catId) => categoriesData.find((c) => c.id === catId)?.name)
+                          .filter(Boolean)
+                          .join(", ")}
+                      </Text>
                       <View style={styles.ratingRow}>
                         <Star size={14} color="#FFA500" fill="#FFA500" />
                         <Text style={styles.rating}>
@@ -392,6 +398,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700" as const,
     color: "#FFFFFF",
+  },
+  categoryLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 4,
   },
   ratingRow: {
     flexDirection: "row",
