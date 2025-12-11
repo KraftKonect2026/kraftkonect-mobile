@@ -3,6 +3,9 @@ import { ArrowLeft, Mail } from "lucide-react-native";
 import React, { useState, useRef } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -60,67 +63,76 @@ export default function VerifyEmailScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <ArrowLeft size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
 
-          <View style={styles.iconContainer}>
-            <View style={styles.icon}>
-              <Mail size={48} color={Colors.primary} strokeWidth={1.5} />
+            <View style={styles.iconContainer}>
+              <View style={styles.icon}>
+                <Mail size={48} color={Colors.primary} strokeWidth={1.5} />
+              </View>
             </View>
-          </View>
 
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>Verify Your Email</Text>
-            <Text style={styles.message}>
-              We&apos;ve sent a 6-digit verification code to your email address. Please enter it below.
-            </Text>
-          </View>
-
-          <View style={styles.otpContainer}>
-            {otp.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => { inputRefs.current[index] = ref; }}
-                style={[styles.otpInput, digit && styles.otpInputFilled]}
-                value={digit}
-                onChangeText={(text) => handleOtpChange(text, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-                autoFocus={index === 0}
-              />
-            ))}
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.continueButton, isLoading && styles.disabledButton]}
-              onPress={handleContinue}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.continueButtonText}>
-                {isLoading ? "Verifying..." : "Verify"}
+            <View style={styles.textContainer}>
+              <Text style={styles.title}>Verify Your Email</Text>
+              <Text style={styles.message}>
+                We&apos;ve sent a 6-digit verification code to your email address. Please enter it below.
               </Text>
-            </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={styles.resendButton}
-              onPress={handleResend}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.resendButtonText}>Resend Code</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            <View style={styles.otpContainer}>
+              {otp.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => { inputRefs.current[index] = ref; }}
+                  style={[styles.otpInput, digit && styles.otpInputFilled]}
+                  value={digit}
+                  onChangeText={(text) => handleOtpChange(text, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  selectTextOnFocus
+                  autoFocus={index === 0}
+                />
+              ))}
+            </View>
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.continueButton, isLoading && styles.disabledButton]}
+                onPress={handleContinue}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.continueButtonText}>
+                  {isLoading ? "Verifying..." : "Verify"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={handleResend}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.resendButtonText}>Resend Code</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
@@ -134,10 +146,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
-    justifyContent: "space-between",
   },
   backButton: {
     width: 40,
@@ -146,7 +160,8 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 20,
+    marginBottom: 20,
   },
   icon: {
     width: 120,
@@ -159,13 +174,14 @@ const styles = StyleSheet.create({
   textContainer: {
     alignItems: "center",
     paddingHorizontal: 20,
-    marginTop: -20,
+    marginBottom: 32,
   },
   otpContainer: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 12,
     paddingHorizontal: 20,
+    marginBottom: 32,
   },
   otpInput: {
     width: 50,
@@ -198,7 +214,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     gap: 12,
-    paddingBottom: 20,
+    marginTop: 20,
   },
   continueButton: {
     backgroundColor: Colors.primary,
