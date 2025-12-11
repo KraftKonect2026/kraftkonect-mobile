@@ -1,112 +1,52 @@
 import { User } from "@/types";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-
-
-interface AuthState {
+export interface AuthState {
   user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   isLoading: boolean;
 }
 
-const AUTH_STORAGE_KEY = "artisanhubb_auth";
-
 const initialState: AuthState = {
   user: null,
-  isLoading: true,
+  accessToken: null,
+  refreshToken: null,
+  isLoading: false,
 };
-
-export const loadUser = createAsyncThunk("auth/loadUser", async () => {
-  try {
-    const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored) as User;
-    }
-    return null;
-  } catch (error) {
-    console.error("Failed to load user:", error);
-    return null;
-  }
-});
-
-export const signUp = createAsyncThunk(
-  "auth/signUp",
-  async (data: User) => {
-    const newUser: User = {
-      name: data.name,
-      email: data.email,
-      avatarUrl: data.avatarUrl,
-      id: data.id,
-      metadata: data.metadata,
-      phone: data.phone,
-      role: data.role
-    };
-
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-    return newUser;
-  }
-);
-
-export const signIn = createAsyncThunk("auth/signIn", async (data: User) => {
-  const newUser: User = {
-    name: data.name,
-    email: data.email,
-    avatarUrl: data.avatarUrl,
-    id: data.id,
-    metadata: data.metadata,
-    phone: data.phone,
-    role: data.role,
-  };
-
-  await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-  return newUser;
-});
-
-export const signOut = createAsyncThunk("auth/signOut", async () => {
-  await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-});
-
-export const updateUser = createAsyncThunk(
-  "auth/updateUser",
-  async (data: Partial<User>, { getState }) => {
-    const state = getState() as { auth: AuthState };
-    if (!state.auth.user) throw new Error("No user found");
-
-    const updatedUser = { ...state.auth.user, ...data };
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-    return updatedUser;
-  }
-);
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {},
-  extraReducers: (builder) => {
-    builder
-      .addCase(loadUser.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(loadUser.fulfilled, (state, action: PayloadAction<User | null>) => {
-        state.user = action.payload;
-        state.isLoading = false;
-      })
-      .addCase(loadUser.rejected, (state) => {
-        state.isLoading = false;
-      })
-      .addCase(signUp.fulfilled, (state, action: PayloadAction<User>) => {
-        state.user = action.payload;
-      })
-      .addCase(signIn.fulfilled, (state, action: PayloadAction<User>) => {
-        state.user = action.payload;
-      })
-      .addCase(signOut.fulfilled, (state) => {
-        state.user = null;
-      })
-      .addCase(updateUser.fulfilled, (state, action: PayloadAction<User>) => {
-        state.user = action.payload;
-      });
+  reducers: {
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.isLoading = false;
+    },
+    setTokens: (
+      state,
+      action: PayloadAction<{ accessToken: string; refreshToken: string }>
+    ) => {
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken;
+    },
+    updateUser: (state, action: PayloadAction<Partial<User>>) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    },
+    signOut: (state) => {
+      state.user = null;
+      state.accessToken = null;
+      state.refreshToken = null;
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    },
   },
 });
+
+export const { setUser, setTokens, updateUser, signOut, setLoading } =
+  authSlice.actions;
 
 export default authSlice.reducer;

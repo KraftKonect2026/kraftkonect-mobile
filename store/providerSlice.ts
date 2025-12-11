@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { Booking } from "@/types";
 
 export interface Job {
   id: string;
@@ -9,8 +10,10 @@ export interface Job {
   date: string;
   time: string;
   price: number;
-  status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled";
+  status: Booking["status"];
   address: string;
+  currency: string;
+  created_at: string;
 }
 
 export interface Listing {
@@ -24,7 +27,7 @@ export interface Listing {
   photos: string[];
 }
 
-interface ProviderState {
+export interface ProviderState {
   jobs: Job[];
   listings: Listing[];
   earnings: {
@@ -48,6 +51,8 @@ const initialState: ProviderState = {
       price: 85,
       status: "confirmed",
       address: "123 Main St, Apt 4B",
+      currency: "USD",
+      created_at: "2025-01-10T10:00:00Z",
     },
     {
       id: "2",
@@ -59,6 +64,8 @@ const initialState: ProviderState = {
       price: 120,
       status: "confirmed",
       address: "456 Oak Avenue",
+      currency: "USD",
+      created_at: "2025-01-10T14:00:00Z",
     },
     {
       id: "3",
@@ -70,6 +77,8 @@ const initialState: ProviderState = {
       price: 95,
       status: "pending",
       address: "789 Pine Road",
+      currency: "USD",
+      created_at: "2025-01-10T11:00:00Z",
     },
   ],
   listings: [

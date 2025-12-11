@@ -87,7 +87,7 @@ export default function JobDetailScreen() {
   };
 
   const handleStartJob = () => {
-    updateJobStatus(job.id, "in-progress");
+    updateJobStatus(job.id, "in_progress");
     Alert.alert("Job Started", "The timer has started for this job.");
   };
 
@@ -115,7 +115,7 @@ export default function JobDetailScreen() {
         return "#FEF3C7";
       case "confirmed":
         return "#DBEAFE";
-      case "in-progress":
+      case "in_progress":
         return "#E0E7FF";
       case "completed":
         return "#D1FAE5";
@@ -132,7 +132,7 @@ export default function JobDetailScreen() {
         return "#92400E";
       case "confirmed":
         return Colors.primary;
-      case "in-progress":
+      case "in_progress":
         return "#4F46E5";
       case "completed":
         return "#065F46";
@@ -271,7 +271,7 @@ export default function JobDetailScreen() {
                   style={[
                     styles.progressLine,
                     (job.status === "confirmed" ||
-                      job.status === "in-progress") &&
+                      job.status === "in_progress") &&
                       styles.progressLineCompleted,
                   ]}
                 />
@@ -279,13 +279,13 @@ export default function JobDetailScreen() {
                   style={[
                     styles.progressStep,
                     (job.status === "confirmed" ||
-                      job.status === "in-progress") &&
+                      job.status === "in_progress") &&
                       styles.progressStepCompleted,
                   ]}
                 >
                   <View style={styles.progressStepCircle}>
                     {job.status === "confirmed" ||
-                    job.status === "in-progress" ? (
+                    job.status === "in_progress" ? (
                       <CheckCircle size={20} color={Colors.primary} strokeWidth={2} />
                     ) : (
                       <View style={styles.progressStepDot} />
@@ -346,7 +346,7 @@ export default function JobDetailScreen() {
             <Text style={styles.primaryButtonText}>Start Job</Text>
           </TouchableOpacity>
         )}
-        {job.status === "in-progress" && (
+        {job.status === "in_progress" && (
           <TouchableOpacity
             style={styles.primaryButton}
             activeOpacity={0.8}

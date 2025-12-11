@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,8 +16,6 @@ import Svg, { Path } from "react-native-svg";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
-import { useAppDispatch } from "@/store";
-import { signUp as signUpAction } from "@/store/authSlice";
 
 const signUpSchema = Yup.object().shape({
   name: Yup.string()
@@ -37,15 +34,9 @@ const signUpSchema = Yup.object().shape({
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
 
   const handleContinue = async (values: { name: string; email: string; password: string }) => {
-    try {
-      // await dispatch(signUpAction({ name: values.name, email: values.email, password: values.password })).unwrap();
-      router.push("/sign-up/verify-email" as any);
-    } catch (error) {
-      Alert.alert("Error", "Failed to create account");
-    }
+    router.push("/sign-up/verify-email" as any);
   };
 
   return (

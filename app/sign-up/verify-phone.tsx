@@ -42,7 +42,7 @@ export default function VerifyPhoneScreen() {
 
     setIsLoading(true);
     try {
-      await dispatch(updateUserAction({ phone })).unwrap();
+      dispatch(updateUserAction({ phone }));
       setTimeout(() => {
         setIsLoading(false);
         Alert.alert("Success", "Phone verified successfully!", [

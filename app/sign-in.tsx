@@ -18,9 +18,10 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { useAppDispatch } from "@/store";
-import { signIn as signInAction } from "@/store/authSlice";
+import { setUser, setTokens } from "@/store/authSlice";
 import { useMutation } from "@apollo/client";
 import { SIGN_IN_MUTATION } from "@/lib/mutations";
+import { AuthPayload } from "@/types";
 
 const signInSchema = Yup.object().shape({
   email: Yup.string()
@@ -33,7 +34,7 @@ const signInSchema = Yup.object().shape({
 export default function SignInScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [signIn, {data, loading, error}] = useMutation(SIGN_IN_MUTATION)
+  const [signIn] = useMutation(SIGN_IN_MUTATION)
 
   const handleSignIn = async (values: { email: string; password: string }) => {
     try {
@@ -44,11 +45,21 @@ export default function SignInScreen() {
         },
       });
 
-      console.log(res.data, "line 47");
+      if (res.data?.signIn) {
+        const authPayload = res.data.signIn as AuthPayload;
+        dispatch(setUser(authPayload.user));
+        if (authPayload.accessToken && authPayload.refreshToken) {
+          dispatch(setTokens({
+            accessToken: authPayload.accessToken,
+            refreshToken: authPayload.refreshToken,
+          }));
+        }
+        router.replace("/(app)/home" as any);
+      }
 
     } catch (e: any) {
-      console.log(e, "line 50")
-      Alert.alert("Error", error);
+      console.log(e, "line 58");
+      Alert.alert("Error", e?.message || "Failed to sign in");
     }
   };
 

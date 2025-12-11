@@ -4,9 +4,9 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Provider } from "react-redux";
+import { PersistGate } from "redux-persist/integration/react";
 import { ApolloProvider } from "@apollo/client/react";
-import { store } from "@/store";
-import { loadUser } from "@/store/authSlice";
+import { store, persistor } from "@/store";
 import apolloClient from "@/lib/apolloClient";
 
 SplashScreen.preventAutoHideAsync();
@@ -46,18 +46,19 @@ function RootLayoutNav() {
 export default function RootLayout() {
   useEffect(() => {
     SplashScreen.hideAsync();
-    store.dispatch(loadUser());
   }, []);
 
   return (
     <Provider store={store}>
-      <ApolloProvider client={apolloClient}>
-        <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <RootLayoutNav />
-          </GestureHandlerRootView>
-        </QueryClientProvider>
-      </ApolloProvider>
+      <PersistGate loading={null} persistor={persistor}>
+        <ApolloProvider client={apolloClient}>
+          <QueryClientProvider client={queryClient}>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <RootLayoutNav />
+            </GestureHandlerRootView>
+          </QueryClientProvider>
+        </ApolloProvider>
+      </PersistGate>
     </Provider>
   );
 }
