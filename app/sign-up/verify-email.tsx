@@ -19,7 +19,7 @@ export default function VerifyEmailScreen() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      router.push("/sign-up/verify-phone" as any);
+      router.replace("/(app)/home" as any);
     }, 1000);
   };
 

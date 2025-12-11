@@ -7,6 +7,7 @@ import {
   FileText,
   Trash2,
   LogOut,
+  Smartphone,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -34,9 +35,44 @@ export default function SettingsScreen() {
   const [promotions, setPromotions] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
+  const [verifyPhoneModalVisible, setVerifyPhoneModalVisible] = useState(false);
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+
+  const handleSendCode = () => {
+    if (!phone || phone.length < 10) {
+      return;
+    }
+    setCodeSent(true);
+  };
+
+  const handleVerifyPhone = () => {
+    if (!code || code.length !== 6) {
+      return;
+    }
+    setPhoneVerified(true);
+    setVerifyPhoneModalVisible(false);
+    setCodeSent(false);
+    setPhone("");
+    setCode("");
+  };
 
   const settingsSections = [
+    {
+      title: "Account Security",
+      items: [
+        {
+          icon: Smartphone,
+          label: phoneVerified ? "Phone verified" : "Verify phone number",
+          type: "link" as const,
+          verified: phoneVerified,
+          onPress: () => !phoneVerified && setVerifyPhoneModalVisible(true),
+        },
+      ],
+    },
     {
       title: "Notifications",
       items: [
@@ -161,14 +197,15 @@ export default function SettingsScreen() {
         style={styles.settingItem}
         activeOpacity={0.7}
         onPress={item.onPress}
+        disabled={item.verified}
       >
         <View style={styles.settingLeft}>
-          <View style={styles.iconContainer}>
-            <item.icon size={20} color="#6B7280" strokeWidth={2} />
+          <View style={[styles.iconContainer, item.verified && styles.verifiedIconContainer]}>
+            <item.icon size={20} color={item.verified ? "#10B981" : "#6B7280"} strokeWidth={2} />
           </View>
-          <Text style={styles.settingLabel}>{item.label}</Text>
+          <Text style={[styles.settingLabel, item.verified && styles.verifiedLabel]}>{item.label}</Text>
         </View>
-        <ChevronRight size={20} color="#9CA3AF" strokeWidth={2} />
+        {!item.verified && <ChevronRight size={20} color="#9CA3AF" strokeWidth={2} />}
       </TouchableOpacity>
     );
   };
@@ -298,6 +335,95 @@ export default function SettingsScreen() {
                 <Text style={styles.modalConfirmButtonText}>Sign out</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={verifyPhoneModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setVerifyPhoneModalVisible(false);
+          setCodeSent(false);
+          setPhone("");
+          setCode("");
+        }}
+      >
+        <View style={styles.phoneModalOverlay}>
+          <View style={styles.phoneModalContent}>
+            <View style={styles.phoneModalHeader}>
+              <Text style={styles.modalTitle}>Verify Phone Number</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setVerifyPhoneModalVisible(false);
+                  setCodeSent(false);
+                  setPhone("");
+                  setCode("");
+                }}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalDescription}>
+              {!codeSent 
+                ? "Enter your phone number to receive a verification code"
+                : "Enter the 6-digit code sent to your phone"}
+            </Text>
+
+            <View style={styles.phoneInputGroup}>
+              <Text style={styles.phoneLabel}>Phone Number</Text>
+              <TextInput
+                style={[styles.phoneInput, codeSent && styles.phoneInputDisabled]}
+                placeholder="+1 (555) 000-0000"
+                placeholderTextColor="#9CA3AF"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                editable={!codeSent}
+              />
+            </View>
+
+            {codeSent && (
+              <View style={styles.phoneInputGroup}>
+                <Text style={styles.phoneLabel}>Verification Code</Text>
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="Enter 6-digit code"
+                  placeholderTextColor="#9CA3AF"
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.phoneModalButton,
+                (!phone || (codeSent && !code)) && styles.phoneModalButtonDisabled,
+              ]}
+              onPress={codeSent ? handleVerifyPhone : handleSendCode}
+              disabled={!phone || (codeSent && !code)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.phoneModalButtonText}>
+                {codeSent ? "Verify Phone" : "Send Code"}
+              </Text>
+            </TouchableOpacity>
+
+            {codeSent && (
+              <TouchableOpacity
+                style={styles.resendLink}
+                onPress={handleSendCode}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.resendLinkText}>Resend Code</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
@@ -481,5 +607,88 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600" as const,
     color: "#FFFFFF",
+  },
+  verifiedIconContainer: {
+    backgroundColor: "#D1FAE5",
+  },
+  verifiedLabel: {
+    color: "#10B981",
+    fontWeight: "600" as const,
+  },
+  phoneModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  phoneModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  phoneModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: "#6B7280",
+    fontWeight: "400" as const,
+  },
+  phoneInputGroup: {
+    marginBottom: 16,
+  },
+  phoneLabel: {
+    fontSize: 15,
+    fontWeight: "600" as const,
+    color: "#2C2C2C",
+    marginBottom: 8,
+  },
+  phoneInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#2C2C2C",
+  },
+  phoneInputDisabled: {
+    opacity: 0.6,
+  },
+  phoneModalButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  phoneModalButtonDisabled: {
+    opacity: 0.5,
+  },
+  phoneModalButtonText: {
+    fontSize: 17,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  resendLink: {
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  resendLinkText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: Colors.primary,
   },
 });
