@@ -55,7 +55,7 @@ export default function SignInScreen() {
             refreshToken: authPayload.refreshToken,
           }));
         }
-        router.replace("/(app)/home" as any);
+        router.replace("/(app)/explore" as any);
       }
 
     } catch (e: any) {
