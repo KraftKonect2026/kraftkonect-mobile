@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft, Mail } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Alert,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,8 +15,36 @@ import Colors from "@/constants/colors";
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  const handleOtpChange = (text: string, index: number) => {
+    if (text.length > 1) {
+      text = text.slice(-1);
+    }
+
+    const newOtp = [...otp];
+    newOtp[index] = text;
+    setOtp(newOtp);
+
+    if (text && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyPress = (e: { nativeEvent: { key: string } }, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
 
   const handleContinue = async () => {
+    const otpCode = otp.join('');
+    if (otpCode.length !== 6) {
+      Alert.alert("Error", "Please enter the complete OTP code");
+      return;
+    }
+
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -24,7 +53,9 @@ export default function VerifyEmailScreen() {
   };
 
   const handleResend = () => {
-    Alert.alert("Success", "Verification email sent!");
+    setOtp(['', '', '', '', '', '']);
+    inputRefs.current[0]?.focus();
+    Alert.alert("Success", "Verification code sent!");
   };
 
   return (
@@ -48,9 +79,25 @@ export default function VerifyEmailScreen() {
           <View style={styles.textContainer}>
             <Text style={styles.title}>Verify Your Email</Text>
             <Text style={styles.message}>
-              We've sent a verification link to your email address. Please check
-              your inbox and click the link to verify your account.
+              We&apos;ve sent a 6-digit verification code to your email address. Please enter it below.
             </Text>
+          </View>
+
+          <View style={styles.otpContainer}>
+            {otp.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref) => { inputRefs.current[index] = ref; }}
+                style={[styles.otpInput, digit && styles.otpInputFilled]}
+                value={digit}
+                onChangeText={(text) => handleOtpChange(text, index)}
+                onKeyPress={(e) => handleKeyPress(e, index)}
+                keyboardType="number-pad"
+                maxLength={1}
+                selectTextOnFocus
+                autoFocus={index === 0}
+              />
+            ))}
           </View>
 
           <View style={styles.buttonContainer}>
@@ -61,7 +108,7 @@ export default function VerifyEmailScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.continueButtonText}>
-                {isLoading ? "Verifying..." : "I've Verified My Email"}
+                {isLoading ? "Verifying..." : "Verify"}
               </Text>
             </TouchableOpacity>
 
@@ -70,7 +117,7 @@ export default function VerifyEmailScreen() {
               onPress={handleResend}
               activeOpacity={0.8}
             >
-              <Text style={styles.resendButtonText}>Resend Email</Text>
+              <Text style={styles.resendButtonText}>Resend Code</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -112,6 +159,29 @@ const styles = StyleSheet.create({
   textContainer: {
     alignItems: "center",
     paddingHorizontal: 20,
+    marginTop: -20,
+  },
+  otpContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  otpInput: {
+    width: 50,
+    height: 56,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    textAlign: "center",
+    fontSize: 24,
+    fontWeight: "600" as const,
+    color: Colors.textPrimary,
+    backgroundColor: "#F9FAFB",
+  },
+  otpInputFilled: {
+    borderColor: Colors.primary,
+    backgroundColor: "#EFF6FF",
   },
   title: {
     fontSize: 28,
