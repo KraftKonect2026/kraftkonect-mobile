@@ -8,6 +8,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import { ApolloProvider } from "@apollo/client/react";
 import { store, persistor } from "@/store";
 import apolloClient from "@/lib/apolloClient";
+import { ToastProvider } from "@/lib/toast";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -53,9 +54,11 @@ export default function RootLayout() {
       <PersistGate loading={null} persistor={persistor}>
         <ApolloProvider client={apolloClient}>
           <QueryClientProvider client={queryClient}>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <RootLayoutNav />
-            </GestureHandlerRootView>
+            <ToastProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <RootLayoutNav />
+              </GestureHandlerRootView>
+            </ToastProvider>
           </QueryClientProvider>
         </ApolloProvider>
       </PersistGate>
