@@ -4,8 +4,10 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Provider } from "react-redux";
+import { ApolloProvider } from "@apollo/client/react";
 import { store } from "@/store";
 import { loadUser } from "@/store/authSlice";
+import apolloClient from "@/lib/apolloClient";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,12 +50,14 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <RootLayoutNav />
-        </GestureHandlerRootView>
-      </QueryClientProvider>
-    </Provider>
+    <ApolloProvider client={apolloClient}>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <RootLayoutNav />
+          </GestureHandlerRootView>
+        </QueryClientProvider>
+      </Provider>
+    </ApolloProvider>
   );
 }
