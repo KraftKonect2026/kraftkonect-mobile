@@ -23,6 +23,7 @@ import { useMutation } from "@apollo/client";
 import { SIGN_IN_MUTATION } from "@/lib/mutations";
 import { AuthPayload } from "@/types";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
+import { useToast } from "@/lib/toast";
 
 const signInSchema = Yup.object().shape({
   email: Yup.string()
@@ -36,6 +37,7 @@ export default function SignInScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [signIn] = useMutation(SIGN_IN_MUTATION)
+  const {showToast} = useToast()
 
   const handleSignIn = async (values: { email: string; password: string }) => {
     try {
@@ -47,6 +49,7 @@ export default function SignInScreen() {
       });
 
       if (res.data?.signIn) {
+        showToast("success", "Sign in successful 🎉")
         const authPayload = res.data.signIn as AuthPayload;
         dispatch(setUser(authPayload.user));
         if (authPayload.accessToken && authPayload.refreshToken) {
@@ -61,6 +64,7 @@ export default function SignInScreen() {
     } catch (e: any) {
 
       const message = getApolloErrorMessage(e);
+      showToast("error", `${message} 😢`)
       Alert.alert("Error", message);
     }
   };
