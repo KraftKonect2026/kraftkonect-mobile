@@ -81,12 +81,12 @@ export default function AppLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="home"
         options={{
           href: null,
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="search"
         options={{
