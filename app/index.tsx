@@ -2,14 +2,20 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
-import { useAppSelector } from "@/store";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { signOut } from "@/store/authSlice";
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { user, isLoading } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
+  const { isLoading } = useAppSelector((state) => state.auth);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    dispatch(signOut());
+  }, [dispatch]);
 
   useEffect(() => {
     Animated.parallel([
@@ -33,16 +39,12 @@ export default function SplashScreen() {
 
     const timer = setTimeout(() => {
       if (!isLoading) {
-        if (user) {
-          router.replace("/(app)/explore" as any);
-        } else {
-          router.replace("/get-started" as any);
-        }
+        router.replace("/get-started" as any);
       }
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [isLoading, user, router, fadeAnim, scaleAnim, colorAnim]);
+  }, [isLoading, router, fadeAnim, scaleAnim, colorAnim]);
 
   const logoOpacity = colorAnim.interpolate({
     inputRange: [0, 1],
