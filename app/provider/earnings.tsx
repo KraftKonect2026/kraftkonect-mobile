@@ -19,7 +19,7 @@ import {
   CheckCircle,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useProvider } from "@/contexts/ProviderContext";
+import { useAppSelector } from "@/store";
 
 const transactions = [
   {
@@ -59,7 +59,7 @@ const transactions = [
 export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { earnings } = useProvider();
+  const { earnings } = useAppSelector((state) => state.provider);
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month" | "all">("week");
 
   const handleWithdraw = () => {

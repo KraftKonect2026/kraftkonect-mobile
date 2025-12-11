@@ -2,11 +2,11 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAppSelector } from "@/store";
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading } = useAppSelector((state) => state.auth);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;

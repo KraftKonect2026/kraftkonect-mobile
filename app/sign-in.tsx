@@ -14,11 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAppDispatch } from "@/store";
+import { signIn as signInAction } from "@/store/authSlice";
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const dispatch = useAppDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +32,8 @@ export default function SignInScreen() {
 
     setIsLoading(true);
     try {
-      await signIn(email, password);
+      await dispatch(signInAction({ email, password })).unwrap();
+      router.replace("/(app)/explore" as any);
     } catch {
       Alert.alert("Error", "Failed to sign in. Please check your credentials.");
     } finally {

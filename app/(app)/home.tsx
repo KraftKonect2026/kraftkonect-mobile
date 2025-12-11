@@ -1,4 +1,5 @@
 import { LogOut, Search, Star } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   ScrollView,
@@ -10,7 +11,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { signOut as signOutAction } from "@/store/authSlice";
 
 const categories = [
   { id: "1", name: "Plumbing", icon: "🔧" },
@@ -28,7 +30,14 @@ const featured = [
 ];
 
 export default function HomeScreen() {
-  const { user, signOut } = useAuth();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await dispatch(signOutAction());
+    router.replace("/get-started" as any);
+  };
 
   return (
     <View style={styles.wrapper}>
@@ -41,7 +50,7 @@ export default function HomeScreen() {
             </View>
             <TouchableOpacity
               style={styles.logoutButton}
-              onPress={signOut}
+              onPress={handleSignOut}
               activeOpacity={0.7}
             >
               <LogOut size={22} color={Colors.textSecondary} />

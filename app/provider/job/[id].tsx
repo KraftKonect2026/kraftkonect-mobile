@@ -24,13 +24,16 @@ import {
   XCircle,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useProvider } from "@/contexts/ProviderContext";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { updateJobStatus as updateJobStatusAction } from "@/store/providerSlice";
 
 export default function JobDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { jobs, updateJobStatus } = useProvider();
+  const dispatch = useAppDispatch();
+  const { jobs } = useAppSelector((state) => state.provider);
+  const updateJobStatus = (jobId: string, status: any) => dispatch(updateJobStatusAction({ jobId, status }));
 
   const job = jobs.find((j) => j.id === id);
 

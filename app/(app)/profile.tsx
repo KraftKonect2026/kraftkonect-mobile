@@ -22,13 +22,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user } = useAppSelector((state) => state.auth);
   const [contactModalVisible, setContactModalVisible] = useState(false);
 
   const menuSections = [

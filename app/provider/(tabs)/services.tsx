@@ -20,15 +20,17 @@ import {
   DollarSign,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useProvider } from "@/contexts/ProviderContext";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { updateListing as updateListingAction, deleteListing as deleteListingAction } from "@/store/providerSlice";
 
 export default function ServicesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { listings, updateListing, deleteListing } = useProvider();
+  const dispatch = useAppDispatch();
+  const { listings } = useAppSelector((state) => state.provider);
 
   const toggleVisibility = (id: string, currentVisibility: boolean) => {
-    updateListing(id, { visible: !currentVisibility });
+    dispatch(updateListingAction({ id, updates: { visible: !currentVisibility } }));
   };
 
   return (
@@ -122,7 +124,7 @@ export default function ServicesScreen() {
                           {
                             text: "Delete",
                             style: "destructive",
-                            onPress: () => deleteListing(listing.id),
+                            onPress: () => dispatch(deleteListingAction(listing.id)),
                           },
                         ]
                       );

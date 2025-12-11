@@ -14,11 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAppDispatch } from "@/store";
+import { signUp as signUpAction } from "@/store/authSlice";
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { signUp } = useAuth();
+  const dispatch = useAppDispatch();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +44,7 @@ export default function SignUpScreen() {
 
     setIsLoading(true);
     try {
-      await signUp({ name, email, password });
+      await dispatch(signUpAction({ name, email, password })).unwrap();
       router.push("/sign-up/verify-email" as any);
     } catch (error) {
       Alert.alert("Error", "Failed to create account");

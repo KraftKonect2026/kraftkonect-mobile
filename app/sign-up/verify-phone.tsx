@@ -14,11 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAppDispatch } from "@/store";
+import { updateUser as updateUserAction } from "@/store/authSlice";
 
 export default function VerifyPhoneScreen() {
   const router = useRouter();
-  const { updateUser } = useAuth();
+  const dispatch = useAppDispatch();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
@@ -41,7 +42,7 @@ export default function VerifyPhoneScreen() {
 
     setIsLoading(true);
     try {
-      await updateUser({ phone });
+      await dispatch(updateUserAction({ phone })).unwrap();
       setTimeout(() => {
         setIsLoading(false);
         Alert.alert("Success", "Phone verified successfully!", [

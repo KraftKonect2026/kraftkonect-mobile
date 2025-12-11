@@ -14,7 +14,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
 import { ArrowLeft, Check } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useProvider } from "@/contexts/ProviderContext";
+import { useAppDispatch } from "@/store";
+import { addListing as addListingAction } from "@/store/providerSlice";
 
 const categories = [
   "Cleaning",
@@ -30,7 +31,8 @@ const categories = [
 export default function AddListingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { addListing } = useProvider();
+  const dispatch = useAppDispatch();
+  const addListing = (listing: any) => dispatch(addListingAction(listing));
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

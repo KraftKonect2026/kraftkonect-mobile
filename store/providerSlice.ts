@@ -1,5 +1,4 @@
-import createContextHook from "@nkzw/create-context-hook";
-import { useCallback, useMemo, useState } from "react";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export interface Job {
   id: string;
@@ -25,7 +24,7 @@ export interface Listing {
   photos: string[];
 }
 
-interface ProviderContextValue {
+interface ProviderState {
   jobs: Job[];
   listings: Listing[];
   earnings: {
@@ -35,14 +34,10 @@ interface ProviderContextValue {
     nextPayout: number;
     nextPayoutDate: string;
   };
-  addListing: (listing: Omit<Listing, "id">) => void;
-  updateListing: (id: string, updates: Partial<Listing>) => void;
-  deleteListing: (id: string) => void;
-  updateJobStatus: (jobId: string, status: Job["status"]) => void;
 }
 
-export const [ProviderContext, useProvider] = createContextHook<ProviderContextValue>(() => {
-  const [jobs, setJobs] = useState<Job[]>([
+const initialState: ProviderState = {
+  jobs: [
     {
       id: "1",
       customerName: "Sarah Johnson",
@@ -76,9 +71,8 @@ export const [ProviderContext, useProvider] = createContextHook<ProviderContextV
       status: "pending",
       address: "789 Pine Road",
     },
-  ]);
-
-  const [listings, setListings] = useState<Listing[]>([
+  ],
+  listings: [
     {
       id: "1",
       title: "Professional Home Cleaning",
@@ -99,46 +93,53 @@ export const [ProviderContext, useProvider] = createContextHook<ProviderContextV
       visible: true,
       photos: [],
     },
-  ]);
-
-  const [earnings] = useState({
+  ],
+  earnings: {
     today: 205,
     thisWeek: 1240,
     total: 12450,
     nextPayout: 1240,
     nextPayoutDate: "2025-01-20",
-  });
+  },
+};
 
-  const addListing = useCallback((listing: Omit<Listing, "id">) => {
-    const newListing = {
-      ...listing,
-      id: Date.now().toString(),
-    };
-    setListings(prev => [...prev, newListing]);
-  }, []);
-
-  const updateListing = useCallback((id: string, updates: Partial<Listing>) => {
-    setListings(prev => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
-  }, []);
-
-  const deleteListing = useCallback((id: string) => {
-    setListings(prev => prev.filter((l) => l.id !== id));
-  }, []);
-
-  const updateJobStatus = useCallback((jobId: string, status: Job["status"]) => {
-    setJobs(prev => prev.map((j) => (j.id === jobId ? { ...j, status } : j)));
-  }, []);
-
-  return useMemo(
-    () => ({
-      jobs,
-      listings,
-      earnings,
-      addListing,
-      updateListing,
-      deleteListing,
-      updateJobStatus,
-    }),
-    [jobs, listings, earnings, addListing, updateListing, deleteListing, updateJobStatus]
-  );
+const providerSlice = createSlice({
+  name: "provider",
+  initialState,
+  reducers: {
+    addListing: (state, action: PayloadAction<Omit<Listing, "id">>) => {
+      const newListing = {
+        ...action.payload,
+        id: Date.now().toString(),
+      };
+      state.listings.push(newListing);
+    },
+    updateListing: (
+      state,
+      action: PayloadAction<{ id: string; updates: Partial<Listing> }>
+    ) => {
+      const { id, updates } = action.payload;
+      const listing = state.listings.find((l) => l.id === id);
+      if (listing) {
+        Object.assign(listing, updates);
+      }
+    },
+    deleteListing: (state, action: PayloadAction<string>) => {
+      state.listings = state.listings.filter((l) => l.id !== action.payload);
+    },
+    updateJobStatus: (
+      state,
+      action: PayloadAction<{ jobId: string; status: Job["status"] }>
+    ) => {
+      const { jobId, status } = action.payload;
+      const job = state.jobs.find((j) => j.id === jobId);
+      if (job) {
+        job.status = status;
+      }
+    },
+  },
 });
+
+export const { addListing, updateListing, deleteListing, updateJobStatus } =
+  providerSlice.actions;
+export default providerSlice.reducer;

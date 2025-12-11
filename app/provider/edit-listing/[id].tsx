@@ -14,7 +14,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { ArrowLeft, Check } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useProvider } from "@/contexts/ProviderContext";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { updateListing as updateListingAction } from "@/store/providerSlice";
 
 const categories = [
   "Cleaning",
@@ -31,7 +32,9 @@ export default function EditListingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { listings, updateListing } = useProvider();
+  const dispatch = useAppDispatch();
+  const { listings } = useAppSelector((state) => state.provider);
+  const updateListing = (id: string, updates: any) => dispatch(updateListingAction({ id, updates }));
 
   const listing = listings.find((l) => l.id === id);
 

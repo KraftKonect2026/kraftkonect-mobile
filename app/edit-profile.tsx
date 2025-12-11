@@ -11,20 +11,23 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { updateUser as updateUserAction } from "@/store/authSlice";
 import Colors from "@/constants/colors";
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    await dispatch(updateUserAction({ name, email, phone }));
     router.back();
   };
 

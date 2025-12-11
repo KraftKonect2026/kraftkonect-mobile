@@ -19,12 +19,12 @@ import {
   User as UserIcon,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useProvider } from "@/contexts/ProviderContext";
+import { useAppSelector } from "@/store";
 
 export default function TodayDashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { jobs, earnings } = useProvider();
+  const { jobs, earnings } = useAppSelector((state) => state.provider);
 
   const todayJobs = jobs.filter(
     (job) => job.date === new Date().toISOString().split("T")[0] || job.date === "2025-01-15"

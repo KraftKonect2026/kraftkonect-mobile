@@ -3,7 +3,9 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { Provider } from "react-redux";
+import { store } from "@/store";
+import { loadUser } from "@/store/authSlice";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,15 +44,16 @@ function RootLayoutNav() {
 export default function RootLayout() {
   useEffect(() => {
     SplashScreen.hideAsync();
+    store.dispatch(loadUser());
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
           <RootLayoutNav />
-        </AuthProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </Provider>
   );
 }

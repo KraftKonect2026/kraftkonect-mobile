@@ -20,12 +20,12 @@ import {
   Star,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useProvider } from "@/contexts/ProviderContext";
+import { useAppSelector } from "@/store";
 
 export default function ProviderProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { earnings } = useProvider();
+  const { earnings } = useAppSelector((state) => state.provider);
 
   return (
     <View style={styles.container}>
