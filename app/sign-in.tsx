@@ -65,7 +65,7 @@ export default function SignInScreen() {
 
       const message = getApolloErrorMessage(e);
       showToast("error", `${message} 😢`)
-      Alert.alert("Error", message);
+      
     }
   };
 
