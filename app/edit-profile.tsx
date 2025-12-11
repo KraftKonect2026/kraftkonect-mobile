@@ -1,5 +1,5 @@
 import { ArrowLeft, User } from "lucide-react-native";
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -10,10 +10,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Formik } from "formik";
+import * as Yup from "yup";
 
 import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser as updateUserAction } from "@/store/authSlice";
 import Colors from "@/constants/colors";
+
+const editProfileSchema = Yup.object().shape({
+  name: Yup.string()
+    .min(2, "Name must be at least 2 characters")
+    .required("Name is required"),
+  email: Yup.string()
+    .email("Invalid email address")
+    .required("Email is required"),
+  phone: Yup.string()
+    .matches(/^[0-9+\-\s()]*$/, "Invalid phone number")
+    .min(10, "Phone number must be at least 10 digits"),
+  address: Yup.string(),
+});
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -21,13 +36,8 @@ export default function EditProfileScreen() {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
 
-  const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-
-  const handleSave = async () => {
-    await dispatch(updateUserAction({ name, email, phone }));
+  const handleSave = async (values: { name: string; email: string; phone: string }) => {
+    await dispatch(updateUserAction({ name: values.name, email: values.email, phone: values.phone }));
     router.back();
   };
 
@@ -45,87 +55,118 @@ export default function EditProfileScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
+      <Formik
+        initialValues={{
+          name: user?.name || "",
+          email: user?.email || "",
+          phone: "",
+          address: "",
+        }}
+        validationSchema={editProfileSchema}
+        onSubmit={handleSave}
       >
-        <View style={styles.avatarSection}>
-          <View style={styles.avatar}>
-            <User size={48} color={Colors.primary} strokeWidth={2} />
-          </View>
-          <TouchableOpacity style={styles.changePhotoButton} activeOpacity={0.7}>
-            <Text style={styles.changePhotoText}>Change Photo</Text>
-          </TouchableOpacity>
-        </View>
+        {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
+          <>
+            <ScrollView
+              style={styles.content}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.contentContainer}
+            >
+              <View style={styles.avatarSection}>
+                <View style={styles.avatar}>
+                  <User size={48} color={Colors.primary} strokeWidth={2} />
+                </View>
+                <TouchableOpacity style={styles.changePhotoButton} activeOpacity={0.7}>
+                  <Text style={styles.changePhotoText}>Change Photo</Text>
+                </TouchableOpacity>
+              </View>
 
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your full name"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Full Name</Text>
+                  <TextInput
+                    style={[styles.input, touched.name && errors.name && styles.inputError]}
+                    value={values.name}
+                    onChangeText={handleChange("name")}
+                    onBlur={handleBlur("name")}
+                    placeholder="Enter your full name"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  {touched.name && errors.name && (
+                    <Text style={styles.errorText}>{errors.name}</Text>
+                  )}
+                </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    style={[styles.input, touched.email && errors.email && styles.inputError]}
+                    value={values.email}
+                    onChangeText={handleChange("email")}
+                    onBlur={handleBlur("email")}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                  {touched.email && errors.email && (
+                    <Text style={styles.errorText}>{errors.email}</Text>
+                  )}
+                </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Enter your phone number"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="phone-pad"
-            />
-          </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Phone Number</Text>
+                  <TextInput
+                    style={[styles.input, touched.phone && errors.phone && styles.inputError]}
+                    value={values.phone}
+                    onChangeText={handleChange("phone")}
+                    onBlur={handleBlur("phone")}
+                    placeholder="Enter your phone number"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="phone-pad"
+                  />
+                  {touched.phone && errors.phone && (
+                    <Text style={styles.errorText}>{errors.phone}</Text>
+                  )}
+                </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Address (Optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Enter your address"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
-      </ScrollView>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Address (Optional)</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={values.address}
+                    onChangeText={handleChange("address")}
+                    onBlur={handleBlur("address")}
+                    placeholder="Enter your address"
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
+            </ScrollView>
 
-      <View
-        style={[
-          styles.bottomActions,
-          { paddingBottom: insets.bottom + 16 },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSave}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.saveButtonText}>Save Changes</Text>
-        </TouchableOpacity>
-      </View>
+            <View
+              style={[
+                styles.bottomActions,
+                { paddingBottom: insets.bottom + 16 },
+              ]}
+            >
+              <TouchableOpacity
+                style={[styles.saveButton, isSubmitting && styles.saveButtonDisabled]}
+                onPress={() => handleSubmit()}
+                disabled={isSubmitting}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </Formik>
     </View>
   );
 }
@@ -207,6 +248,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#2C2C2C",
   },
+  inputError: {
+    borderColor: "#EF4444",
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#EF4444",
+    marginTop: 4,
+  },
   textArea: {
     height: 100,
     paddingTop: 14,
@@ -223,6 +272,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: Colors.primary,
     alignItems: "center",
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   saveButtonText: {
     fontSize: 16,

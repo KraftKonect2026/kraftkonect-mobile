@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft, Mail } from "lucide-react-native";
-import React, { useState } from "react";
+import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,22 +13,21 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Formik } from "formik";
+import * as Yup from "yup";
 import Colors from "@/constants/colors";
+
+const forgotPasswordSchema = Yup.object().shape({
+  email: Yup.string()
+    .email("Invalid email address")
+    .required("Email is required"),
+});
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSendLink = async () => {
-    if (!email) {
-      Alert.alert("Error", "Please enter your email address");
-      return;
-    }
-
-    setIsLoading(true);
     setTimeout(() => {
-      setIsLoading(false);
       Alert.alert("Success", "Recovery link sent to your email!", [
         {
           text: "OK",
@@ -45,66 +44,78 @@ export default function ForgotPasswordScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+          <Formik
+            initialValues={{ email: "" }}
+            validationSchema={forgotPasswordSchema}
+            onSubmit={handleSendLink}
           >
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <ArrowLeft size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
-
-            <View style={styles.iconContainer}>
-              <View style={styles.icon}>
-                <Mail size={48} color={Colors.primary} strokeWidth={1.5} />
-              </View>
-            </View>
-
-            <View style={styles.header}>
-              <Text style={styles.title}>Forgot Password?</Text>
-              <Text style={styles.subtitle}>
-                Enter your email address and we&apos;ll send you a link to reset
-                your password
-              </Text>
-            </View>
-
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email Address</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="john@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.sendButton, isLoading && styles.disabledButton]}
-                onPress={handleSendLink}
-                disabled={isLoading}
-                activeOpacity={0.8}
+            {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
+              <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.sendButtonText}>
-                  {isLoading ? "Sending..." : "Send Recovery Link"}
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => router.back()}
+                  activeOpacity={0.7}
+                >
+                  <ArrowLeft size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.backToSignInButton}
-                onPress={() => router.back()}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.backToSignInText}>Back to Sign In</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+                <View style={styles.iconContainer}>
+                  <View style={styles.icon}>
+                    <Mail size={48} color={Colors.primary} strokeWidth={1.5} />
+                  </View>
+                </View>
+
+                <View style={styles.header}>
+                  <Text style={styles.title}>Forgot Password?</Text>
+                  <Text style={styles.subtitle}>
+                    Enter your email address and we&apos;ll send you a link to reset
+                    your password
+                  </Text>
+                </View>
+
+                <View style={styles.form}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Email Address</Text>
+                    <TextInput
+                      style={[styles.input, touched.email && errors.email && styles.inputError]}
+                      placeholder="john@example.com"
+                      value={values.email}
+                      onChangeText={handleChange("email")}
+                      onBlur={handleBlur("email")}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.email && errors.email && (
+                      <Text style={styles.errorText}>{errors.email}</Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.sendButton, isSubmitting && styles.disabledButton]}
+                    onPress={() => handleSubmit()}
+                    disabled={isSubmitting}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.sendButtonText}>
+                      {isSubmitting ? "Sending..." : "Send Recovery Link"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.backToSignInButton}
+                    onPress={() => router.back()}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.backToSignInText}>Back to Sign In</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
+          </Formik>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -180,6 +191,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  inputError: {
+    borderColor: "#EF4444",
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#EF4444",
+    marginTop: 4,
   },
   sendButton: {
     backgroundColor: Colors.primary,

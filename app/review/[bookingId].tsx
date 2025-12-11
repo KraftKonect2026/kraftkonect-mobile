@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { Formik } from "formik";
+import * as Yup from "yup";
 
 import { mockBookings } from "@/mocks/bookings";
 import Colors from "@/constants/colors";
@@ -24,6 +26,15 @@ const reviewTags = [
   "Not satisfied",
 ];
 
+const reviewSchema = Yup.object().shape({
+  rating: Yup.number()
+    .min(1, "Please select a rating")
+    .required("Rating is required"),
+  selectedTags: Yup.array().of(Yup.string()),
+  review: Yup.string()
+    .max(500, "Review must be at most 500 characters"),
+});
+
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -31,9 +42,6 @@ export default function ReviewScreen() {
 
   const booking = mockBookings.find((b) => b.id === bookingId);
 
-  const [rating, setRating] = useState(0);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [review, setReview] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [successScale] = useState(new Animated.Value(0));
 
@@ -41,15 +49,7 @@ export default function ReviewScreen() {
     return null;
   }
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
-
   const handleSubmit = () => {
-    if (rating === 0) return;
-
     setSubmitted(true);
     Animated.spring(successScale, {
       toValue: 1,
@@ -61,10 +61,6 @@ export default function ReviewScreen() {
     setTimeout(() => {
       router.back();
     }, 2000);
-  };
-
-  const handleSkip = () => {
-    router.back();
   };
 
   if (submitted) {
@@ -92,135 +88,157 @@ export default function ReviewScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <X size={24} color="#2C2C2C" strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Leave a Review</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
+      <Formik
+        initialValues={{ rating: 0, selectedTags: [] as string[], review: "" }}
+        validationSchema={reviewSchema}
+        onSubmit={handleSubmit}
       >
-        <View style={styles.providerSection}>
-          <Text style={styles.rateText}>
-            Rate your experience with{"\n"}
-            <Text style={styles.providerName}>{booking.providerName}</Text>
-          </Text>
-        </View>
-
-        <View style={styles.starsContainer}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <TouchableOpacity
-              key={star}
-              onPress={() => setRating(star)}
-              activeOpacity={0.7}
-              style={styles.starButton}
-            >
-              <Star
-                size={48}
-                color={star <= rating ? "#F59E0B" : "#E5E7EB"}
-                fill={star <= rating ? "#F59E0B" : "transparent"}
-                strokeWidth={2}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {rating > 0 && (
-          <Text style={styles.ratingLabel}>
-            {rating === 1 && "Poor"}
-            {rating === 2 && "Fair"}
-            {rating === 3 && "Good"}
-            {rating === 4 && "Very Good"}
-            {rating === 5 && "Excellent"}
-          </Text>
-        )}
-
-        <View style={styles.tagsSection}>
-          <Text style={styles.sectionTitle}>Quick feedback (optional)</Text>
-          <View style={styles.tagsContainer}>
-            {reviewTags.map((tag) => (
+        {({ handleChange, handleBlur, handleSubmit: formikSubmit, setFieldValue, values, errors, touched }) => (
+          <>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
               <TouchableOpacity
-                key={tag}
-                style={[
-                  styles.tag,
-                  selectedTags.includes(tag) && styles.tagSelected,
-                ]}
-                onPress={() => toggleTag(tag)}
+                style={styles.closeButton}
+                onPress={() => router.back()}
                 activeOpacity={0.7}
+              >
+                <X size={24} color="#2C2C2C" strokeWidth={2} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Leave a Review</Text>
+              <View style={{ width: 40 }} />
+            </View>
+
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.providerSection}>
+                <Text style={styles.rateText}>
+                  Rate your experience with{"\n"}
+                  <Text style={styles.providerName}>{booking.providerName}</Text>
+                </Text>
+              </View>
+
+              <View style={styles.starsContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setFieldValue("rating", star)}
+                    activeOpacity={0.7}
+                    style={styles.starButton}
+                  >
+                    <Star
+                      size={48}
+                      color={star <= values.rating ? "#F59E0B" : "#E5E7EB"}
+                      fill={star <= values.rating ? "#F59E0B" : "transparent"}
+                      strokeWidth={2}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {touched.rating && errors.rating && (
+                <Text style={styles.errorText}>{errors.rating}</Text>
+              )}
+
+              {values.rating > 0 && (
+                <Text style={styles.ratingLabel}>
+                  {values.rating === 1 && "Poor"}
+                  {values.rating === 2 && "Fair"}
+                  {values.rating === 3 && "Good"}
+                  {values.rating === 4 && "Very Good"}
+                  {values.rating === 5 && "Excellent"}
+                </Text>
+              )}
+
+              <View style={styles.tagsSection}>
+                <Text style={styles.sectionTitle}>Quick feedback (optional)</Text>
+                <View style={styles.tagsContainer}>
+                  {reviewTags.map((tag) => (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[
+                        styles.tag,
+                        values.selectedTags.includes(tag) && styles.tagSelected,
+                      ]}
+                      onPress={() => {
+                        const newTags = values.selectedTags.includes(tag)
+                          ? values.selectedTags.filter((t) => t !== tag)
+                          : [...values.selectedTags, tag];
+                        setFieldValue("selectedTags", newTags);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.tagText,
+                          values.selectedTags.includes(tag) && styles.tagTextSelected,
+                        ]}
+                      >
+                        {tag}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.textSection}>
+                <Text style={styles.sectionTitle}>
+                  Share more about your experience (optional)
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={values.review}
+                  onChangeText={handleChange("review")}
+                  onBlur={handleBlur("review")}
+                  placeholder="Tell us what you think..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={6}
+                  maxLength={500}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.charCount}>{values.review.length}/500</Text>
+                {touched.review && errors.review && (
+                  <Text style={styles.errorText}>{errors.review}</Text>
+                )}
+              </View>
+            </ScrollView>
+
+            <View
+              style={[
+                styles.bottomActions,
+                { paddingBottom: insets.bottom + 16 },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={() => router.back()}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.skipButtonText}>Skip for now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.submitButton,
+                  values.rating === 0 && styles.submitButtonDisabled,
+                ]}
+                onPress={() => formikSubmit()}
+                activeOpacity={0.8}
+                disabled={values.rating === 0}
               >
                 <Text
                   style={[
-                    styles.tagText,
-                    selectedTags.includes(tag) && styles.tagTextSelected,
+                    styles.submitButtonText,
+                    values.rating === 0 && styles.submitButtonTextDisabled,
                   ]}
                 >
-                  {tag}
+                  Submit Review
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.textSection}>
-          <Text style={styles.sectionTitle}>
-            Share more about your experience (optional)
-          </Text>
-          <TextInput
-            style={styles.textInput}
-            value={review}
-            onChangeText={setReview}
-            placeholder="Tell us what you think..."
-            placeholderTextColor="#9CA3AF"
-            multiline
-            numberOfLines={6}
-            maxLength={500}
-            textAlignVertical="top"
-          />
-          <Text style={styles.charCount}>{review.length}/500</Text>
-        </View>
-      </ScrollView>
-
-      <View
-        style={[
-          styles.bottomActions,
-          { paddingBottom: insets.bottom + 16 },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkip}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.skipButtonText}>Skip for now</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            rating === 0 && styles.submitButtonDisabled,
-          ]}
-          onPress={handleSubmit}
-          activeOpacity={0.8}
-          disabled={rating === 0}
-        >
-          <Text
-            style={[
-              styles.submitButtonText,
-              rating === 0 && styles.submitButtonTextDisabled,
-            ]}
-          >
-            Submit Review
-          </Text>
-        </TouchableOpacity>
-      </View>
+            </View>
+          </>
+        )}
+      </Formik>
     </View>
   );
 }
@@ -340,6 +358,12 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     textAlign: "right",
     marginTop: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#EF4444",
+    marginTop: 8,
+    textAlign: "center",
   },
   bottomActions: {
     flexDirection: "row",

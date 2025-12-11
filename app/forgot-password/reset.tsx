@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft, Lock } from "lucide-react-native";
-import React, { useState } from "react";
+import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,33 +13,24 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Formik } from "formik";
+import * as Yup from "yup";
 import Colors from "@/constants/colors";
+
+const resetPasswordSchema = Yup.object().shape({
+  newPassword: Yup.string()
+    .min(6, "Password must be at least 6 characters")
+    .required("Password is required"),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref("newPassword")], "Passwords must match")
+    .required("Confirm password is required"),
+});
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleResetPassword = async () => {
-    if (!newPassword || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
-      return;
-    }
-
-    setIsLoading(true);
     setTimeout(() => {
-      setIsLoading(false);
       Alert.alert(
         "Success",
         "Your password has been reset successfully!",
@@ -60,68 +51,84 @@ export default function ResetPasswordScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+          <Formik
+            initialValues={{ newPassword: "", confirmPassword: "" }}
+            validationSchema={resetPasswordSchema}
+            onSubmit={handleResetPassword}
           >
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <ArrowLeft size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
-
-            <View style={styles.iconContainer}>
-              <View style={styles.icon}>
-                <Lock size={48} color={Colors.primary} strokeWidth={1.5} />
-              </View>
-            </View>
-
-            <View style={styles.header}>
-              <Text style={styles.title}>Set New Password</Text>
-              <Text style={styles.subtitle}>
-                Create a strong password for your account
-              </Text>
-            </View>
-
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>New Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter new password"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Confirm Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Re-enter new password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.resetButton, isLoading && styles.disabledButton]}
-                onPress={handleResetPassword}
-                disabled={isLoading}
-                activeOpacity={0.8}
+            {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
+              <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.resetButtonText}>
-                  {isLoading ? "Resetting..." : "Reset Password"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => router.back()}
+                  activeOpacity={0.7}
+                >
+                  <ArrowLeft size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
+
+                <View style={styles.iconContainer}>
+                  <View style={styles.icon}>
+                    <Lock size={48} color={Colors.primary} strokeWidth={1.5} />
+                  </View>
+                </View>
+
+                <View style={styles.header}>
+                  <Text style={styles.title}>Set New Password</Text>
+                  <Text style={styles.subtitle}>
+                    Create a strong password for your account
+                  </Text>
+                </View>
+
+                <View style={styles.form}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>New Password</Text>
+                    <TextInput
+                      style={[styles.input, touched.newPassword && errors.newPassword && styles.inputError]}
+                      placeholder="Enter new password"
+                      value={values.newPassword}
+                      onChangeText={handleChange("newPassword")}
+                      onBlur={handleBlur("newPassword")}
+                      secureTextEntry
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.newPassword && errors.newPassword && (
+                      <Text style={styles.errorText}>{errors.newPassword}</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Confirm Password</Text>
+                    <TextInput
+                      style={[styles.input, touched.confirmPassword && errors.confirmPassword && styles.inputError]}
+                      placeholder="Re-enter new password"
+                      value={values.confirmPassword}
+                      onChangeText={handleChange("confirmPassword")}
+                      onBlur={handleBlur("confirmPassword")}
+                      secureTextEntry
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.confirmPassword && errors.confirmPassword && (
+                      <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.resetButton, isSubmitting && styles.disabledButton]}
+                    onPress={() => handleSubmit()}
+                    disabled={isSubmitting}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.resetButtonText}>
+                      {isSubmitting ? "Resetting..." : "Reset Password"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
+          </Formik>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -196,6 +203,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  inputError: {
+    borderColor: "#EF4444",
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#EF4444",
+    marginTop: 4,
   },
   resetButton: {
     backgroundColor: Colors.primary,

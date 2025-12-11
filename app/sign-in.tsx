@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
-import React, { useState } from "react";
+import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,31 +14,30 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
+import { Formik } from "formik";
+import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { useAppDispatch } from "@/store";
 import { signIn as signInAction } from "@/store/authSlice";
 
+const signInSchema = Yup.object().shape({
+  email: Yup.string()
+    .email("Invalid email address")
+    .required("Email is required"),
+  password: Yup.string()
+    .required("Password is required"),
+});
+
 export default function SignInScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    setIsLoading(true);
+  const handleSignIn = async (values: { email: string; password: string }) => {
     try {
-      await dispatch(signInAction({ email, password })).unwrap();
+      await dispatch(signInAction({ email: values.email, password: values.password })).unwrap();
       router.replace("/(app)/explore" as any);
     } catch {
       Alert.alert("Error", "Failed to sign in. Please check your credentials.");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -49,68 +48,82 @@ export default function SignInScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+          <Formik
+            initialValues={{ email: "", password: "" }}
+            validationSchema={signInSchema}
+            onSubmit={handleSignIn}
           >
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <ArrowLeft size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
-
-            <View style={styles.header}>
-              <Text style={styles.title}>Welcome Back</Text>
-              <Text style={styles.subtitle}>
-                Sign in to continue to Artisanhubb
-              </Text>
-            </View>
-
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="john@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <TouchableOpacity
-                onPress={() => router.push("/forgot-password" as any)}
-                activeOpacity={0.7}
+            {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
+              <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.forgotPassword}>Forgot Password?</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => router.back()}
+                  activeOpacity={0.7}
+                >
+                  <ArrowLeft size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.signInButton, isLoading && styles.disabledButton]}
-                onPress={handleSignIn}
-                disabled={isLoading}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.signInButtonText}>
-                  {isLoading ? "Signing In..." : "Login"}
-                </Text>
-              </TouchableOpacity>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Welcome Back</Text>
+                  <Text style={styles.subtitle}>
+                    Sign in to continue to Artisanhubb
+                  </Text>
+                </View>
+
+                <View style={styles.form}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Email</Text>
+                    <TextInput
+                      style={[styles.input, touched.email && errors.email && styles.inputError]}
+                      placeholder="john@example.com"
+                      value={values.email}
+                      onChangeText={handleChange("email")}
+                      onBlur={handleBlur("email")}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.email && errors.email && (
+                      <Text style={styles.errorText}>{errors.email}</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Password</Text>
+                    <TextInput
+                      style={[styles.input, touched.password && errors.password && styles.inputError]}
+                      placeholder="Enter your password"
+                      value={values.password}
+                      onChangeText={handleChange("password")}
+                      onBlur={handleBlur("password")}
+                      secureTextEntry
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.password && errors.password && (
+                      <Text style={styles.errorText}>{errors.password}</Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => router.push("/forgot-password" as any)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.forgotPassword}>Forgot Password?</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.signInButton, isSubmitting && styles.disabledButton]}
+                    onPress={() => handleSubmit()}
+                    disabled={isSubmitting}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.signInButtonText}>
+                      {isSubmitting ? "Signing In..." : "Login"}
+                    </Text>
+                  </TouchableOpacity>
 
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -135,14 +148,16 @@ export default function SignInScreen() {
                 <Text style={styles.socialButtonText}>Continue with Apple</Text>
               </TouchableOpacity>
 
-              <View style={styles.signUpContainer}>
-                <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
-                <TouchableOpacity onPress={() => router.push("/sign-up" as any)}>
-                  <Text style={styles.signUpLink}>Sign Up</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
+                  <View style={styles.signUpContainer}>
+                    <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
+                    <TouchableOpacity onPress={() => router.push("/sign-up" as any)}>
+                      <Text style={styles.signUpLink}>Sign Up</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+          </Formik>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -203,6 +218,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  inputError: {
+    borderColor: "#EF4444",
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#EF4444",
+    marginTop: 4,
   },
   forgotPassword: {
     color: Colors.primary,

@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
-import React, { useState } from "react";
+import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,43 +14,37 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
+import { Formik } from "formik";
+import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { useAppDispatch } from "@/store";
 import { signUp as signUpAction } from "@/store/authSlice";
 
+const signUpSchema = Yup.object().shape({
+  name: Yup.string()
+    .min(2, "Name must be at least 2 characters")
+    .required("Name is required"),
+  email: Yup.string()
+    .email("Invalid email address")
+    .required("Email is required"),
+  password: Yup.string()
+    .min(6, "Password must be at least 6 characters")
+    .required("Password is required"),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref("password")], "Passwords must match")
+    .required("Confirm password is required"),
+});
+
 export default function SignUpScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleContinue = async () => {
-    if (!name || !email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
-      return;
-    }
-
-    setIsLoading(true);
+  const handleContinue = async (values: { name: string; email: string; password: string }) => {
     try {
-      await dispatch(signUpAction({ name, email, password })).unwrap();
+      await dispatch(signUpAction({ name: values.name, email: values.email, password: values.password })).unwrap();
       router.push("/sign-up/verify-email" as any);
     } catch (error) {
       Alert.alert("Error", "Failed to create account");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -61,85 +55,107 @@ export default function SignUpScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+          <Formik
+            initialValues={{ name: "", email: "", password: "", confirmPassword: "" }}
+            validationSchema={signUpSchema}
+            onSubmit={handleContinue}
           >
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}
-            >
-              <ArrowLeft size={24} color={Colors.textPrimary} />
-            </TouchableOpacity>
-
-            <View style={styles.header}>
-              <Text style={styles.title}>Create Account</Text>
-              <Text style={styles.subtitle}>
-                Join Artisanhubb to find trusted local experts
-              </Text>
-            </View>
-
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="John Doe"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="john@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Confirm Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Re-enter your password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                  placeholderTextColor={Colors.textSecondary}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.continueButton, isLoading && styles.disabledButton]}
-                onPress={handleContinue}
-                disabled={isLoading}
-                activeOpacity={0.8}
+            {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
+              <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.continueButtonText}>
-                  {isLoading ? "Creating Account..." : "Continue"}
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => router.back()}
+                  activeOpacity={0.7}
+                >
+                  <ArrowLeft size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
+
+                <View style={styles.header}>
+                  <Text style={styles.title}>Create Account</Text>
+                  <Text style={styles.subtitle}>
+                    Join Artisanhubb to find trusted local experts
+                  </Text>
+                </View>
+
+                <View style={styles.form}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Full Name</Text>
+                    <TextInput
+                      style={[styles.input, touched.name && errors.name && styles.inputError]}
+                      placeholder="John Doe"
+                      value={values.name}
+                      onChangeText={handleChange("name")}
+                      onBlur={handleBlur("name")}
+                      autoCapitalize="words"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.name && errors.name && (
+                      <Text style={styles.errorText}>{errors.name}</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Email</Text>
+                    <TextInput
+                      style={[styles.input, touched.email && errors.email && styles.inputError]}
+                      placeholder="john@example.com"
+                      value={values.email}
+                      onChangeText={handleChange("email")}
+                      onBlur={handleBlur("email")}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.email && errors.email && (
+                      <Text style={styles.errorText}>{errors.email}</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Password</Text>
+                    <TextInput
+                      style={[styles.input, touched.password && errors.password && styles.inputError]}
+                      placeholder="Enter your password"
+                      value={values.password}
+                      onChangeText={handleChange("password")}
+                      onBlur={handleBlur("password")}
+                      secureTextEntry
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.password && errors.password && (
+                      <Text style={styles.errorText}>{errors.password}</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Confirm Password</Text>
+                    <TextInput
+                      style={[styles.input, touched.confirmPassword && errors.confirmPassword && styles.inputError]}
+                      placeholder="Re-enter your password"
+                      value={values.confirmPassword}
+                      onChangeText={handleChange("confirmPassword")}
+                      onBlur={handleBlur("confirmPassword")}
+                      secureTextEntry
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                    {touched.confirmPassword && errors.confirmPassword && (
+                      <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.continueButton, isSubmitting && styles.disabledButton]}
+                    onPress={() => handleSubmit()}
+                    disabled={isSubmitting}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.continueButtonText}>
+                      {isSubmitting ? "Creating Account..." : "Continue"}
+                    </Text>
+                  </TouchableOpacity>
 
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -164,14 +180,16 @@ export default function SignUpScreen() {
                 <Text style={styles.socialButtonText}>Continue with Apple</Text>
               </TouchableOpacity>
 
-              <View style={styles.signInContainer}>
-                <Text style={styles.signInText}>Already have an account? </Text>
-                <TouchableOpacity onPress={() => router.push("/sign-in" as any)}>
-                  <Text style={styles.signInLink}>Sign In</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
+                  <View style={styles.signInContainer}>
+                    <Text style={styles.signInText}>Already have an account? </Text>
+                    <TouchableOpacity onPress={() => router.push("/sign-in" as any)}>
+                      <Text style={styles.signInLink}>Sign In</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+          </Formik>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -232,6 +250,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  inputError: {
+    borderColor: "#EF4444",
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#EF4444",
+    marginTop: 4,
   },
   continueButton: {
     backgroundColor: Colors.primary,
