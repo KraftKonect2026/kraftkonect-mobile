@@ -1,11 +1,8 @@
+import { User } from "@/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 
-interface User {
-  name: string;
-  email: string;
-  phone?: string;
-}
+
 
 interface AuthState {
   user: User | null;
@@ -34,10 +31,15 @@ export const loadUser = createAsyncThunk("auth/loadUser", async () => {
 
 export const signUp = createAsyncThunk(
   "auth/signUp",
-  async (data: { name: string; email: string; password: string }) => {
+  async (data: User) => {
     const newUser: User = {
       name: data.name,
       email: data.email,
+      avatarUrl: data.avatarUrl,
+      id: data.id,
+      metadata: data.metadata,
+      phone: data.phone,
+      role: data.role
     };
 
     await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
@@ -45,18 +47,20 @@ export const signUp = createAsyncThunk(
   }
 );
 
-export const signIn = createAsyncThunk(
-  "auth/signIn",
-  async (data: { email: string; password: string }) => {
-    const newUser: User = {
-      name: "User",
-      email: data.email,
-    };
+export const signIn = createAsyncThunk("auth/signIn", async (data: User) => {
+  const newUser: User = {
+    name: data.name,
+    email: data.email,
+    avatarUrl: data.avatarUrl,
+    id: data.id,
+    metadata: data.metadata,
+    phone: data.phone,
+    role: data.role,
+  };
 
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-    return newUser;
-  }
-);
+  await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
+  return newUser;
+});
 
 export const signOut = createAsyncThunk("auth/signOut", async () => {
   await AsyncStorage.removeItem(AUTH_STORAGE_KEY);

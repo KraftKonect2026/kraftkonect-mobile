@@ -50,14 +50,14 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ApolloProvider client={apolloClient}>
-      <Provider store={store}>
+    <Provider store={store}>
+      <ApolloProvider client={apolloClient}>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <RootLayoutNav />
           </GestureHandlerRootView>
         </QueryClientProvider>
-      </Provider>
-    </ApolloProvider>
+      </ApolloProvider>
+    </Provider>
   );
 }

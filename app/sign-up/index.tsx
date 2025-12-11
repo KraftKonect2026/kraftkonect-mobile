@@ -41,7 +41,7 @@ export default function SignUpScreen() {
 
   const handleContinue = async (values: { name: string; email: string; password: string }) => {
     try {
-      await dispatch(signUpAction({ name: values.name, email: values.email, password: values.password })).unwrap();
+      // await dispatch(signUpAction({ name: values.name, email: values.email, password: values.password })).unwrap();
       router.push("/sign-up/verify-email" as any);
     } catch (error) {
       Alert.alert("Error", "Failed to create account");

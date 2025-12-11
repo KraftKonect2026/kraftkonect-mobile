@@ -1,39 +1,42 @@
-import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client';
-import { onError } from '@apollo/client/link/error';
-import type { GraphQLError } from 'graphql';
+import { ApolloClient, InMemoryCache, HttpLink, from } from "@apollo/client";
+import { onError } from "@apollo/client/link/error";
+import type { GraphQLError } from "graphql";
 
 const httpLink = new HttpLink({
-  uri: process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT || 'https://your-graphql-endpoint.com/graphql',
+  uri:
+    process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT ||
+    "https://artisanhubb-backend.onrender.com/graphql",
 });
 
-const errorLink = onError((errorResponse) => {
-  const { graphQLErrors, networkError } = errorResponse as { graphQLErrors?: readonly GraphQLError[]; networkError?: Error };
-  if (graphQLErrors) {
-    graphQLErrors.forEach((error) => {
-      console.log(
-        `[GraphQL error]: Message: ${error.message}, Location: ${error.locations}, Path: ${error.path}`
-      );
-    });
+const errorLink = onError(({ graphQLErrors, networkError }) => {
+  if (graphQLErrors && graphQLErrors.length > 0) {
+    // Combine all GraphQL errors into a single message
+    const message = graphQLErrors
+      .map((err: GraphQLError) => err.message)
+      .join("\n");
+
+    throw new Error(message);
   }
+
   if (networkError) {
-    console.log(`[Network error]: ${networkError}`);
+    throw networkError;
   }
 });
 
 const client = new ApolloClient({
-  link: from([errorLink, httpLink]),
+  link: from([httpLink]),
   cache: new InMemoryCache(),
   defaultOptions: {
     watchQuery: {
-      fetchPolicy: 'cache-and-network',
-      errorPolicy: 'all',
+      fetchPolicy: "cache-and-network",
+      errorPolicy: "all",
     },
     query: {
-      fetchPolicy: 'network-only',
-      errorPolicy: 'all',
+      fetchPolicy: "network-only",
+      errorPolicy: "all",
     },
     mutate: {
-      errorPolicy: 'all',
+      errorPolicy: "all",
     },
   },
 });
