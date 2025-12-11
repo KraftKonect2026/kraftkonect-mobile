@@ -51,7 +51,7 @@ export default function VerifyEmailScreen() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      router.replace("/(app)/home" as any);
+      router.replace("/(app)/explore" as any);
     }, 1000);
   };
 
