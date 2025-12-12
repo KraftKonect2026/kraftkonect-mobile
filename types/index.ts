@@ -18,6 +18,7 @@ export interface AuthPayload {
   accessToken: string | null;
   refreshToken: string | null;
   user: User;
+  message?: string; // optional message (e.g., "Account created successfully")
 }
 
 export interface SignInMutationArgs {
@@ -32,15 +33,20 @@ export interface SignUpMutationArgs {
   phone?: string;
 }
 
+
 // User/Me types
 export interface User {
   id: string;
   email: string | null;
   name: string | null;
   phone: string | null;
-  role: "customer" | "provider" | "admin"; // FIXED: lowercase to match DB
+  role: "customer" | "provider" | "admin"; // lowercase to match DB
   avatarUrl: string | null;
   metadata: Record<string, any>;
+  emailVerified: boolean;
+  emailVerifiedAt: string | null;
+  phoneVerified: boolean;
+  phoneVerifiedAt: string | null;
 }
 
 // Listing types
