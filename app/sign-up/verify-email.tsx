@@ -14,12 +14,56 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
+import { setTokens, setUser } from "@/store/authSlice";
+import { AuthPayload } from "@/types";
+import { useToast } from "@/lib/toast";
+import { useMutation } from "@apollo/client";
+import { useAppDispatch } from "@/store";
+import { VERIFY_EMAIL_MUTATION } from "@/lib/mutations";
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  // how do i get token from redux store here?
+  const token = useAppDispatch();
+
+  const dispatch = useAppDispatch();
+      const [verifyEmail] = useMutation(VERIFY_EMAIL_MUTATION)
+      const {showToast} = useToast()
+    
+      const handleVerifyEmail = async (values: { email: string; password: string, name: string,  }) => {
+        try {
+          const res = await verifyEmail({
+            variables: {
+              email: values.email,
+              password: values.password,
+              name: values.name,
+            },
+          });
+    
+          if (res.data?.signIn) {
+            const authPayload = res.data.signIn as AuthPayload;
+            showToast("success", `${authPayload?.message} 🎉`)
+            dispatch(setUser(authPayload?.user));
+            if (authPayload.accessToken && authPayload.refreshToken) {
+              dispatch(setTokens({
+                accessToken: authPayload.accessToken,
+                refreshToken: authPayload.refreshToken,
+              }));
+            }
+            router.push("/sign-up/verify-email" as any);
+          }
+    
+        } catch (e: any) {
+    
+          const message = getApolloErrorMessage(e);
+          showToast("error", `${message} 😢`)
+          
+        }
+      };
 
   const handleOtpChange = (text: string, index: number) => {
     if (text.length > 1) {

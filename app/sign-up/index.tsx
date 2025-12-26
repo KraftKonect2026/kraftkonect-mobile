@@ -16,6 +16,13 @@ import Svg, { Path } from "react-native-svg";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
+import { useAppDispatch } from "@/store";
+import { useMutation } from "@apollo/client";
+import { useToast } from "@/lib/toast";
+import { SIGN_UP_MUTATION } from "@/lib/mutations";
+import { AuthPayload } from "@/types";
+import { setTokens, setUser } from "@/store/authSlice";
+import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
 
 const signUpSchema = Yup.object().shape({
   name: Yup.string()
@@ -34,6 +41,40 @@ const signUpSchema = Yup.object().shape({
 
 export default function SignUpScreen() {
   const router = useRouter();
+   const dispatch = useAppDispatch();
+    const [signUp] = useMutation(SIGN_UP_MUTATION)
+    const {showToast} = useToast()
+  
+    const handleSignUp = async (values: { email: string; password: string, name: string,  }) => {
+      try {
+        const res = await signUp({
+          variables: {
+            email: values.email,
+            password: values.password,
+            name: values.name,
+          },
+        });
+  
+        if (res.data?.signIn) {
+          showToast("success", "Registration successful 🎉")
+          const authPayload = res.data.signIn as AuthPayload;
+          dispatch(setUser(authPayload.user));
+          if (authPayload.accessToken && authPayload.refreshToken) {
+            dispatch(setTokens({
+              accessToken: authPayload.accessToken,
+              refreshToken: authPayload.refreshToken,
+            }));
+          }
+          router.push("/sign-up/verify-email" as any);
+        }
+  
+      } catch (e: any) {
+  
+        const message = getApolloErrorMessage(e);
+        showToast("error", `${message} 😢`)
+        
+      }
+    };
 
   const handleContinue = async (values: { name: string; email: string; password: string }) => {
     router.push("/sign-up/verify-email" as any);
@@ -49,7 +90,7 @@ export default function SignUpScreen() {
           <Formik
             initialValues={{ name: "", email: "", password: "", confirmPassword: "" }}
             validationSchema={signUpSchema}
-            onSubmit={handleContinue}
+            onSubmit={handleSignUp}
           >
             {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
               <ScrollView
