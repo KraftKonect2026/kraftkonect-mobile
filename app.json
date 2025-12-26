@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.artisanhubb-onboarding"
+      "bundleIdentifier": "com.artisanhubb"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.artisanhubb_onboarding"
+      "package": "com.artisanhubb"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

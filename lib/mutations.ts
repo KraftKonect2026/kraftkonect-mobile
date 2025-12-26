@@ -18,3 +18,56 @@ export const SIGN_IN_MUTATION = gql`
     }
   }
 `;
+
+export const SIGN_UP_MUTATION = gql`
+  mutation SignUp(
+    $email: String!
+    $password: String!
+    $name: String
+    $phone: String
+  ) {
+    signUp(email: $email, password: $password, name: $name, phone: $phone) {
+      accessToken
+      refreshToken
+      user {
+        id
+        email
+        name
+        phone
+        role
+        avatarUrl
+        metadata
+        createdAt
+      }
+    }
+  }
+`;
+
+export const VERIFY_EMAIL_MUTATION = gql`
+  mutation VerifyEmail($email: String!, $otp: String!) {
+    verifyEmail(email: $email, otp: $otp) {
+      accessToken
+      message
+      refreshToken
+      user {
+        id
+        email
+        name
+        phone
+        role
+        avatarUrl
+        metadata
+        createdAt
+      }
+    }
+  }
+`;
+
+export const RESEND_OTP_MUTATION = gql`
+  mutation ResendOtp($email: String!) {
+    resendOtp(email: $email) {
+      success
+      message
+    }
+  }
+`;

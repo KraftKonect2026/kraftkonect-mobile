@@ -9,6 +9,7 @@ import { ApolloProvider } from "@apollo/client/react";
 import { store, persistor } from "@/store";
 import apolloClient from "@/lib/apolloClient";
 import { ToastProvider } from "@/lib/toast";
+import { StatusBar } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -62,6 +63,7 @@ export default function RootLayout() {
           </QueryClientProvider>
         </ApolloProvider>
       </PersistGate>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
     </Provider>
   );
 }
