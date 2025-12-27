@@ -19,51 +19,79 @@ import { setTokens, setUser } from "@/store/authSlice";
 import { AuthPayload } from "@/types";
 import { useToast } from "@/lib/toast";
 import { useMutation } from "@apollo/client";
-import { useAppDispatch } from "@/store";
-import { VERIFY_EMAIL_MUTATION } from "@/lib/mutations";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { RESEND_OTP_MUTATION, VERIFY_EMAIL_MUTATION } from "@/lib/mutations";
+import { useCountdown } from "@/lib/hooks/useCountdown";
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef<(TextInput | null)[]>([]);
-  // how do i get token from redux store here?
-  const token = useAppDispatch();
-
+  const token = useAppSelector((state) => state.auth.accessToken);
+  const user = useAppSelector((state) => state.auth.user);
   const dispatch = useAppDispatch();
-      const [verifyEmail] = useMutation(VERIFY_EMAIL_MUTATION)
-      const {showToast} = useToast()
-    
-      const handleVerifyEmail = async (values: { email: string; password: string, name: string,  }) => {
-        try {
-          const res = await verifyEmail({
-            variables: {
-              email: values.email,
-              password: values.password,
-              name: values.name,
-            },
-          });
-    
-          if (res.data?.signIn) {
-            const authPayload = res.data.signIn as AuthPayload;
-            showToast("success", `${authPayload?.message} 🎉`)
-            dispatch(setUser(authPayload?.user));
-            if (authPayload.accessToken && authPayload.refreshToken) {
-              dispatch(setTokens({
-                accessToken: authPayload.accessToken,
-                refreshToken: authPayload.refreshToken,
-              }));
-            }
-            router.push("/sign-up/verify-email" as any);
-          }
-    
-        } catch (e: any) {
-    
-          const message = getApolloErrorMessage(e);
-          showToast("error", `${message} 😢`)
-          
+  const [verifyEmail, { loading: isVerifyEmailLoading }] = useMutation(VERIFY_EMAIL_MUTATION)
+  const [resendOtp, { loading: isResendOtpLoading }] = useMutation(RESEND_OTP_MUTATION)
+  const { showToast } = useToast()
+  const { seconds, isActive, start, reset, formattedTime } = useCountdown({
+    initialSeconds: 60,
+    autoStart: false,
+    onComplete: () => {
+      showToast("info", "Verification code expired. Please request a new one.");
+    },
+  });
+
+  const handleVerifyEmail = async (values: { email: string; otp: string, }) => {
+    try {
+      const res = await verifyEmail({
+        variables: {
+          email: values.email,
+          otp: values.otp,
+        },
+      });
+
+      if (res.data?.verifyEmail) {
+        const authPayload = res.data.verifyEmail as AuthPayload;
+        showToast("success", `${authPayload?.message} 🎉`)
+        dispatch(setUser(authPayload?.user));
+        if (authPayload.accessToken && authPayload.refreshToken) {
+          dispatch(setTokens({
+            accessToken: authPayload.accessToken,
+            refreshToken: authPayload.refreshToken,
+          }));
         }
-      };
+        router.replace("/(app)/explore" as any);
+      }
+
+    } catch (e: any) {
+
+      const message = getApolloErrorMessage(e);
+      showToast("error", `${message} 😢`)
+
+    }
+  };
+
+  const handleResendOtp = async (values: { email: string }) => {
+    try {
+      const res = await resendOtp({
+        variables: {
+          email: values.email,
+        },
+      });
+
+      if (res.data?.resendOtp?.success) {
+        const authPayload = res.data.resendOtp as AuthPayload;
+        showToast("success", `${authPayload?.message} 🎉`)
+
+      }
+
+    } catch (e: any) {
+
+      const message = getApolloErrorMessage(e);
+      showToast("error", `${message} 😢`)
+
+    }
+  };
 
   const handleOtpChange = (text: string, index: number) => {
     if (text.length > 1) {
@@ -85,34 +113,28 @@ export default function VerifyEmailScreen() {
     }
   };
 
-  const handleContinue = async () => {
-    const otpCode = otp.join('');
-    if (otpCode.length !== 6) {
-      Alert.alert("Error", "Please enter the complete OTP code");
-      return;
-    }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      router.replace("/(app)/explore" as any);
-    }, 1000);
-  };
 
   const handleResend = () => {
+    if (!user?.email) {
+      showToast("error", "Email not found. Please go back and try again. 😢");
+      return;
+    }
+    handleResendOtp({ email: user?.email || '' });
     setOtp(['', '', '', '', '', '']);
+    reset();
+    start();
     inputRefs.current[0]?.focus();
-    Alert.alert("Success", "Verification code sent!");
   };
 
   return (
     <View style={styles.wrapper}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -157,22 +179,25 @@ export default function VerifyEmailScreen() {
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.continueButton, isLoading && styles.disabledButton]}
-                onPress={handleContinue}
-                disabled={isLoading}
+                style={[styles.continueButton, isVerifyEmailLoading && styles.disabledButton]}
+                onPress={handleVerifyEmail.bind(null, { email: user?.email || '', otp: otp.join('') })}
+                disabled={isVerifyEmailLoading}
                 activeOpacity={0.8}
               >
                 <Text style={styles.continueButtonText}>
-                  {isLoading ? "Verifying..." : "Verify"}
+                  {isVerifyEmailLoading ? "Verifying..." : "Verify"}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.resendButton}
                 onPress={handleResend}
+                disabled={isResendOtpLoading || isActive}
                 activeOpacity={0.8}
               >
-                <Text style={styles.resendButtonText}>Resend Code</Text>
+                <Text style={styles.resendButtonText}>
+                  {isActive ? `Resend Code in ${formattedTime}` : "Resend Code"}
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

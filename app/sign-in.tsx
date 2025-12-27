@@ -58,7 +58,11 @@ export default function SignInScreen() {
             refreshToken: authPayload.refreshToken,
           }));
         }
-        router.replace("/(app)/explore" as any);
+        if (authPayload.user?.emailVerified) {
+          router.replace("/(app)/explore" as any);
+        } else {
+          router.replace("/sign-up/verify-email" as any);
+        }
       }
 
     } catch (e: any) {
