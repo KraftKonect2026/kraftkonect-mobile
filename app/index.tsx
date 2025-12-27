@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
-import { useAppSelector, useAppDispatch } from "@/store";
+import { useAppSelector, useAppDispatch, store } from "@/store";
 import { signOut } from "@/store/authSlice";
 
 export default function SplashScreen() {
@@ -13,9 +13,9 @@ export default function SplashScreen() {
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    dispatch(signOut());
-  }, [dispatch]);
+  // useEffect(() => {
+  //   dispatch(signOut());
+  // }, [dispatch]);
 
   useEffect(() => {
     Animated.parallel([
@@ -39,9 +39,23 @@ export default function SplashScreen() {
 
     const timer = setTimeout(() => {
       if (!isLoading) {
-        router.replace("/get-started" as any);
+        // Check if user is authenticated and redirect accordingly
+        const isAuthenticated = store.getState().auth.accessToken !== null;
+        const isProvider = store.getState().auth.user?.role === "provider";
+        if (isAuthenticated && isProvider) {
+          router.replace("/provider/(tabs)/today");
+        } else if (isAuthenticated && !isProvider) {
+          router.replace("/(app)/explore");
+        } else {
+          router.replace("/get-started");
+        }
+      } else {
+        const isAuthenticated = store.getState().auth.accessToken !== null;
+        router.replace(isAuthenticated ? "/(app)/explore" : "/get-started");
       }
     }, 2000);
+
+    return () => clearTimeout(timer);
 
     return () => clearTimeout(timer);
   }, [isLoading, router, fadeAnim, scaleAnim, colorAnim]);

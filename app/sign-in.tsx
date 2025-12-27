@@ -18,7 +18,7 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { useAppDispatch } from "@/store";
-import { setUser, setTokens } from "@/store/authSlice";
+import { setUser, setTokens, setIsAuthenticated } from "@/store/authSlice";
 import { useMutation } from "@apollo/client";
 import { SIGN_IN_MUTATION } from "@/lib/mutations";
 import { AuthPayload } from "@/types";
@@ -58,8 +58,10 @@ export default function SignInScreen() {
             refreshToken: authPayload.refreshToken,
           }));
         }
-        if (authPayload.user?.emailVerified) {
+        if (authPayload.user?.metadata?.email_verified) {
           router.replace("/(app)/explore" as any);
+          dispatch(setIsAuthenticated(true));
+          console.log("User is authenticated, navigating to app.");
         } else {
           router.replace("/sign-up/verify-email" as any);
         }

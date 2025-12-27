@@ -186,7 +186,8 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.switchToProviderButton}
           activeOpacity={0.9}
-          onPress={() => router.push("/provider/(tabs)/today" as any)}
+          disabled={user?.role !== "provider"}
+          onPress={() => user?.role === "provider" ? router.replace("/provider/(tabs)/today" as any) : null }
         >
           <Text style={styles.switchToProviderText}>Switch to Provider</Text>
           <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />

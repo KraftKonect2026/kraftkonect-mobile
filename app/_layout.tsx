@@ -17,11 +17,26 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const isAuthenticated = useAppSelector((state) => state.auth.user);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated !== null);
   console.log("isAuthenticated:", isAuthenticated);
+  const isRehydrated = useAppSelector((state) => state._persist?.rehydrated);
+
+  console.log("isAuthenticated:", isAuthenticated, "isRehydrated:", isRehydrated);
+
+  // Hide splash screen once rehydrated
+  useEffect(() => {
+    if (isRehydrated) {
+      SplashScreen.hideAsync();
+    }
+  }, [isRehydrated]);
+
+  // Don't render navigation until rehydrated
+  if (!isRehydrated) {
+    return null;
+  }
   return (
     <Stack screenOptions={{ headerShown: false, headerBackTitle: "Back" }}>
-      {!isAuthenticated ? (
+      {isAuthenticated === false ? (
         // Auth Screens (shown when not authenticated)
         <>
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -58,9 +73,7 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+
 
   return (
     <Provider store={store}>

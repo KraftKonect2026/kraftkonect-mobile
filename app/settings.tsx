@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import Colors from "@/constants/colors";
+import { useAppDispatch } from "@/store";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -41,6 +42,7 @@ export default function SettingsScreen() {
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
+  const dispatch = useAppDispatch();
 
   const handleSendCode = () => {
     if (!phone || phone.length < 10) {
@@ -246,6 +248,7 @@ export default function SettingsScreen() {
         ))}
       </ScrollView>
 
+      {/* Delete Account Modal */}
       <Modal
         visible={deleteModalVisible}
         transparent
@@ -304,6 +307,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* Sign Out Modal */}
       <Modal
         visible={signOutModalVisible}
         transparent
@@ -327,8 +331,9 @@ export default function SettingsScreen() {
               <TouchableOpacity
                 style={styles.modalConfirmButton}
                 onPress={() => {
+                  dispatch({ type: "auth/signOut" });
+                  router.replace("/get-started");
                   setSignOutModalVisible(false);
-                  console.log("Sign out");
                 }}
                 activeOpacity={0.7}
               >

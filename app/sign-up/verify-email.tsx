@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
-import { setTokens, setUser } from "@/store/authSlice";
+import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
 import { AuthPayload } from "@/types";
 import { useToast } from "@/lib/toast";
 import { useMutation } from "@apollo/client";
@@ -55,6 +55,7 @@ export default function VerifyEmailScreen() {
         showToast("success", `${authPayload?.message} 🎉`)
         dispatch(setUser(authPayload?.user));
         if (authPayload.accessToken && authPayload.refreshToken) {
+          dispatch(setIsAuthenticated(true));
           dispatch(setTokens({
             accessToken: authPayload.accessToken,
             refreshToken: authPayload.refreshToken,
