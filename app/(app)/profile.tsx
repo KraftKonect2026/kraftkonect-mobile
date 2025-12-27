@@ -182,7 +182,7 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.floatingButton, { bottom: insets.bottom + 20 }]}>
+      {user?.role === "provider" && <View style={[styles.floatingButton, { bottom: insets.bottom + 20 }]}>
         <TouchableOpacity
           style={styles.switchToProviderButton}
           activeOpacity={0.9}
@@ -192,7 +192,7 @@ export default function ProfileScreen() {
           <Text style={styles.switchToProviderText}>Switch to Provider</Text>
           <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
         </TouchableOpacity>
-      </View>
+      </View>}
 
       <Modal
         visible={contactModalVisible}
