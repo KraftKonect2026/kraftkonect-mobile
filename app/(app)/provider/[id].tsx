@@ -19,8 +19,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useQuery } from "@apollo/client";
+import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
-import { providers } from "@/mocks/providers";
+import { PROVIDER_QUERY } from "@/lib/queries";
+import { ActivityIndicator } from "react-native";
+import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
 
 
 const HEADER_MAX_HEIGHT = 280;
@@ -31,13 +35,35 @@ export default function ProviderProfileScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const scrollY = useRef(new Animated.Value(0)).current;
+  console.log(id, "line 38")
+  const token = useAppSelector((state) => state.auth.accessToken);
+  const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
+    variables: { providerId: `${id}` },
+    skip: !id,
+    notifyOnNetworkStatusChange: true,
+  });
 
-  const provider = providers.find((p) => p.id === id);
+  const provider = data?.provider;
+  console.log(getApolloErrorMessage(error))
 
-  if (!provider) {
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  if (error || !provider) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Provider not found</Text>
+        <Text style={styles.errorText}>
+          {error ? "Failed to load provider" : "Provider not found"}
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -64,7 +90,7 @@ export default function ProviderProfileScreen() {
             contentFit="cover"
           />
         </Animated.View>
-        
+
         <View style={[styles.headerButtons, { top: insets.top + 12 }]}>
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()} activeOpacity={0.8}>
             <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
@@ -102,7 +128,7 @@ export default function ProviderProfileScreen() {
             <View style={styles.ratingRow}>
               <Star size={18} color="#FFA500" fill="#FFA500" />
               <Text style={styles.rating}>
-                {provider.rating.toFixed(1)} ({provider.reviewCount} reviews)
+                {(provider.rating || 0).toFixed(1)} ({provider.reviewCount || 0} reviews)
               </Text>
             </View>
           </View>
@@ -125,7 +151,7 @@ export default function ProviderProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Expertise</Text>
             <View style={styles.expertiseContainer}>
-              {provider.expertise.map((skill, index) => (
+              {(provider.expertise || []).map((skill: string, index: number) => (
                 <View key={index} style={styles.expertiseChip}>
                   <Text style={styles.expertiseText}>{skill}</Text>
                 </View>
@@ -135,19 +161,21 @@ export default function ProviderProfileScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Services</Text>
-            {provider.services.map((service) => (
+            {(provider.services || []).map((service: any) => (
               <View
                 key={service.id}
                 style={styles.serviceCard}
               >
                 <View style={styles.serviceHeader}>
                   <Text style={styles.serviceTitle}>{service.title}</Text>
-                  <Text style={styles.servicePrice}>${service.price}</Text>
+                  <Text style={styles.servicePrice}>
+                    ${service.priceCents ? (service.priceCents / 100).toFixed(2) : "0.00"}
+                  </Text>
                 </View>
                 <Text style={styles.serviceDescription}>{service.description}</Text>
                 <View style={styles.serviceDuration}>
                   <Clock size={14} color="#9CA3AF" />
-                  <Text style={styles.durationText}>{service.duration} min</Text>
+                  <Text style={styles.durationText}>{service.durationMinutes} min</Text>
                 </View>
               </View>
             ))}
@@ -156,7 +184,7 @@ export default function ProviderProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Portfolio</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.portfolio}>
-              {provider.portfolio.map((imageUrl, index) => (
+              {(provider.portfolio || []).map((imageUrl: string, index: number) => (
                 <Image
                   key={index}
                   source={{ uri: imageUrl }}
@@ -169,7 +197,7 @@ export default function ProviderProfileScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Reviews ({provider.reviewCount})</Text>
-            {provider.reviews.map((review) => (
+            {(provider.reviews || []).map((review: any) => (
               <View key={review.id} style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Image
@@ -180,16 +208,16 @@ export default function ProviderProfileScreen() {
                   <View style={styles.reviewInfo}>
                     <Text style={styles.reviewName}>{review.userName}</Text>
                     <View style={styles.reviewRatingRow}>
-                      {Array.from({ length: review.rating }).map((_, i) => (
+                      {Array.from({ length: review.rating || 0 }).map((_, i) => (
                         <Star key={i} size={12} color="#FFA500" fill="#FFA500" />
                       ))}
                     </View>
                   </View>
                   <Text style={styles.reviewDate}>
-                    {new Date(review.date).toLocaleDateString("en-US", {
+                    {review.date ? new Date(review.date).toLocaleDateString("en-US", {
                       month: "short",
                       year: "numeric",
-                    })}
+                    }) : ""}
                   </Text>
                 </View>
                 <Text style={styles.reviewComment}>{review.comment}</Text>
@@ -227,8 +255,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   errorText: {
-    fontSize: 18,
-    color: "#9CA3AF",
+    fontSize: 16,
+    color: "#EF4444",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
   },
   header: {
     position: "absolute",
@@ -236,7 +288,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    overflow: "hidden",
+    
   },
   bannerImage: {
     width: "100%",
@@ -263,6 +315,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: -40,
     alignSelf: "center",
+    marginBottom: 20,
   },
   profileImage: {
     width: 120,
@@ -271,6 +324,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 4,
     borderColor: "#FFFFFF",
+    
   },
   verifiedBadge: {
     position: "absolute",
@@ -292,12 +346,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 120,
+    zIndex: -1
   },
   content: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 60,
+    zIndex: -1
   },
   nameSection: {
     alignItems: "center",

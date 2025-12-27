@@ -17,7 +17,7 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated !== null);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   console.log("isAuthenticated:", isAuthenticated);
   const isRehydrated = useAppSelector((state) => state._persist?.rehydrated);
 

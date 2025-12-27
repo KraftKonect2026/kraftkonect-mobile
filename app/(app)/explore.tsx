@@ -27,8 +27,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { useQuery } from "@apollo/client";
+import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
-import { providers, categories as categoriesData } from "@/mocks/providers";
+import { categories as categoriesData } from "@/mocks/providers";
+import { PROVIDERS_QUERY } from "@/lib/queries";
+import { ActivityIndicator } from "react-native";
 
 
 
@@ -63,13 +67,26 @@ export default function ExploreScreen() {
     });
   };
 
-  const onRefresh = () => {
+  const token = useAppSelector((state) => state.auth.accessToken);
+
+  const { data, loading, error, refetch } = useQuery(PROVIDERS_QUERY, {
+    variables: { limit: 20, offset: 0 },
+    skip: !token,
+    notifyOnNetworkStatusChange: true,
+  });
+
+  
+
+  const providers = data?.providers || [];
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    await refetch();
+    setRefreshing(false);
   };
 
   const filteredProviders = selectedCategory
-    ? providers.filter((p) => p.categories.includes(selectedCategory))
+    ? providers.filter((p: any) => p.categories?.includes(selectedCategory) || p.category === selectedCategory)
     : providers;
 
   const headerOpacity = scrollY.interpolate({
@@ -147,79 +164,101 @@ export default function ExploreScreen() {
             <Text style={styles.sectionTitle}>
               {selectedCategory
                 ? categoriesData.find((c) => c.id === selectedCategory)?.name +
-                  " Providers"
+                " Providers"
                 : "Featured Providers"}
             </Text>
 
-            {filteredProviders.map((provider, index) => (
-              <TouchableOpacity
-                key={provider.id}
-                style={styles.providerCard}
-                activeOpacity={0.9}
-                onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
-              >
-                <Image
-                  source={{ uri: provider.banner }}
-                  style={styles.providerImage}
-                  contentFit="cover"
-                />
-                <TouchableOpacity
-                  style={styles.favoriteButton}
-                  activeOpacity={0.7}
-                  onPress={() => toggleFavorite(provider.id)}
-                >
-                  <Heart
-                    size={20}
-                    color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
-                    fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
-                    strokeWidth={2}
-                  />
+            {loading && !refreshing ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Finding best providers...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Failed to load providers</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
-
-                <View style={styles.providerInfo}>
-                  <View style={styles.providerHeader}>
-                    <Image
-                      source={{ uri: provider.avatar }}
-                      style={styles.providerAvatar}
-                      contentFit="cover"
+              </View>
+            ) : filteredProviders.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No providers found in this category</Text>
+              </View>
+            ) : (
+              filteredProviders.map((provider: any, index: number) => (
+                <TouchableOpacity
+                  key={provider.id}
+                  style={styles.providerCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
+                >
+                  <Image
+                    source={{ uri: provider.banner }}
+                    style={styles.providerImage}
+                    contentFit="cover"
+                  />
+                  <TouchableOpacity
+                    style={styles.favoriteButton}
+                    activeOpacity={0.7}
+                    onPress={() => toggleFavorite(provider.id)}
+                  >
+                    <Heart
+                      size={20}
+                      color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
+                      fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
+                      strokeWidth={2}
                     />
-                    <View style={styles.providerDetails}>
-                      <View style={styles.nameRow}>
-                        <Text style={styles.providerName}>{provider.name}</Text>
-                        {provider.verified && (
-                          <View style={styles.verifiedBadge}>
-                            <Text style={styles.verifiedText}>✓</Text>
-                          </View>
-                        )}
+                  </TouchableOpacity>
+
+                  <View style={styles.providerInfo}>
+                    <View style={styles.providerHeader}>
+                      <Image
+                        source={{ uri: provider.avatar }}
+                        style={styles.providerAvatar}
+                        contentFit="cover"
+                      />
+                      <View style={styles.providerDetails}>
+                        <View style={styles.nameRow}>
+                          <Text style={styles.providerName}>{provider.name}</Text>
+                          {provider.verified && (
+                            <View style={styles.verifiedBadge}>
+                              <Text style={styles.verifiedText}>✓</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.categoryLabel}>
+                          {provider.categories?.length > 0
+                            ? provider.categories
+                              .map((catId: string) => categoriesData.find((c) => c.id === catId)?.name)
+                              .filter(Boolean)
+                              .join(", ")
+                            : categoriesData.find((c) => c.id === provider.category)?.name || provider.category}
+                        </Text>
+                        <View style={styles.ratingRow}>
+                          <Star size={14} color="#FFA500" fill="#FFA500" />
+                          <Text style={styles.rating}>
+                            {(provider.rating || 0).toFixed(1)} ({provider.reviewCount || 0})
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={styles.categoryLabel}>
-                        {provider.categories
-                          .map((catId) => categoriesData.find((c) => c.id === catId)?.name)
-                          .filter(Boolean)
-                          .join(", ")}
-                      </Text>
-                      <View style={styles.ratingRow}>
-                        <Star size={14} color="#FFA500" fill="#FFA500" />
-                        <Text style={styles.rating}>
-                          {provider.rating.toFixed(1)} ({provider.reviewCount})
+                    </View>
+
+                    <View style={styles.providerFooter}>
+                      <View style={styles.priceContainer}>
+                        <Text style={styles.price}>${provider.pricePerHour}</Text>
+                        <Text style={styles.priceLabel}>/hour</Text>
+                      </View>
+                      <View style={styles.distanceContainer}>
+                        <MapPin size={14} color="#9CA3AF" />
+                        <Text style={styles.distance}>
+                          {typeof provider.distance === "number" ? provider.distance.toFixed(1) : "0.0"} km away
                         </Text>
                       </View>
                     </View>
                   </View>
-
-                  <View style={styles.providerFooter}>
-                    <View style={styles.priceContainer}>
-                      <Text style={styles.price}>${provider.pricePerHour}</Text>
-                      <Text style={styles.priceLabel}>/hour</Text>
-                    </View>
-                    <View style={styles.distanceContainer}>
-                      <MapPin size={14} color="#9CA3AF" />
-                      <Text style={styles.distance}>{provider.distance} km away</Text>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </Animated.ScrollView>
       </View>
@@ -441,5 +480,41 @@ const styles = StyleSheet.create({
   distance: {
     fontSize: 14,
     color: "#9CA3AF",
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  errorContainer: {
+    padding: 40,
+    alignItems: "center",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#EF4444",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#6B7280",
   },
 });

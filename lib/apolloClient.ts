@@ -12,12 +12,29 @@ const httpLink = new HttpLink({
 });
 
 const authLink = setContext((_, { headers }) => {
-  const token = store.getState().auth.accessToken;
+  const rawToken = store.getState().auth.accessToken;
+
+  if (!rawToken) {
+    console.log("Apollo authLink: No token found in store");
+    return { headers };
+  }
+
+  const token = rawToken.trim();
+  const authHeaderValue = token.startsWith("Bearer ")
+    ? token
+    : `${token}`;
+
+  console.log("Apollo authLink debug:", {
+    tokenStart: token.substring(0, 10),
+    tokenEnd: token.substring(token.length - 10),
+    headerStart: authHeaderValue.substring(0, 20),
+    length: token.length,
+  });
 
   return {
     headers: {
       ...headers,
-      authorization: token ? `Bearer ${token}` : "",
+      Authorization: authHeaderValue,
     },
   };
 });
