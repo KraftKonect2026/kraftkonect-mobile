@@ -71,3 +71,24 @@ export const RESEND_OTP_MUTATION = gql`
     }
   }
 `;
+
+export const ONBOARD_PROVIDER_MUTATION = gql`
+  mutation OnboardProvider($input: OnboardProviderInput!) {
+    onboardProvider(input: $input) {
+      avatar
+      banner
+      bio
+      categories
+      category
+      createdAt
+      distance
+      experience
+      expertise
+      id
+      name
+      portfolio
+      status
+      verified
+    }
+  }
+`;

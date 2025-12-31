@@ -13,15 +13,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, ArrowRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { useProviderOnboarding } from "./context";
 
 export default function ExperienceScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
-  const [experience, setExperience] = useState("");
-  const [description, setDescription] = useState("");
 
-  const isValid = experience.length > 0 && description.length > 50;
+  const { experience, setExperience } = useProviderOnboarding();
+
+  const handleUpdate = (updates: Partial<typeof experience>) => {
+    setExperience({ ...experience, ...updates });
+  };
+
+  const isValid = experience.years.length > 0 && experience.description.length > 50;
 
   return (
     <KeyboardAvoidingView
@@ -69,22 +73,22 @@ export default function ExperienceScreen() {
               style={styles.input}
               placeholder="e.g., 5 years"
               placeholderTextColor="#9CA3AF"
-              value={experience}
-              onChangeText={setExperience}
+              value={experience.years}
+              onChangeText={(text) => handleUpdate({ years: text })}
             />
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>About Your Services</Text>
             <Text style={styles.characterCount}>
-              {description.length} / 200 characters (min 50)
+              {experience.description.length} / 200 characters (min 50)
             </Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Describe your experience, specialties, and what customers can expect when working with you..."
               placeholderTextColor="#9CA3AF"
-              value={description}
-              onChangeText={setDescription}
+              value={experience.description}
+              onChangeText={(text) => handleUpdate({ description: text })}
               multiline
               numberOfLines={8}
               maxLength={200}

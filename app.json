@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Artisanhubb Onboarding",
-    "slug": "artisanhubb-onboarding",
+    "name": "KraftKonect",
+    "slug": "kraftkonect",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "rork-app",
+    "scheme": "kraftkonect-app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.artisanhubb"
+      "bundleIdentifier": "com.kraftkonect"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.artisanhubb"
+      "package": "com.kraftkonect"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -31,7 +31,7 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://artisanhubb.com/"
         }
       ],
       "expo-font",
@@ -39,6 +39,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://artisanhubb.com/"
+      },
+      "eas": {
+        "projectId": "c3f1fb33-cb2b-48dc-b946-3adb2a68db3a"
+      }
     }
   }
 }

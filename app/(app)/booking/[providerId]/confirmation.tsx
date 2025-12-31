@@ -12,8 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
+import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
-import { providers } from "@/mocks/providers";
+import { PROVIDER_QUERY } from "@/lib/queries";
+import { ActivityIndicator } from "react-native";
 
 export default function ConfirmationScreen() {
   const router = useRouter();
@@ -36,20 +38,46 @@ export default function ConfirmationScreen() {
     }).start();
   }, []);
 
-  const provider = providers.find((p) => p.id === providerId);
-  const service = provider?.services.find((s) => s.id === serviceId);
+  const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
+    variables: { providerId: `${providerId}` },
+    skip: !providerId,
+    notifyOnNetworkStatusChange: true,
+  });
 
-  if (!provider || !service || !date || !time || !bookingId) {
+  const provider = data?.provider;
+  const service = (provider?.services || []).find((s: any) => s.id === serviceId);
+
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Booking information not found</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Finalizing booking...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !provider || !service || !date || !time || !bookingId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            {error ? "Failed to load booking confirmation" : "Booking information not found"}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   const bookingDate = new Date(date);
-  const serviceFee = service.price * 0.1;
-  const totalAmount = service.price + serviceFee;
+  const basePrice = service.priceCents ? service.priceCents / 100 : 0;
+  const serviceFee = basePrice * 0.1;
+  const totalAmount = basePrice + serviceFee;
+  const currencySymbol = service.currency === "NGN" ? "₦" : "$";
 
   return (
     <View style={styles.wrapper}>
@@ -110,12 +138,12 @@ export default function ConfirmationScreen() {
             <View style={styles.detailRow}>
               <Clock size={16} color="#9CA3AF" />
               <Text style={[styles.detailLabel, styles.iconLabel]}>Duration</Text>
-              <Text style={styles.detailValue}>{service.duration} min</Text>
+              <Text style={styles.detailValue}>{service.durationMinutes} min</Text>
             </View>
             <View style={styles.separator} />
             <View style={styles.detailRow}>
               <Text style={styles.totalLabel}>Total Paid</Text>
-              <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
             </View>
           </View>
 
@@ -399,9 +427,37 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     color: "#FFFFFF",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
   errorText: {
-    fontSize: 18,
-    color: "#9CA3AF",
+    fontSize: 16,
+    color: "#EF4444",
     textAlign: "center",
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

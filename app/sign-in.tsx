@@ -37,7 +37,7 @@ export default function SignInScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [signIn] = useMutation(SIGN_IN_MUTATION)
-  const {showToast} = useToast()
+  const { showToast } = useToast()
 
   const handleSignIn = async (values: { email: string; password: string }) => {
     try {
@@ -71,7 +71,7 @@ export default function SignInScreen() {
 
       const message = getApolloErrorMessage(e);
       showToast("error", `${message} 😢`)
-      
+
     }
   };
 
@@ -103,7 +103,7 @@ export default function SignInScreen() {
                 <View style={styles.header}>
                   <Text style={styles.title}>Welcome Back</Text>
                   <Text style={styles.subtitle}>
-                    Sign in to continue to Artisanhubb
+                    Sign in to continue to KraftKonect
                   </Text>
                 </View>
 

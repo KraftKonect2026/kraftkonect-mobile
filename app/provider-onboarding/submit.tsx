@@ -11,12 +11,43 @@ import { useRouter } from "expo-router";
 import { CheckCircle2, ArrowRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
 
+import { useMutation } from "@apollo/client";
+import { ONBOARD_PROVIDER_MUTATION } from "@/lib/mutations";
+import { useProviderOnboarding } from "./context";
+import { ActivityIndicator, Alert } from "react-native";
+import { useState } from "react";
+import { useToast } from "@/lib/toast";
+
 export default function SubmitScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { basicInfo, selectedCategories, verification, experience } = useProviderOnboarding();
 
-  const handleSubmit = () => {
-    router.replace("/provider-onboarding/pending-approval" as any);
+  const [submitProvider, { loading }] = useMutation(ONBOARD_PROVIDER_MUTATION);
+  const { showToast } = useToast()
+
+  const handleSubmit = async () => {
+    try {
+      await submitProvider({
+        variables: {
+          input: {
+            name: basicInfo.name,
+            email: basicInfo.email,
+            phone: basicInfo.phone,
+            selectedCategories: selectedCategories,
+            idUrl: verification.idUrl,
+            selfieUrl: verification.selfieUrl,
+            experience: experience.years,
+            description: experience.description,
+          }
+        }
+      });
+      showToast("success", "Provider application submitted successfully.")
+      router.replace("/provider-onboarding/pending-approval" as any);
+    } catch (error: any) {
+      console.error("Submission failed:", error);
+      showToast("error", error.message || "Something went wrong. Please try again.")
+    }
   };
 
   return (
@@ -45,22 +76,22 @@ export default function SubmitScreen() {
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Profile Information</Text>
-            <Text style={styles.summaryValue}>Complete ✓</Text>
+            <Text style={styles.summaryValue}>{basicInfo.name ? "Complete ✓" : "Missing"}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Categories Selected</Text>
-            <Text style={styles.summaryValue}>Complete ✓</Text>
+            <Text style={styles.summaryValue}>{selectedCategories.length > 0 ? "Complete ✓" : "Missing"}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Identity Verification</Text>
-            <Text style={styles.summaryValue}>Complete ✓</Text>
+            <Text style={styles.summaryValue}>{verification.idUrl ? "Complete ✓" : "Missing"}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Experience & Description</Text>
-            <Text style={styles.summaryValue}>Complete ✓</Text>
+            <Text style={styles.summaryValue}>{experience.description ? "Complete ✓" : "Missing"}</Text>
           </View>
         </View>
 
@@ -76,7 +107,7 @@ export default function SubmitScreen() {
 
         <View style={styles.termsContainer}>
           <Text style={styles.termsText}>
-            By submitting, you agree to Artisanhubb&apos;s{" "}
+            By submitting, you agree to KraftKonect&apos;s{" "}
             <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
             <Text style={styles.termsLink}>Provider Agreement</Text>
           </Text>
@@ -85,17 +116,25 @@ export default function SubmitScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, loading && { opacity: 0.7 }]}
           activeOpacity={0.8}
           onPress={handleSubmit}
+          disabled={loading}
         >
-          <Text style={styles.submitButtonText}>Submit Application</Text>
-          <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <Text style={styles.submitButtonText}>Submit Application</Text>
+              <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
+            </>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.8}
           onPress={() => router.back()}
+          disabled={loading}
         >
           <Text style={styles.backButtonText}>Go back to edit</Text>
         </TouchableOpacity>

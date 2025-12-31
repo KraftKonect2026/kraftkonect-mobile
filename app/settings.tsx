@@ -109,13 +109,13 @@ export default function SettingsScreen() {
           icon: FileText,
           label: "Terms of Service",
           type: "link" as const,
-          onPress: () => Linking.openURL("https://artisanhubb.com/terms"),
+          onPress: () => Linking.openURL("https://kraftkonect.com/terms"),
         },
         {
           icon: Lock,
           label: "Privacy Policy",
           type: "link" as const,
-          onPress: () => Linking.openURL("https://artisanhubb.com/privacy"),
+          onPress: () => Linking.openURL("https://kraftkonect.com/privacy"),
         },
       ],
     },
@@ -371,9 +371,9 @@ export default function SettingsScreen() {
                 <Text style={styles.closeButtonText}>✕</Text>
               </TouchableOpacity>
             </View>
-            
+
             <Text style={styles.modalDescription}>
-              {!codeSent 
+              {!codeSent
                 ? "Enter your phone number to receive a verification code"
                 : "Enter the 6-digit code sent to your phone"}
             </Text>

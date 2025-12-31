@@ -15,6 +15,7 @@ import { ArrowLeft, ArrowRight, User, Mail, Phone } from "lucide-react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
+import { useProviderOnboarding } from "./context";
 
 const basicInfoSchema = Yup.object().shape({
   name: Yup.string()
@@ -32,6 +33,7 @@ const basicInfoSchema = Yup.object().shape({
 export default function BasicInfoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { basicInfo, setBasicInfo } = useProviderOnboarding();
 
   return (
     <KeyboardAvoidingView
@@ -39,9 +41,13 @@ export default function BasicInfoScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <Formik
-        initialValues={{ name: "", email: "", phone: "" }}
+        initialValues={basicInfo}
         validationSchema={basicInfoSchema}
-        onSubmit={() => router.push("/provider-onboarding/category" as any)}
+        onSubmit={(values) => {
+          setBasicInfo(values);
+          router.push("/provider-onboarding/category" as any);
+        }}
+        enableReinitialize
       >
         {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isValid }) => (
           <>

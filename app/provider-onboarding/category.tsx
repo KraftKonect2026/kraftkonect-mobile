@@ -19,6 +19,7 @@ import {
   Scissors,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { useProviderOnboarding } from "./context";
 
 const categories = [
   { id: "cleaning", name: "Cleaning", icon: Sparkles },
@@ -32,8 +33,8 @@ const categories = [
 export default function CategoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  const { selectedCategories, setSelectedCategories } = useProviderOnboarding();
 
   const toggleCategory = (id: string) => {
     if (selectedCategories.includes(id)) {

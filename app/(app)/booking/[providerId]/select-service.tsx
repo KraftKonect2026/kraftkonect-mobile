@@ -11,25 +11,50 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
+import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
-import { providers } from "@/mocks/providers";
+import { PROVIDER_QUERY } from "@/lib/queries";
+import { ActivityIndicator } from "react-native";
 
 export default function SelectServiceScreen() {
   const router = useRouter();
   const { providerId } = useLocalSearchParams<{ providerId: string }>();
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
+    variables: { providerId: `${providerId}` },
+    skip: !providerId,
+    notifyOnNetworkStatusChange: true,
+  });
 
-  const provider = providers.find((p) => p.id === providerId);
+  const provider = data?.provider;
 
-  if (!provider) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Provider not found</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Fetching available services...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  const selectedService = provider.services.find((s) => s.id === selectedServiceId);
+  if (error || !provider) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            {error ? "Failed to load provider services" : "Provider not found"}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const selectedService = (provider.services || []).find((s: any) => s.id === selectedServiceId);
 
   const handleContinue = () => {
     if (selectedServiceId) {
@@ -72,7 +97,7 @@ export default function SelectServiceScreen() {
 
           <Text style={styles.sectionTitle}>Available Services</Text>
 
-          {provider.services.map((service) => {
+          {(provider.services || []).map((service: any) => {
             const isSelected = selectedServiceId === service.id;
             return (
               <TouchableOpacity
@@ -92,9 +117,12 @@ export default function SelectServiceScreen() {
                   <View style={styles.serviceFooter}>
                     <View style={styles.durationContainer}>
                       <Clock size={16} color="#9CA3AF" />
-                      <Text style={styles.durationText}>{service.duration} min</Text>
+                      <Text style={styles.durationText}>{service.durationMinutes} min</Text>
                     </View>
-                    <Text style={styles.servicePrice}>${service.price}</Text>
+                    <Text style={styles.servicePrice}>
+                      {service.currency === "NGN" ? "₦" : "$"}
+                      {service.priceCents ? (service.priceCents / 100).toFixed(0) : "0"}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -337,9 +365,37 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     color: "#FFFFFF",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
   errorText: {
-    fontSize: 18,
-    color: "#9CA3AF",
+    fontSize: 16,
+    color: "#EF4444",
     textAlign: "center",
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

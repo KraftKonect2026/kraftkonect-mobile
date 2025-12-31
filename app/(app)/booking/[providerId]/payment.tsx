@@ -11,8 +11,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
-import { providers } from "@/mocks/providers";
+import { PROVIDER_QUERY } from "@/lib/queries";
+import { ActivityIndicator } from "react-native";
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -29,19 +31,45 @@ export default function PaymentScreen() {
   const [cardholderName, setCardholderName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const provider = providers.find((p) => p.id === providerId);
-  const service = provider?.services.find((s) => s.id === serviceId);
+  const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
+    variables: { providerId: `${providerId}` },
+    skip: !providerId,
+    notifyOnNetworkStatusChange: true,
+  });
 
-  if (!provider || !service || !date || !time) {
+  const provider = data?.provider;
+  const service = (provider?.services || []).find((s: any) => s.id === serviceId);
+
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Booking information not found</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Initializing secure payment...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  const serviceFee = service.price * 0.1;
-  const totalAmount = service.price + serviceFee;
+  if (error || !provider || !service || !date || !time) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            {error ? "Failed to load payment details" : "Booking information not found"}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const basePrice = service.priceCents ? service.priceCents / 100 : 0;
+  const serviceFee = basePrice * 0.1;
+  const totalAmount = basePrice + serviceFee;
+  const currencySymbol = service.currency === "NGN" ? "₦" : "$";
 
   const handlePayment = () => {
     setIsProcessing(true);
@@ -112,16 +140,16 @@ export default function PaymentScreen() {
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Price</Text>
-              <Text style={styles.summaryValue}>${service.price.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{currencySymbol}{basePrice.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Service Fee</Text>
-              <Text style={styles.summaryValue}>${serviceFee.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{currencySymbol}{serviceFee.toFixed(2)}</Text>
             </View>
             <View style={styles.separator} />
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
             </View>
           </View>
 
@@ -201,7 +229,7 @@ export default function PaymentScreen() {
           disabled={!isFormValid || isProcessing}
         >
           <Text style={styles.payButtonText}>
-            {isProcessing ? "Processing..." : `Pay $${totalAmount.toFixed(2)}`}
+            {isProcessing ? "Processing..." : `Pay ${currencySymbol}${totalAmount.toFixed(2)}`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -400,9 +428,37 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     color: "#FFFFFF",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
   errorText: {
-    fontSize: 18,
-    color: "#9CA3AF",
+    fontSize: 16,
+    color: "#EF4444",
     textAlign: "center",
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

@@ -108,7 +108,7 @@ export default function SignUpScreen() {
                 <View style={styles.header}>
                   <Text style={styles.title}>Create Account</Text>
                   <Text style={styles.subtitle}>
-                    Join Artisanhubb to find trusted local experts
+                    Join KraftKonect to find trusted local experts
                   </Text>
                 </View>
 

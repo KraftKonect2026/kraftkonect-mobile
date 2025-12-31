@@ -46,7 +46,7 @@ export default function ProviderWelcomeScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Start earning by{"\n"}offering your skills</Text>
           <Text style={styles.subtitle}>
-            Join thousands of providers on Artisanhubb
+            Join thousands of providers on KraftKonect
           </Text>
         </View>
 

@@ -10,8 +10,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
-import { providers } from "@/mocks/providers";
+import { PROVIDER_QUERY } from "@/lib/queries";
+import { ActivityIndicator } from "react-native";
 
 const timeSlots = [
   "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
@@ -32,20 +34,44 @@ const getMonthName = (month: number) => {
 export default function DateTimeScreen() {
   const router = useRouter();
   const { providerId, serviceId } = useLocalSearchParams<{ providerId: string; serviceId: string }>();
-  
+
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  const provider = providers.find((p) => p.id === providerId);
-  const service = provider?.services.find((s) => s.id === serviceId);
+  const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
+    variables: { providerId: `${providerId}` },
+    skip: !providerId,
+    notifyOnNetworkStatusChange: true,
+  });
 
-  if (!provider || !service) {
+  const provider = data?.provider;
+  const service = (provider?.services || []).find((s: any) => s.id === serviceId);
+
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Service not found</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading availability...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !provider || !service) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            {error ? "Failed to load availability" : "Service or Provider not found"}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -98,15 +124,18 @@ export default function DateTimeScreen() {
             <Text style={styles.serviceName}>{service.title}</Text>
             <View style={styles.serviceMeta}>
               <Clock size={16} color="#9CA3AF" />
-              <Text style={styles.serviceMetaText}>{service.duration} min</Text>
+              <Text style={styles.serviceMetaText}>{service.durationMinutes} min</Text>
               <Text style={styles.serviceDivider}>•</Text>
-              <Text style={styles.serviceMetaText}>${service.price}</Text>
+              <Text style={styles.serviceMetaText}>
+                {service.currency === "NGN" ? "₦" : "$"}
+                {service.priceCents ? (service.priceCents / 100).toFixed(0) : "0"}
+              </Text>
             </View>
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Select Date</Text>
-            
+
             <View style={styles.calendarCard}>
               <View style={styles.calendarHeader}>
                 <TouchableOpacity
@@ -123,11 +152,11 @@ export default function DateTimeScreen() {
                 >
                   <Text style={styles.navButtonText}>←</Text>
                 </TouchableOpacity>
-                
+
                 <Text style={styles.monthYear}>
                   {getMonthName(currentMonth)} {currentYear}
                 </Text>
-                
+
                 <TouchableOpacity
                   onPress={() => {
                     if (currentMonth === 11) {
@@ -156,7 +185,7 @@ export default function DateTimeScreen() {
                 {Array.from({ length: firstDayOfMonth }).map((_, index) => (
                   <View key={`empty-${index}`} style={styles.dayCell} />
                 ))}
-                
+
                 {Array.from({ length: daysInMonth }).map((_, index) => {
                   const day = index + 1;
                   const disabled = isDateDisabled(day);
@@ -223,10 +252,10 @@ export default function DateTimeScreen() {
           <View style={styles.summaryContainer}>
             <CalendarIcon size={16} color="#9CA3AF" />
             <Text style={styles.summaryText}>
-              {selectedDate.toLocaleDateString("en-US", { 
-                weekday: "short", 
-                month: "short", 
-                day: "numeric" 
+              {selectedDate.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric"
               })} at {selectedTime}
             </Text>
           </View>
@@ -483,9 +512,37 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     color: "#FFFFFF",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
   errorText: {
-    fontSize: 18,
-    color: "#9CA3AF",
+    fontSize: 16,
+    color: "#EF4444",
     textAlign: "center",
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

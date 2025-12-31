@@ -8,17 +8,50 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, ArrowRight, Camera, Shield, Upload } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import { ArrowLeft, ArrowRight, Camera, Shield, Upload, Loader2 } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { useProviderOnboarding } from "./context";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
 
 export default function VerificationScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
-  const [idUploaded, setIdUploaded] = useState(false);
-  const [selfieUploaded, setSelfieUploaded] = useState(false);
 
-  const isValid = idUploaded && selfieUploaded;
+  const { verification, setVerification } = useProviderOnboarding();
+  const [uploadingId, setUploadingId] = useState(false);
+  const [uploadingSelfie, setUploadingSelfie] = useState(false);
+
+  const handleUpload = async (type: 'id' | 'selfie') => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+      });
+
+      if (!result.canceled) {
+        if (type === 'id') setUploadingId(true);
+        else setUploadingSelfie(true);
+
+        const url = await uploadImageToCloudinary(result.assets[0].uri);
+
+        setVerification({
+          ...verification,
+          [type === 'id' ? 'idUrl' : 'selfieUrl']: url
+        });
+      }
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setUploadingId(false);
+      setUploadingSelfie(false);
+    }
+  };
+
+  const isValid = !!verification.idUrl && !!verification.selfieUrl;
 
   return (
     <View style={styles.container}>
@@ -52,7 +85,7 @@ export default function VerificationScreen() {
           <Text style={styles.step}>Step 3 of 5</Text>
           <Text style={styles.title}>Verify your identity</Text>
           <Text style={styles.subtitle}>
-            This helps us keep Artisanhubb safe and trustworthy for everyone
+            This helps us keep KraftKonect safe and trustworthy for everyone
           </Text>
         </View>
 
@@ -65,26 +98,33 @@ export default function VerificationScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.uploadCard, idUploaded && styles.uploadCardComplete]}
+            style={[styles.uploadCard, !!verification.idUrl && styles.uploadCardComplete]}
             activeOpacity={0.7}
-            onPress={() => setIdUploaded(true)}
+            onPress={() => handleUpload('id')}
+            disabled={uploadingId}
           >
             <View style={styles.uploadIconContainer}>
-              <Upload
-                size={28}
-                color={idUploaded ? Colors.primary : "#6B7280"}
-                strokeWidth={2}
-              />
+              {uploadingId ? (
+                <Loader2 size={24} color={Colors.primary} className="animate-spin" />
+              ) : (
+                <Upload
+                  size={28}
+                  color={verification.idUrl ? Colors.primary : "#6B7280"}
+                  strokeWidth={2}
+                />
+              )}
             </View>
             <View style={styles.uploadTextContainer}>
               <Text style={styles.uploadTitle}>Upload Government ID</Text>
               <Text style={styles.uploadDescription}>
-                {idUploaded
+                {verification.idUrl
                   ? "ID uploaded successfully"
-                  : "Passport, driver's license, or national ID"}
+                  : uploadingId
+                    ? "Uploading..."
+                    : "Passport, driver's license, or national ID"}
               </Text>
             </View>
-            {idUploaded && (
+            {verification.idUrl && (
               <View style={styles.checkmarkContainer}>
                 <View style={styles.checkmark} />
               </View>
@@ -92,26 +132,33 @@ export default function VerificationScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.uploadCard, selfieUploaded && styles.uploadCardComplete]}
+            style={[styles.uploadCard, !!verification.selfieUrl && styles.uploadCardComplete]}
             activeOpacity={0.7}
-            onPress={() => setSelfieUploaded(true)}
+            onPress={() => handleUpload('selfie')}
+            disabled={uploadingSelfie}
           >
             <View style={styles.uploadIconContainer}>
-              <Camera
-                size={28}
-                color={selfieUploaded ? Colors.primary : "#6B7280"}
-                strokeWidth={2}
-              />
+              {uploadingSelfie ? (
+                <Loader2 size={24} color={Colors.primary} className="animate-spin" />
+              ) : (
+                <Camera
+                  size={28}
+                  color={verification.selfieUrl ? Colors.primary : "#6B7280"}
+                  strokeWidth={2}
+                />
+              )}
             </View>
             <View style={styles.uploadTextContainer}>
               <Text style={styles.uploadTitle}>Take a Selfie</Text>
               <Text style={styles.uploadDescription}>
-                {selfieUploaded
+                {verification.selfieUrl
                   ? "Selfie uploaded successfully"
-                  : "Hold your ID next to your face"}
+                  : uploadingSelfie
+                    ? "Uploading..."
+                    : "Hold your ID next to your face"}
               </Text>
             </View>
-            {selfieUploaded && (
+            {verification.selfieUrl && (
               <View style={styles.checkmarkContainer}>
                 <View style={styles.checkmark} />
               </View>

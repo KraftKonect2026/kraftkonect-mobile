@@ -11,8 +11,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
+import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
-import { providers } from "@/mocks/providers";
+import { PROVIDER_QUERY } from "@/lib/queries";
+import { ActivityIndicator } from "react-native";
 
 export default function SummaryScreen() {
   const router = useRouter();
@@ -23,20 +25,46 @@ export default function SummaryScreen() {
     time: string;
   }>();
 
-  const provider = providers.find((p) => p.id === providerId);
-  const service = provider?.services.find((s) => s.id === serviceId);
+  const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
+    variables: { providerId: `${providerId}` },
+    skip: !providerId,
+    notifyOnNetworkStatusChange: true,
+  });
 
-  if (!provider || !service || !date || !time) {
+  const provider = data?.provider;
+  const service = (provider?.services || []).find((s: any) => s.id === serviceId);
+
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Booking information not found</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Generating summary...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !provider || !service || !date || !time) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            {error ? "Failed to load booking summary" : "Booking information not found"}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   const bookingDate = new Date(date);
-  const serviceFee = service.price * 0.1;
-  const totalAmount = service.price + serviceFee;
+  const basePrice = service.priceCents ? service.priceCents / 100 : 0;
+  const serviceFee = basePrice * 0.1;
+  const totalAmount = basePrice + serviceFee;
+  const currencySymbol = service.currency === "NGN" ? "₦" : "$";
 
   const handleContinue = () => {
     router.push(
@@ -88,7 +116,7 @@ export default function SummaryScreen() {
               <Text style={styles.detailLabel}>Duration</Text>
               <View style={styles.durationContainer}>
                 <Clock size={14} color="#2C2C2C" />
-                <Text style={styles.detailValue}>{service.duration} min</Text>
+                <Text style={styles.detailValue}>{service.durationMinutes} min</Text>
               </View>
             </View>
             <View style={styles.separator} />
@@ -116,16 +144,16 @@ export default function SummaryScreen() {
             <Text style={styles.cardTitle}>Price Breakdown</Text>
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>{service.title}</Text>
-              <Text style={styles.priceValue}>${service.price.toFixed(2)}</Text>
+              <Text style={styles.priceValue}>{currencySymbol}{basePrice.toFixed(2)}</Text>
             </View>
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>Service Fee (10%)</Text>
-              <Text style={styles.priceValue}>${serviceFee.toFixed(2)}</Text>
+              <Text style={styles.priceValue}>{currencySymbol}{serviceFee.toFixed(2)}</Text>
             </View>
             <View style={styles.separator} />
             <View style={styles.priceRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
             </View>
           </View>
 
@@ -140,7 +168,7 @@ export default function SummaryScreen() {
       <View style={styles.footer}>
         <View style={styles.totalContainer}>
           <Text style={styles.totalFooterLabel}>Total Amount</Text>
-          <Text style={styles.totalFooterValue}>${totalAmount.toFixed(2)}</Text>
+          <Text style={styles.totalFooterValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
         </View>
         <TouchableOpacity
           style={styles.continueButton}
@@ -374,9 +402,37 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     color: "#FFFFFF",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
   errorText: {
-    fontSize: 18,
-    color: "#9CA3AF",
+    fontSize: 16,
+    color: "#EF4444",
     textAlign: "center",
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

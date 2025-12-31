@@ -58,7 +58,7 @@ export default function ProfileScreen() {
         {
           icon: ArrowRight,
           label: "Become a Provider",
-          subtitle: "Offer your services on Artisanhubb",
+          subtitle: "Offer your services on KraftKonect",
           route: null,
           special: true,
         },
@@ -71,7 +71,7 @@ export default function ProfileScreen() {
           icon: HelpCircle,
           label: "Help Center",
           route: null,
-          onPress: () => Linking.openURL("https://artisanhubb.com/help"),
+          onPress: () => Linking.openURL("https://kraftkonect.com/help"),
         },
         {
           icon: HelpCircle,
@@ -187,7 +187,7 @@ export default function ProfileScreen() {
           style={styles.switchToProviderButton}
           activeOpacity={0.9}
           disabled={user?.role !== "provider"}
-          onPress={() => user?.role === "provider" ? router.replace("/provider/(tabs)/today" as any) : null }
+          onPress={() => user?.role === "provider" ? router.replace("/provider/(tabs)/today" as any) : null}
         >
           <Text style={styles.switchToProviderText}>Switch to Provider</Text>
           <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
@@ -209,14 +209,14 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.contactItem}
               activeOpacity={0.7}
-              onPress={() => Linking.openURL("mailto:support@artisanhubb.com")}
+              onPress={() => Linking.openURL("mailto:support@kraftkonect.com")}
             >
               <View style={styles.contactIconContainer}>
                 <Mail size={20} color={Colors.primary} strokeWidth={2} />
               </View>
               <View style={styles.contactInfo}>
                 <Text style={styles.contactLabel}>Email</Text>
-                <Text style={styles.contactValue}>support@artisanhubb.com</Text>
+                <Text style={styles.contactValue}>support@kraftkonect.com</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity
