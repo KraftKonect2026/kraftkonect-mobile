@@ -1,13 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Switch,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useQuery, useMutation } from "@apollo/client";
 import {
   DollarSign,
   Calendar,
@@ -17,19 +20,76 @@ import {
   Clock,
   MapPin,
   User as UserIcon,
+  Wifi,
+  WifiOff,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useAppSelector } from "@/store";
+import { MY_PROVIDER_PROFILE_QUERY } from "@/lib/queries";
+import { SET_AVAILABILITY_MUTATION } from "@/lib/mutations";
+import { useToast } from "@/lib/toast";
 
 export default function TodayDashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const toast = useToast();
   const { jobs, earnings } = useAppSelector((state) => state.provider);
 
-  const todayJobs = jobs.filter(
-    (job) => job.date === new Date().toISOString().split("T")[0] || job.date === "2025-01-15"
+  // Optimistic local state — null means "trust Apollo cache"
+  const [optimisticAvailable, setOptimisticAvailable] = useState<boolean | null>(null);
+
+  // Always fetch from network on mount so we never show stale Redux state (AC2)
+  const { data: profileData } = useQuery(MY_PROVIDER_PROFILE_QUERY, {
+    fetchPolicy: "network-only",
+    onCompleted: () => {
+      // Network response landed — clear any lingering optimistic value
+      setOptimisticAvailable(null);
+    },
+  });
+
+  const [setAvailability, { loading: mutationLoading }] = useMutation(
+    SET_AVAILABILITY_MUTATION,
+    {
+      // Keep Apollo cache in sync so backgrounding preserves last known state (AC8)
+      update(cache, { data }) {
+        if (!data?.setAvailability) return;
+        cache.modify({
+          id: cache.identify(data.setAvailability),
+          fields: {
+            available: () => data.setAvailability.available,
+          },
+        });
+      },
+    },
   );
-  const upcomingJobs = jobs.filter((job) => job.status !== "completed" && job.status !== "cancelled");
+
+  const backendAvailable: boolean =
+    profileData?.myProviderProfile?.available ?? false;
+  const displayAvailable: boolean =
+    optimisticAvailable !== null ? optimisticAvailable : backendAvailable;
+
+  const handleToggle = async (newValue: boolean) => {
+    setOptimisticAvailable(newValue); // flip immediately (AC6 visual + AC3/AC4 label)
+    try {
+      await setAvailability({ variables: { available: newValue } });
+      toast.success(
+        newValue ? "You enter market!" : "You don comot for market",
+      );
+      setOptimisticAvailable(null); // let Apollo cache drive going forward
+    } catch {
+      setOptimisticAvailable(null); // revert to last confirmed backend value (AC7)
+      toast.error("E no work, try again");
+    }
+  };
+
+  const todayJobs = jobs.filter(
+    (job) =>
+      job.date === new Date().toISOString().split("T")[0] ||
+      job.date === "2025-01-15",
+  );
+  const upcomingJobs = jobs.filter(
+    (job) => job.status !== "completed" && job.status !== "cancelled",
+  );
 
   return (
     <View style={styles.container}>
@@ -54,6 +114,69 @@ export default function TodayDashboardScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Availability Toggle (AC1: prominent, near top) ─────────────── */}
+        <View
+          style={[
+            styles.availabilityCard,
+            displayAvailable
+              ? styles.availabilityCardOnline
+              : styles.availabilityCardOffline,
+          ]}
+        >
+          <View style={styles.availabilityLeft}>
+            <View
+              style={[
+                styles.availabilityIconWrap,
+                displayAvailable
+                  ? styles.availabilityIconOnline
+                  : styles.availabilityIconOffline,
+              ]}
+            >
+              {displayAvailable ? (
+                <Wifi size={22} color="#10B981" strokeWidth={2} />
+              ) : (
+                <WifiOff size={22} color="#6B7280" strokeWidth={2} />
+              )}
+            </View>
+            <View>
+              <Text
+                style={[
+                  styles.availabilityLabel,
+                  displayAvailable
+                    ? styles.availabilityLabelOnline
+                    : styles.availabilityLabelOffline,
+                ]}
+              >
+                {displayAvailable ? "I dey available" : "I no dey available"}
+              </Text>
+              <Text style={styles.availabilitySubLabel}>
+                {displayAvailable
+                  ? "Customers fit find you"
+                  : "You don hide from search"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Loading spinner replaces switch while mutation is in-flight (AC6) */}
+          {mutationLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={displayAvailable ? "#10B981" : "#6B7280"}
+              style={styles.availabilitySpinner}
+            />
+          ) : (
+            <Switch
+              value={displayAvailable}
+              onValueChange={handleToggle}
+              disabled={mutationLoading}
+              trackColor={{ false: "#D1D5DB", true: "#BBF7D0" }}
+              thumbColor={displayAvailable ? "#10B981" : "#9CA3AF"}
+              ios_backgroundColor="#D1D5DB"
+            />
+          )}
+        </View>
+
+        {/* ── Summary cards ────────────────────────────────────────────── */}
         <View style={styles.summaryCards}>
           <TouchableOpacity
             style={[styles.summaryCard, styles.summaryCardPrimary]}
@@ -67,8 +190,8 @@ export default function TodayDashboardScreen() {
             <Text style={styles.summaryCardLabel}>Today&apos;s Earnings</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.summaryCard} 
+          <TouchableOpacity
+            style={styles.summaryCard}
             activeOpacity={0.8}
             onPress={() => router.push("/provider/(tabs)/calendar" as any)}
           >
@@ -81,8 +204,8 @@ export default function TodayDashboardScreen() {
             <Text style={styles.summaryCardLabelSecondary}>Today&apos;s Jobs</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.summaryCard} 
+          <TouchableOpacity
+            style={styles.summaryCard}
             activeOpacity={0.8}
             onPress={() => router.push("/provider/(tabs)/messages" as any)}
           >
@@ -94,6 +217,7 @@ export default function TodayDashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* ── Today's schedule ─────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
@@ -111,28 +235,38 @@ export default function TodayDashboardScreen() {
                   <View style={styles.jobCardHeader}>
                     <View style={styles.customerInfo}>
                       <View style={styles.customerAvatar}>
-                        <UserIcon size={20} color={Colors.primary} strokeWidth={2} />
+                        <UserIcon
+                          size={20}
+                          color={Colors.primary}
+                          strokeWidth={2}
+                        />
                       </View>
                       <View style={styles.customerDetails}>
-                        <Text style={styles.customerName}>{job.customerName}</Text>
+                        <Text style={styles.customerName}>
+                          {job.customerName}
+                        </Text>
                         <Text style={styles.jobCategory}>{job.category}</Text>
                       </View>
                     </View>
                     <View
                       style={[
                         styles.statusBadge,
-                        job.status === "confirmed" && styles.statusBadgeConfirmed,
+                        job.status === "confirmed" &&
+                          styles.statusBadgeConfirmed,
                         job.status === "pending" && styles.statusBadgePending,
                       ]}
                     >
                       <Text
                         style={[
                           styles.statusBadgeText,
-                          job.status === "confirmed" && styles.statusBadgeTextConfirmed,
-                          job.status === "pending" && styles.statusBadgeTextPending,
+                          job.status === "confirmed" &&
+                            styles.statusBadgeTextConfirmed,
+                          job.status === "pending" &&
+                            styles.statusBadgeTextPending,
                         ]}
                       >
-                        {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                        {job.status.charAt(0).toUpperCase() +
+                          job.status.slice(1)}
                       </Text>
                     </View>
                   </View>
@@ -168,10 +302,11 @@ export default function TodayDashboardScreen() {
           )}
         </View>
 
+        {/* ── Upcoming jobs ─────────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Jobs</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => router.push("/provider/(tabs)/calendar" as any)}
             >
@@ -195,7 +330,9 @@ export default function TodayDashboardScreen() {
                     })}
                   </Text>
                   <Text style={styles.upcomingJobService}>{job.service}</Text>
-                  <Text style={styles.upcomingJobCustomer}>{job.customerName}</Text>
+                  <Text style={styles.upcomingJobCustomer}>
+                    {job.customerName}
+                  </Text>
                 </View>
                 <View style={styles.upcomingJobActions}>
                   <Text style={styles.upcomingJobPrice}>${job.price}</Text>
@@ -206,22 +343,25 @@ export default function TodayDashboardScreen() {
           </View>
         </View>
 
+        {/* ── Quick actions ─────────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.quickActionsCard}>
             <Text style={styles.quickActionsTitle}>Quick Actions</Text>
             <View style={styles.quickActionButtons}>
-              <TouchableOpacity 
-                style={styles.quickActionButton} 
+              <TouchableOpacity
+                style={styles.quickActionButton}
                 activeOpacity={0.8}
                 onPress={() => router.push("/provider/add-listing" as any)}
               >
                 <Plus size={20} color={Colors.primary} strokeWidth={2} />
                 <Text style={styles.quickActionButtonText}>Add Listing</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.quickActionButton} 
+              <TouchableOpacity
+                style={styles.quickActionButton}
                 activeOpacity={0.8}
-                onPress={() => router.push("/provider/(tabs)/calendar" as any)}
+                onPress={() =>
+                  router.push("/provider/(tabs)/calendar" as any)
+                }
               >
                 <Calendar size={20} color={Colors.primary} strokeWidth={2} />
                 <Text style={styles.quickActionButtonText}>Availability</Text>
@@ -262,6 +402,67 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
   },
+
+  // ── Availability toggle card ────────────────────────────────────────────
+  availabilityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 16,
+  },
+  availabilityCardOnline: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#86EFAC",
+  },
+  availabilityCardOffline: {
+    backgroundColor: "#F9FAFB",
+    borderColor: "#E5E7EB",
+  },
+  availabilityLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  availabilityIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  availabilityIconOnline: {
+    backgroundColor: "#DCFCE7",
+  },
+  availabilityIconOffline: {
+    backgroundColor: "#F3F4F6",
+  },
+  availabilityLabel: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    marginBottom: 2,
+  },
+  availabilityLabelOnline: {
+    color: "#15803D",
+  },
+  availabilityLabelOffline: {
+    color: "#374151",
+  },
+  availabilitySubLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  availabilitySpinner: {
+    width: 51, // same footprint as the Switch so layout doesn't jump
+    height: 31,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // ── Summary cards ───────────────────────────────────────────────────────
   summaryCards: {
     flexDirection: "row",
     gap: 12,
@@ -318,6 +519,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
   },
+
+  // ── Sections ────────────────────────────────────────────────────────────
   section: {
     marginBottom: 24,
   },
@@ -337,6 +540,8 @@ const styles = StyleSheet.create({
     fontWeight: "600" as const,
     color: Colors.primary,
   },
+
+  // ── Job cards ───────────────────────────────────────────────────────────
   jobsList: {
     gap: 12,
   },
@@ -455,6 +660,8 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
   },
+
+  // ── Upcoming jobs ───────────────────────────────────────────────────────
   upcomingJobsList: {
     gap: 12,
   },
@@ -496,6 +703,8 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     color: "#2C2C2C",
   },
+
+  // ── Quick actions ───────────────────────────────────────────────────────
   quickActionsCard: {
     padding: 20,
     backgroundColor: "#FFFFFF",

@@ -101,3 +101,12 @@ export const REFRESH_TOKEN_MUTATION = gql`
     }
   }
 `;
+
+export const SET_AVAILABILITY_MUTATION = gql`
+  mutation SetAvailability($available: Boolean!) {
+    setAvailability(available: $available) {
+      id
+      available
+    }
+  }
+`;

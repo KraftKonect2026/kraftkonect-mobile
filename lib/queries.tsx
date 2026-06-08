@@ -1,5 +1,14 @@
 import { gql } from "@apollo/client";
 
+export const MY_PROVIDER_PROFILE_QUERY = gql`
+  query MyProviderProfile {
+    myProviderProfile {
+      id
+      available
+    }
+  }
+`
+
 export const USER_PROFILE_QUERY = gql`
     query Me {
         me {
