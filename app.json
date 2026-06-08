@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "KraftKonect",
-    "slug": "kraftkonect",
+    "slug": "artisanhubb",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -47,6 +47,7 @@
       "eas": {
         "projectId": "c3f1fb33-cb2b-48dc-b946-3adb2a68db3a"
       }
-    }
+    },
+    "owner": "godwindanny235"
   }
 }
