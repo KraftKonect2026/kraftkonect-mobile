@@ -1,4 +1,7 @@
 import {
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
   MapPin,
   Navigation,
   Search,
@@ -14,7 +17,7 @@ import {
   Hammer,
   Leaf,
 } from "lucide-react-native";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -24,18 +27,41 @@ import {
   Animated,
   RefreshControl,
   Platform,
+  ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 import { useQuery } from "@apollo/client";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
 import { categories as categoriesData } from "@/mocks/providers";
-import { PROVIDERS_QUERY } from "@/lib/queries";
-import { ActivityIndicator } from "react-native";
+import { NEARBY_ARTISANS_QUERY } from "@/lib/queries";
 
-
+const LAGOS_LGAS = [
+  "Agege",
+  "Ajeromi-Ifelodun",
+  "Alimosho",
+  "Amuwo-Odofin",
+  "Apapa",
+  "Badagry",
+  "Epe",
+  "Eti-Osa",
+  "Ibeju-Lekki",
+  "Ifako-Ijaiye",
+  "Ikeja",
+  "Ikorodu",
+  "Kosofe",
+  "Lagos Island",
+  "Lagos Mainland",
+  "Mushin",
+  "Ojo",
+  "Oshodi-Isolo",
+  "Shomolu",
+  "Surulere",
+];
 
 const iconMap: Record<string, any> = {
   sparkles: Sparkles,
@@ -48,47 +74,77 @@ const iconMap: Record<string, any> = {
   leaf: Leaf,
 };
 
+type LocationState = "requesting" | "granted" | "denied";
+
 export default function ExploreScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const [locationState, setLocationState] = useState<LocationState>("requesting");
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [selectedNeighbourhood, setSelectedNeighbourhood] = useState<string | null>(null);
+  const [showNeighbourhoodPicker, setShowNeighbourhoodPicker] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const toggleFavorite = (providerId: string) => {
-    setFavorites((prev) => {
-      const newFavorites = new Set(prev);
-      if (newFavorites.has(providerId)) {
-        newFavorites.delete(providerId);
-      } else {
-        newFavorites.add(providerId);
-      }
-      return newFavorites;
-    });
-  };
 
   const token = useAppSelector((state) => state.auth.accessToken);
 
-  const { data, loading, error, refetch } = useQuery(PROVIDERS_QUERY, {
-    variables: { limit: 20, offset: 0 },
-    skip: !token,
+  // Request location permission on mount
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        try {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setCoords({ lat: loc.coords.latitude, lon: loc.coords.longitude });
+          setLocationState("granted");
+        } catch {
+          setLocationState("denied");
+        }
+      } else {
+        setLocationState("denied");
+      }
+    })();
+  }, []);
+
+  // Query is ready to fire when:
+  //   GPS granted → always (lat/lon present)
+  //   GPS denied  → only after a neighbourhood is chosen
+  const queryReady =
+    token != null &&
+    locationState !== "requesting" &&
+    (locationState === "granted" || selectedNeighbourhood != null);
+
+  const { data, loading, error, refetch } = useQuery(NEARBY_ARTISANS_QUERY, {
+    variables: {
+      lat: coords?.lat ?? null,
+      lon: coords?.lon ?? null,
+      skill: selectedCategory ?? null,
+      radiusKm: 10,
+      neighbourhood: selectedNeighbourhood ?? null,
+    },
+    skip: !queryReady,
     notifyOnNetworkStatusChange: true,
   });
 
-  
+  const providers: any[] = data?.nearbyArtisans ?? [];
 
-  const providers = data?.providers || [];
-
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
-  };
+  }, [refetch]);
 
-  const filteredProviders = selectedCategory
-    ? providers.filter((p: any) => p.categories?.includes(selectedCategory) || p.category === selectedCategory)
-    : providers;
+  const toggleFavorite = (id: string) =>
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 50],
@@ -96,10 +152,21 @@ export default function ExploreScreen() {
     extrapolate: "clamp",
   });
 
+  const sectionTitle = selectedCategory
+    ? (categoriesData.find((c) => c.id === selectedCategory)?.name ?? selectedCategory) + " Providers"
+    : locationState === "granted"
+    ? "Artisans near you"
+    : selectedNeighbourhood
+    ? `Artisans in ${selectedNeighbourhood}`
+    : "Nearby Artisans";
+
   return (
     <View style={styles.container}>
       <View style={styles.safeArea}>
-        <Animated.View style={[styles.header, { paddingTop: insets.top + 12, opacity: headerOpacity }]}>
+        {/* Header */}
+        <Animated.View
+          style={[styles.header, { paddingTop: insets.top + 12, opacity: headerOpacity }]}
+        >
           <TouchableOpacity
             style={styles.searchBar}
             activeOpacity={0.8}
@@ -120,14 +187,101 @@ export default function ExploreScreen() {
         <Animated.ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: false,
-          })}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false },
+          )}
           scrollEventThrottle={16}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+            />
           }
         >
+          {/* Location status banner */}
+          {locationState === "requesting" && (
+            <View style={styles.locationBanner}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={styles.locationBannerText}>Detecting your location…</Text>
+            </View>
+          )}
+
+          {locationState === "granted" && coords && (
+            <View style={[styles.locationBanner, styles.locationBannerGranted]}>
+              <Navigation size={14} color={Colors.success} strokeWidth={2} />
+              <Text style={[styles.locationBannerText, styles.locationBannerTextGranted]}>
+                Showing artisans near you
+              </Text>
+            </View>
+          )}
+
+          {locationState === "denied" && (
+            <View style={styles.locationDeniedCard}>
+              <View style={styles.locationDeniedHeader}>
+                <AlertCircle size={18} color="#D97706" strokeWidth={2} />
+                <Text style={styles.locationDeniedTitle}>Location access denied</Text>
+              </View>
+              <Text style={styles.locationDeniedBody}>
+                Pick your neighbourhood to find artisans nearby, or{" "}
+                <Text
+                  style={styles.locationDeniedLink}
+                  onPress={() => Linking.openSettings()}
+                >
+                  enable location in Settings
+                </Text>
+                .
+              </Text>
+
+              {/* Neighbourhood selector toggle */}
+              <TouchableOpacity
+                style={styles.neighbourhoodToggle}
+                activeOpacity={0.7}
+                onPress={() => setShowNeighbourhoodPicker((v) => !v)}
+              >
+                <MapPin size={16} color={Colors.primary} strokeWidth={2} />
+                <Text style={styles.neighbourhoodToggleText}>
+                  {selectedNeighbourhood ?? "Select your neighbourhood"}
+                </Text>
+                {showNeighbourhoodPicker ? (
+                  <ChevronUp size={16} color={Colors.primary} strokeWidth={2} />
+                ) : (
+                  <ChevronDown size={16} color={Colors.primary} strokeWidth={2} />
+                )}
+              </TouchableOpacity>
+
+              {showNeighbourhoodPicker && (
+                <View style={styles.lgaGrid}>
+                  {LAGOS_LGAS.map((lga) => (
+                    <TouchableOpacity
+                      key={lga}
+                      style={[
+                        styles.lgaChip,
+                        selectedNeighbourhood === lga && styles.lgaChipActive,
+                      ]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setSelectedNeighbourhood(lga);
+                        setShowNeighbourhoodPicker(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.lgaChipText,
+                          selectedNeighbourhood === lga && styles.lgaChipTextActive,
+                        ]}
+                      >
+                        {lga}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Category chips */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -136,14 +290,11 @@ export default function ExploreScreen() {
             {categoriesData.map((category) => {
               const IconComponent = iconMap[category.icon];
               const isSelected = selectedCategory === category.id;
-
               return (
                 <TouchableOpacity
                   key={category.id}
                   style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
-                  onPress={() =>
-                    setSelectedCategory(isSelected ? null : category.id)
-                  }
+                  onPress={() => setSelectedCategory(isSelected ? null : category.id)}
                   activeOpacity={0.7}
                 >
                   {IconComponent && (
@@ -161,18 +312,28 @@ export default function ExploreScreen() {
             })}
           </ScrollView>
 
+          {/* Results */}
           <View style={styles.providersSection}>
-            <Text style={styles.sectionTitle}>
-              {selectedCategory
-                ? categoriesData.find((c) => c.id === selectedCategory)?.name +
-                " Providers"
-                : "Featured Providers"}
-            </Text>
+            <Text style={styles.sectionTitle}>{sectionTitle}</Text>
 
-            {loading && !refreshing ? (
+            {/* Requesting state — waiting for permission response */}
+            {locationState === "requesting" ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.loadingText}>Finding best providers...</Text>
+                <Text style={styles.loadingText}>Getting your location…</Text>
+              </View>
+            ) : /* Denied + no neighbourhood chosen yet */
+            locationState === "denied" && !selectedNeighbourhood ? (
+              <View style={styles.emptyContainer}>
+                <MapPin size={40} color="#D1D5DB" strokeWidth={1.5} />
+                <Text style={styles.emptyText}>
+                  Select a neighbourhood above to see nearby artisans
+                </Text>
+              </View>
+            ) : loading && !refreshing ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Finding best providers…</Text>
               </View>
             ) : error ? (
               <View style={styles.errorContainer}>
@@ -181,91 +342,110 @@ export default function ExploreScreen() {
                   <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
               </View>
-            ) : filteredProviders.length === 0 ? (
+            ) : providers.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No providers found in this category</Text>
+                <Text style={styles.emptyText}>
+                  {selectedCategory
+                    ? "No providers found for this category nearby"
+                    : "No artisans found in this area yet"}
+                </Text>
               </View>
             ) : (
-              filteredProviders.map((provider: any, index: number) => (
-                <TouchableOpacity
-                  key={provider.id}
-                  style={styles.providerCard}
-                  activeOpacity={0.9}
-                  onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
-                >
-                  <Image
-                    source={{ uri: provider.banner }}
-                    style={styles.providerImage}
-                    contentFit="cover"
-                  />
+              providers.map((provider: any) => {
+                const distanceKm =
+                  typeof provider.distanceMeters === "number"
+                    ? provider.distanceMeters / 1000
+                    : null;
+
+                return (
                   <TouchableOpacity
-                    style={styles.favoriteButton}
-                    activeOpacity={0.7}
-                    onPress={() => toggleFavorite(provider.id)}
+                    key={provider.id}
+                    style={styles.providerCard}
+                    activeOpacity={0.9}
+                    onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
                   >
-                    <Heart
-                      size={20}
-                      color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
-                      fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
-                      strokeWidth={2}
+                    <Image
+                      source={{ uri: provider.banner }}
+                      style={styles.providerImage}
+                      contentFit="cover"
                     />
-                  </TouchableOpacity>
 
-                  {provider.gpsEnabled && (
-                    <View style={styles.nearYouBadge}>
-                      <Navigation size={12} color="#FFFFFF" strokeWidth={2.5} />
-                      <Text style={styles.nearYouBadgeText}>Near you now</Text>
-                    </View>
-                  )}
-
-                  <View style={styles.providerInfo}>
-                    <View style={styles.providerHeader}>
-                      <Image
-                        source={{ uri: provider.avatar }}
-                        style={styles.providerAvatar}
-                        contentFit="cover"
+                    <TouchableOpacity
+                      style={styles.favoriteButton}
+                      activeOpacity={0.7}
+                      onPress={() => toggleFavorite(provider.id)}
+                    >
+                      <Heart
+                        size={20}
+                        color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
+                        fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
+                        strokeWidth={2}
                       />
-                      <View style={styles.providerDetails}>
-                        <View style={styles.nameRow}>
-                          <Text style={styles.providerName}>{provider.name}</Text>
-                          {provider.verified && (
-                            <View style={styles.verifiedBadge}>
-                              <Text style={styles.verifiedText}>✓</Text>
-                            </View>
-                          )}
+                    </TouchableOpacity>
+
+                    {provider.gpsEnabled && (
+                      <View style={styles.nearYouBadge}>
+                        <Navigation size={12} color="#FFFFFF" strokeWidth={2.5} />
+                        <Text style={styles.nearYouBadgeText}>Near you now</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.providerInfo}>
+                      <View style={styles.providerHeader}>
+                        <Image
+                          source={{ uri: provider.avatar }}
+                          style={styles.providerAvatar}
+                          contentFit="cover"
+                        />
+                        <View style={styles.providerDetails}>
+                          <View style={styles.nameRow}>
+                            <Text style={styles.providerName}>{provider.name}</Text>
+                            {provider.verified && (
+                              <View style={styles.verifiedBadge}>
+                                <Text style={styles.verifiedText}>✓</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.categoryLabel}>
+                            {provider.categories?.length > 0
+                              ? provider.categories
+                                  .map(
+                                    (catId: string) =>
+                                      categoriesData.find((c) => c.id === catId)?.name,
+                                  )
+                                  .filter(Boolean)
+                                  .join(", ")
+                              : categoriesData.find((c) => c.id === provider.category)
+                                  ?.name ?? provider.category}
+                          </Text>
+                          <View style={styles.ratingRow}>
+                            <Star size={14} color="#FFA500" fill="#FFA500" />
+                            <Text style={styles.rating}>
+                              {(provider.rating || 0).toFixed(1)} (
+                              {provider.reviewCount || 0})
+                            </Text>
+                          </View>
                         </View>
-                        <Text style={styles.categoryLabel}>
-                          {provider.categories?.length > 0
-                            ? provider.categories
-                              .map((catId: string) => categoriesData.find((c) => c.id === catId)?.name)
-                              .filter(Boolean)
-                              .join(", ")
-                            : categoriesData.find((c) => c.id === provider.category)?.name || provider.category}
-                        </Text>
-                        <View style={styles.ratingRow}>
-                          <Star size={14} color="#FFA500" fill="#FFA500" />
-                          <Text style={styles.rating}>
-                            {(provider.rating || 0).toFixed(1)} ({provider.reviewCount || 0})
+                      </View>
+
+                      <View style={styles.providerFooter}>
+                        <View style={styles.priceContainer}>
+                          <Text style={styles.price}>₦{provider.pricePerHour}</Text>
+                          <Text style={styles.priceLabel}>/hour</Text>
+                        </View>
+                        <View style={styles.distanceContainer}>
+                          <MapPin size={14} color="#9CA3AF" />
+                          <Text style={styles.distance}>
+                            {distanceKm != null
+                              ? `${distanceKm.toFixed(1)} km away`
+                              : selectedNeighbourhood ?? "Nearby"}
                           </Text>
                         </View>
                       </View>
                     </View>
-
-                    <View style={styles.providerFooter}>
-                      <View style={styles.priceContainer}>
-                        <Text style={styles.price}>${provider.pricePerHour}</Text>
-                        <Text style={styles.priceLabel}>/hour</Text>
-                      </View>
-                      <View style={styles.distanceContainer}>
-                        <MapPin size={14} color="#9CA3AF" />
-                        <Text style={styles.distance}>
-                          {typeof provider.distance === "number" ? provider.distance.toFixed(1) : "0.0"} km away
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
         </Animated.ScrollView>
@@ -275,13 +455,9 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  safeArea: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  safeArea: { flex: 1 },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -298,9 +474,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 4,
       },
-      android: {
-        elevation: 2,
-      },
+      android: { elevation: 2 },
     }),
   },
   searchBar: {
@@ -325,14 +499,84 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  searchPlaceholder: {
+  searchPlaceholder: { flex: 1, fontSize: 16, color: "#9CA3AF" },
+
+  // Location banners
+  locationBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+  },
+  locationBannerGranted: { backgroundColor: "#D1FAE5" },
+  locationBannerText: { fontSize: 13, color: "#6B7280", flex: 1 },
+  locationBannerTextGranted: { color: "#065F46" },
+
+  // Denied card
+  locationDeniedCard: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 14,
+    backgroundColor: "#FFFBEB",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    gap: 8,
+  },
+  locationDeniedHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  locationDeniedTitle: { fontSize: 14, fontWeight: "600" as const, color: "#92400E" },
+  locationDeniedBody: { fontSize: 13, color: "#78350F", lineHeight: 18 },
+  locationDeniedLink: { color: Colors.primary, textDecorationLine: "underline" },
+
+  neighbourhoodToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    marginTop: 4,
+  },
+  neighbourhoodToggleText: {
     flex: 1,
-    fontSize: 16,
-    color: "#9CA3AF",
+    fontSize: 14,
+    fontWeight: "500" as const,
+    color: Colors.primary,
   },
-  scrollContent: {
-    paddingBottom: 100,
+
+  lgaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingTop: 8,
   },
+  lgaChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  lgaChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  lgaChipText: { fontSize: 13, fontWeight: "500" as const, color: "#374151" },
+  lgaChipTextActive: { color: "#FFFFFF" },
+
+  // Categories
+  scrollContent: { paddingBottom: 100 },
   categoriesContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -349,28 +593,19 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     gap: 8,
   },
-  categoryChipActive: {
-    backgroundColor: "#2C2C2C",
-    borderColor: "#2C2C2C",
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-  },
-  categoryTextActive: {
-    color: "#FFFFFF",
-  },
-  providersSection: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
+  categoryChipActive: { backgroundColor: "#2C2C2C", borderColor: "#2C2C2C" },
+  categoryText: { fontSize: 14, fontWeight: "600" as const, color: "#2C2C2C" },
+  categoryTextActive: { color: "#FFFFFF" },
+
+  // Results
+  providersSection: { paddingHorizontal: 20, paddingTop: 8 },
   sectionTitle: {
     fontSize: 24,
     fontWeight: "700" as const,
     color: "#2C2C2C",
     marginBottom: 16,
   },
+
   providerCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
@@ -383,16 +618,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 12,
       },
-      android: {
-        elevation: 4,
-      },
+      android: { elevation: 4 },
     }),
   },
-  providerImage: {
-    width: "100%",
-    height: 200,
-    backgroundColor: "#F3F4F6",
-  },
+  providerImage: { width: "100%", height: 200, backgroundColor: "#F3F4F6" },
   favoriteButton: {
     position: "absolute",
     top: 16,
@@ -416,19 +645,10 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
-  nearYouBadgeText: {
-    fontSize: 12,
-    fontWeight: "600" as const,
-    color: "#FFFFFF",
-  },
-  providerInfo: {
-    padding: 16,
-  },
-  providerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
+  nearYouBadgeText: { fontSize: 12, fontWeight: "600" as const, color: "#FFFFFF" },
+
+  providerInfo: { padding: 16 },
+  providerHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   providerAvatar: {
     width: 56,
     height: 56,
@@ -436,20 +656,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
     marginRight: 12,
   },
-  providerDetails: {
-    flex: 1,
-  },
+  providerDetails: { flex: 1 },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     marginBottom: 4,
   },
-  providerName: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
+  providerName: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
   verifiedBadge: {
     width: 20,
     height: 20,
@@ -458,88 +672,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  verifiedText: {
-    fontSize: 12,
-    fontWeight: "700" as const,
-    color: "#FFFFFF",
-  },
-  categoryLabel: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginBottom: 4,
-  },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  rating: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-  },
+  verifiedText: { fontSize: 12, fontWeight: "700" as const, color: "#FFFFFF" },
+  categoryLabel: { fontSize: 13, color: "#6B7280", marginBottom: 4 },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  rating: { fontSize: 14, fontWeight: "600" as const, color: "#2C2C2C" },
+
   providerFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  priceContainer: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  price: {
-    fontSize: 22,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
-  priceLabel: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    marginLeft: 4,
-  },
-  distanceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  distance: {
-    fontSize: 14,
-    color: "#9CA3AF",
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6B7280",
-  },
-  errorContainer: {
-    padding: 40,
-    alignItems: "center",
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#EF4444",
-    marginBottom: 16,
-  },
+  priceContainer: { flexDirection: "row", alignItems: "baseline" },
+  price: { fontSize: 22, fontWeight: "700" as const, color: "#2C2C2C" },
+  priceLabel: { fontSize: 14, color: "#9CA3AF", marginLeft: 4 },
+  distanceContainer: { flexDirection: "row", alignItems: "center", gap: 4 },
+  distance: { fontSize: 14, color: "#9CA3AF" },
+
+  loadingContainer: { padding: 40, alignItems: "center" },
+  loadingText: { marginTop: 12, fontSize: 16, color: "#6B7280" },
+  errorContainer: { padding: 40, alignItems: "center" },
+  errorText: { fontSize: 16, color: "#EF4444", marginBottom: 16 },
   retryButton: {
     backgroundColor: Colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
   },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: "center",
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#6B7280",
-  },
+  retryButtonText: { color: "#FFFFFF", fontWeight: "600" as const },
+  emptyContainer: { padding: 40, alignItems: "center", gap: 12 },
+  emptyText: { fontSize: 16, color: "#6B7280", textAlign: "center" },
 });

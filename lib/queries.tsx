@@ -103,6 +103,37 @@ export const PROVIDERS_QUERY = gql`
         }
     }
 `
+export const NEARBY_ARTISANS_QUERY = gql`
+  query NearbyArtisans(
+    $lat: Float
+    $lon: Float
+    $skill: String
+    $radiusKm: Int
+    $neighbourhood: String
+  ) {
+    nearbyArtisans(
+      lat: $lat
+      lon: $lon
+      skill: $skill
+      radiusKm: $radiusKm
+      neighbourhood: $neighbourhood
+    ) {
+      avatar
+      banner
+      categories
+      category
+      distanceMeters
+      gpsEnabled
+      id
+      name
+      pricePerHour
+      rating
+      reviewCount
+      verified
+    }
+  }
+`
+
 export const PROVIDER_QUERY = gql`
     query Provider($providerId: ID!) {
         provider(id: $providerId) {
