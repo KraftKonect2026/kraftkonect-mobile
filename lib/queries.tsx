@@ -194,6 +194,54 @@ export const BOOKING_DETAIL_QUERY = gql`
   }
 `
 
+export const GET_CONVERSATIONS_QUERY = gql`
+  query GetConversations {
+    getConversations {
+      id
+      customerId
+      providerId
+      lastMessage
+      lastMessageAt
+      unreadCount
+      otherParticipant {
+        id
+        name
+        avatar
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`
+
+export const GET_MESSAGES_QUERY = gql`
+  query GetMessages($conversationId: ID!) {
+    getMessages(conversationId: $conversationId) {
+      id
+      conversationId
+      senderId
+      recipientId
+      text
+      read
+      createdAt
+    }
+  }
+`
+
+export const ON_NEW_MESSAGE_SUBSCRIPTION = gql`
+  subscription OnNewMessage($conversationId: ID!) {
+    onNewMessage(conversationId: $conversationId) {
+      id
+      conversationId
+      senderId
+      recipientId
+      text
+      read
+      createdAt
+    }
+  }
+`
+
 export const PROVIDER_QUERY = gql`
     query Provider($providerId: ID!) {
         provider(id: $providerId) {

@@ -4,19 +4,32 @@ import {
   HttpLink,
   from,
   ApolloLink,
+  split,
 } from "@apollo/client";
+import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
+import { getMainDefinition } from "@apollo/client/utilities";
 import { onError } from "@apollo/client/link/error";
 import { setContext } from "@apollo/client/link/context";
+import { createClient } from "graphql-ws";
 import { store } from "@/store";
 import { REFRESH_TOKEN_MUTATION } from "./mutations";
 import { setTokens, signOut } from "@/store/authSlice";
 import { toastRef } from "@/lib/toast";
 
-const httpLink = new HttpLink({
-  uri:
-    process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT ||
-    "https://artisanhubb-backend.onrender.com/graphql",
-});
+// ── Endpoints ─────────────────────────────────────────────────────────────────
+
+const HTTP_ENDPOINT =
+  process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT ||
+  "https://artisanhubb-backend.onrender.com/graphql";
+
+// Derive the WebSocket URL from the HTTP endpoint
+const WS_ENDPOINT = HTTP_ENDPOINT.replace(/^https?:\/\//, (prefix) =>
+  prefix === "https://" ? "wss://" : "ws://",
+);
+
+// ── HTTP link ─────────────────────────────────────────────────────────────────
+
+const httpLink = new HttpLink({ uri: HTTP_ENDPOINT });
 
 const authLink = setContext((_, { headers }) => {
   const rawToken = store.getState().auth.accessToken;
@@ -66,18 +79,11 @@ const errorLink = onError(
                     throw new Error("No refresh token available");
                   }
 
-                  // Perform refresh token mutation using fetch to bypass Apollo middleware
-                  // Construct the query body manually
-                  const response = await fetch(
-                    process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT ||
-                      "https://artisanhubb-backend.onrender.com/graphql",
-                    {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        query: `
+                  const response = await fetch(HTTP_ENDPOINT, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      query: `
                         mutation RefreshToken($refreshToken: String!) {
                           refreshToken(token: $refreshToken) {
                             accessToken
@@ -85,12 +91,9 @@ const errorLink = onError(
                           }
                         }
                       `,
-                        variables: {
-                          refreshToken,
-                        },
-                      }),
-                    },
-                  );
+                      variables: { refreshToken },
+                    }),
+                  });
 
                   const result = await response.json();
 
@@ -110,10 +113,7 @@ const errorLink = onError(
                 } catch (error) {
                   pendingRequests = [];
                   store.dispatch(signOut());
-                  toastRef.current?.error(
-                    "Session expired",
-                    "Please login again",
-                  );
+                  toastRef.current?.error("Session expired", "Please login again");
                   reject(error);
                 } finally {
                   isRefreshing = false;
@@ -132,10 +132,7 @@ const errorLink = onError(
             const token = store.getState().auth.accessToken;
             const oldHeaders = operation.getContext().headers;
             operation.setContext({
-              headers: {
-                ...oldHeaders,
-                Authorization: token,
-              },
+              headers: { ...oldHeaders, Authorization: token },
             });
             return forward(operation);
           });
@@ -145,13 +142,42 @@ const errorLink = onError(
 
     if (networkError) {
       console.log(`[Network error]: ${networkError}`);
-      // Optional: Toast for network errors
     }
   },
 );
 
+// ── WebSocket link (subscriptions) ────────────────────────────────────────────
+
+const wsLink = new GraphQLWsLink(
+  createClient({
+    url: WS_ENDPOINT,
+    connectionParams: () => {
+      const token = store.getState().auth.accessToken;
+      return token ? { Authorization: token } : {};
+    },
+    shouldRetry: () => true,
+    retryAttempts: 5,
+  }),
+);
+
+// ── Split: subscriptions → WS, everything else → HTTP ────────────────────────
+
+const splitLink = split(
+  ({ query }) => {
+    const definition = getMainDefinition(query);
+    return (
+      definition.kind === "OperationDefinition" &&
+      definition.operation === "subscription"
+    );
+  },
+  wsLink,
+  from([errorLink, authLink, httpLink]),
+);
+
+// ── Apollo Client ─────────────────────────────────────────────────────────────
+
 const client = new ApolloClient({
-  link: from([errorLink, authLink, httpLink]),
+  link: splitLink,
   cache: new InMemoryCache(),
   defaultOptions: {
     watchQuery: {

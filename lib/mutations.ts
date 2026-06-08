@@ -153,3 +153,17 @@ export const UPDATE_PROVIDER_LOCATION_MUTATION = gql`
     }
   }
 `;
+
+export const SEND_MESSAGE_MUTATION = gql`
+  mutation SendMessage($recipientId: ID!, $text: String!) {
+    sendMessage(recipientId: $recipientId, text: $text) {
+      id
+      conversationId
+      senderId
+      recipientId
+      text
+      read
+      createdAt
+    }
+  }
+`;
