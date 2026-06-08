@@ -119,3 +119,28 @@ export const UPDATE_BOOKING_MUTATION = gql`
     }
   }
 `;
+
+export const REQUEST_PHONE_OTP_MUTATION = gql`
+  mutation RequestPhoneOTP($phone: String!) {
+    requestPhoneOTP(phone: $phone) {
+      pinId
+      message
+    }
+  }
+`;
+
+export const VERIFY_PHONE_OTP_MUTATION = gql`
+  mutation VerifyPhoneOTP($phone: String!, $pin: String!, $pinId: String!) {
+    verifyPhoneOTP(phone: $phone, pin: $pin, pinId: $pinId) {
+      accessToken
+      refreshToken
+      user {
+        id
+        name
+        phone
+        role
+        status
+      }
+    }
+  }
+`;
