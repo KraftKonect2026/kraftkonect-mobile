@@ -37,6 +37,7 @@
     "expo-web-browser": "~15.0.8",
     "formik": "^2.4.9",
     "graphql": "^16.12.0",
+    "graphql-ws": "^5.16.0",
     "lucide-react-native": "^0.475.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",

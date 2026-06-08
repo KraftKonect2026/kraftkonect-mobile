@@ -3,7 +3,6 @@ import {
   InMemoryCache,
   HttpLink,
   from,
-  ApolloLink,
   split,
 } from "@apollo/client";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
@@ -12,7 +11,6 @@ import { onError } from "@apollo/client/link/error";
 import { setContext } from "@apollo/client/link/context";
 import { createClient } from "graphql-ws";
 import { store } from "@/store";
-import { REFRESH_TOKEN_MUTATION } from "./mutations";
 import { setTokens, signOut } from "@/store/authSlice";
 import { toastRef } from "@/lib/toast";
 

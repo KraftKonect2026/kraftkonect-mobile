@@ -3,7 +3,6 @@ import {
   MoreVertical,
   Send,
   Image as ImageIcon,
-  FileText,
   Flag,
   Ban,
   RefreshCw,

@@ -325,14 +325,7 @@ export default function BookingDetailScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Date</Text>
-            <Text style={styles.infoValue}>
-              {new Date(booking.date).toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </Text>
+            <Text style={styles.infoValue}>{booking.date}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Time</Text>

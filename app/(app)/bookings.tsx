@@ -1,4 +1,4 @@
-import { Calendar, MessageCircle, RefreshCw, X } from "lucide-react-native";
+import { Calendar, MessageCircle, RefreshCw } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   View,
@@ -392,19 +392,6 @@ const styles = StyleSheet.create({
   },
   costValue: { fontSize: 16, fontWeight: "700" as const, color: "#2C2C2C", textAlign: "right" },
   buttonRow: { flexDirection: "row", gap: 12 },
-  cancelButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#FEE2E2",
-    backgroundColor: "#FEF2F2",
-    gap: 6,
-  },
-  cancelButtonText: { fontSize: 14, fontWeight: "600" as const, color: "#EF4444" },
   messageButton: {
     flex: 1,
     flexDirection: "row",

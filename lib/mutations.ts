@@ -154,6 +154,27 @@ export const UPDATE_PROVIDER_LOCATION_MUTATION = gql`
   }
 `;
 
+export const CREATE_REVIEW_MUTATION = gql`
+  mutation CreateReview(
+    $bookingId: ID!
+    $rating: Int!
+    $comment: String!
+    $photos: [String!]
+  ) {
+    createReview(
+      bookingId: $bookingId
+      rating: $rating
+      comment: $comment
+      photos: $photos
+    ) {
+      id
+      rating
+      comment
+      createdAt
+    }
+  }
+`;
+
 export const SEND_MESSAGE_MUTATION = gql`
   mutation SendMessage($recipientId: ID!, $text: String!) {
     sendMessage(recipientId: $recipientId, text: $text) {

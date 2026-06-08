@@ -254,7 +254,6 @@ export const PROVIDER_QUERY = gql`
             rating
             ratingCount
             reviewCount
-            stripeAccountId
             services {
                 id
                 title
