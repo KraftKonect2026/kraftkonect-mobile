@@ -18,7 +18,7 @@ import { toastRef } from "@/lib/toast";
 
 const HTTP_ENDPOINT =
   process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT ||
-  "https://artisanhubb-backend.onrender.com/graphql";
+  "https://kraftkonnect-backend-230084714703.us-central1.run.app/graphql";
 
 // Derive the WebSocket URL from the HTTP endpoint
 const WS_ENDPOINT = HTTP_ENDPOINT.replace(/^https?:\/\//, (prefix) =>
