@@ -1,5 +1,33 @@
 import { gql } from "@apollo/client";
 
+export const BOOKINGS_FOR_PROVIDER_QUERY = gql`
+  query BookingsForProvider {
+    bookingsForProvider {
+      id
+      bookingRef
+      bookingDate
+      totalPriceCents
+      currency
+      status
+      notes
+      description
+      aiParsedSkill
+      createdAt
+      listing {
+        id
+        title
+        category
+      }
+      customer {
+        id
+        name
+        phone
+        avatarUrl
+      }
+    }
+  }
+`
+
 export const MY_PROVIDER_PROFILE_QUERY = gql`
   query MyProviderProfile {
     myProviderProfile {

@@ -24,40 +24,61 @@ import {
   WifiOff,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useAppSelector } from "@/store";
-import { MY_PROVIDER_PROFILE_QUERY } from "@/lib/queries";
+import { MY_PROVIDER_PROFILE_QUERY, BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
 import { SET_AVAILABILITY_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatTime(isoDate: string | undefined): string {
+  if (!isoDate) return "";
+  return new Date(isoDate).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function toNaira(cents: number): string {
+  return `₦${(cents / 100).toLocaleString()}`;
+}
+
+function isToday(isoDate: string): boolean {
+  const d = new Date(isoDate);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+function todayEarnings(bookings: any[]): number {
+  return bookings
+    .filter((b) => b.status === "completed" && isToday(b.createdAt))
+    .reduce((sum, b) => sum + (b.totalPriceCents ?? 0) / 100, 0);
+}
 
 export default function TodayDashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const toast = useToast();
-  const { jobs, earnings } = useAppSelector((state) => state.provider);
 
-  // Optimistic local state — null means "trust Apollo cache"
+  // ── Availability toggle ─────────────────────────────────────────────────────
   const [optimisticAvailable, setOptimisticAvailable] = useState<boolean | null>(null);
 
-  // Always fetch from network on mount so we never show stale Redux state (AC2)
   const { data: profileData } = useQuery(MY_PROVIDER_PROFILE_QUERY, {
     fetchPolicy: "network-only",
-    onCompleted: () => {
-      // Network response landed — clear any lingering optimistic value
-      setOptimisticAvailable(null);
-    },
+    onCompleted: () => setOptimisticAvailable(null),
   });
 
   const [setAvailability, { loading: mutationLoading }] = useMutation(
     SET_AVAILABILITY_MUTATION,
     {
-      // Keep Apollo cache in sync so backgrounding preserves last known state (AC8)
       update(cache, { data }) {
         if (!data?.setAvailability) return;
         cache.modify({
           id: cache.identify(data.setAvailability),
-          fields: {
-            available: () => data.setAvailability.available,
-          },
+          fields: { available: () => data.setAvailability.available },
         });
       },
     },
@@ -69,27 +90,34 @@ export default function TodayDashboardScreen() {
     optimisticAvailable !== null ? optimisticAvailable : backendAvailable;
 
   const handleToggle = async (newValue: boolean) => {
-    setOptimisticAvailable(newValue); // flip immediately (AC6 visual + AC3/AC4 label)
+    setOptimisticAvailable(newValue);
     try {
       await setAvailability({ variables: { available: newValue } });
-      toast.success(
-        newValue ? "You enter market!" : "You don comot for market",
-      );
-      setOptimisticAvailable(null); // let Apollo cache drive going forward
+      toast.success(newValue ? "You enter market!" : "You don comot for market");
+      setOptimisticAvailable(null);
     } catch {
-      setOptimisticAvailable(null); // revert to last confirmed backend value (AC7)
+      setOptimisticAvailable(null);
       toast.error("E no work, try again");
     }
   };
 
-  const todayJobs = jobs.filter(
-    (job) =>
-      job.date === new Date().toISOString().split("T")[0] ||
-      job.date === "2025-01-15",
+  // ── Jobs feed ───────────────────────────────────────────────────────────────
+  const { data: bookingsData, loading: bookingsLoading } = useQuery(
+    BOOKINGS_FOR_PROVIDER_QUERY,
+    { fetchPolicy: "cache-and-network" },
   );
-  const upcomingJobs = jobs.filter(
-    (job) => job.status !== "completed" && job.status !== "cancelled",
+
+  const allBookings: any[] = bookingsData?.bookingsForProvider ?? [];
+
+  const todayJobs = allBookings.filter((b) =>
+    b.bookingDate ? isToday(b.bookingDate) : false,
   );
+
+  const upcomingJobs = allBookings.filter(
+    (b) => b.status !== "completed" && b.status !== "cancelled",
+  );
+
+  const earningsToday = todayEarnings(allBookings);
 
   return (
     <View style={styles.container}>
@@ -114,7 +142,7 @@ export default function TodayDashboardScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Availability Toggle (AC1: prominent, near top) ─────────────── */}
+        {/* ── Availability toggle ──────────────────────────────────────────── */}
         <View
           style={[
             styles.availabilityCard,
@@ -156,8 +184,6 @@ export default function TodayDashboardScreen() {
               </Text>
             </View>
           </View>
-
-          {/* Loading spinner replaces switch while mutation is in-flight (AC6) */}
           {mutationLoading ? (
             <ActivityIndicator
               size="small"
@@ -176,7 +202,7 @@ export default function TodayDashboardScreen() {
           )}
         </View>
 
-        {/* ── Summary cards ────────────────────────────────────────────── */}
+        {/* ── Summary cards ────────────────────────────────────────────────── */}
         <View style={styles.summaryCards}>
           <TouchableOpacity
             style={[styles.summaryCard, styles.summaryCardPrimary]}
@@ -186,7 +212,9 @@ export default function TodayDashboardScreen() {
             <View style={styles.summaryCardIcon}>
               <DollarSign size={24} color={Colors.primary} strokeWidth={2} />
             </View>
-            <Text style={styles.summaryCardValue}>${earnings.today}</Text>
+            <Text style={styles.summaryCardValue}>
+              ₦{earningsToday.toLocaleString()}
+            </Text>
             <Text style={styles.summaryCardLabel}>Today&apos;s Earnings</Text>
           </TouchableOpacity>
 
@@ -212,25 +240,31 @@ export default function TodayDashboardScreen() {
             <View style={styles.summaryCardIconSecondary}>
               <MessageCircle size={24} color="#6B7280" strokeWidth={2} />
             </View>
-            <Text style={styles.summaryCardValueSecondary}>3</Text>
-            <Text style={styles.summaryCardLabelSecondary}>New Messages</Text>
+            <Text style={styles.summaryCardValueSecondary}>—</Text>
+            <Text style={styles.summaryCardLabelSecondary}>Messages</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Today's schedule ─────────────────────────────────────────── */}
+        {/* ── Today's schedule ─────────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
           </View>
 
-          {todayJobs.length > 0 ? (
+          {bookingsLoading && allBookings.length === 0 ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+          ) : todayJobs.length > 0 ? (
             <View style={styles.jobsList}>
-              {todayJobs.map((job) => (
+              {todayJobs.map((booking) => (
                 <TouchableOpacity
-                  key={job.id}
+                  key={booking.id}
                   style={styles.jobCard}
                   activeOpacity={0.8}
-                  onPress={() => router.push(`/provider/job/${job.id}` as any)}
+                  onPress={() =>
+                    router.push(`/provider/job/${booking.id}` as any)
+                  }
                 >
                   <View style={styles.jobCardHeader}>
                     <View style={styles.customerInfo}>
@@ -243,50 +277,71 @@ export default function TodayDashboardScreen() {
                       </View>
                       <View style={styles.customerDetails}>
                         <Text style={styles.customerName}>
-                          {job.customerName}
+                          {booking.customer?.name ?? "Customer"}
                         </Text>
-                        <Text style={styles.jobCategory}>{job.category}</Text>
+                        <Text style={styles.jobCategory}>
+                          {booking.listing?.category ??
+                            booking.aiParsedSkill ??
+                            "Service"}
+                        </Text>
                       </View>
                     </View>
                     <View
                       style={[
                         styles.statusBadge,
-                        job.status === "confirmed" &&
+                        booking.status === "confirmed" &&
                           styles.statusBadgeConfirmed,
-                        job.status === "pending" && styles.statusBadgePending,
+                        booking.status === "pending" &&
+                          styles.statusBadgePending,
                       ]}
                     >
                       <Text
                         style={[
                           styles.statusBadgeText,
-                          job.status === "confirmed" &&
+                          booking.status === "confirmed" &&
                             styles.statusBadgeTextConfirmed,
-                          job.status === "pending" &&
+                          booking.status === "pending" &&
                             styles.statusBadgeTextPending,
                         ]}
                       >
-                        {job.status.charAt(0).toUpperCase() +
-                          job.status.slice(1)}
+                        {booking.status.charAt(0).toUpperCase() +
+                          booking.status.slice(1)}
                       </Text>
                     </View>
                   </View>
 
-                  <Text style={styles.jobService}>{job.service}</Text>
+                  <Text style={styles.jobService}>
+                    {booking.listing?.title ??
+                      booking.description ??
+                      "Service"}
+                  </Text>
 
                   <View style={styles.jobDetails}>
                     <View style={styles.jobDetailRow}>
                       <Clock size={16} color="#6B7280" strokeWidth={2} />
-                      <Text style={styles.jobDetailText}>{job.time}</Text>
+                      <Text style={styles.jobDetailText}>
+                        {formatTime(booking.bookingDate)}
+                      </Text>
                     </View>
-                    <View style={styles.jobDetailRow}>
-                      <MapPin size={16} color="#6B7280" strokeWidth={2} />
-                      <Text style={styles.jobDetailText}>{job.address}</Text>
-                    </View>
+                    {booking.notes ? (
+                      <View style={styles.jobDetailRow}>
+                        <MapPin size={16} color="#6B7280" strokeWidth={2} />
+                        <Text style={styles.jobDetailText}>
+                          {booking.notes}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <View style={styles.jobCardFooter}>
-                    <Text style={styles.jobPrice}>${job.price}</Text>
-                    <ArrowUpRight size={20} color={Colors.primary} strokeWidth={2} />
+                    <Text style={styles.jobPrice}>
+                      {toNaira(booking.totalPriceCents ?? 0)}
+                    </Text>
+                    <ArrowUpRight
+                      size={20}
+                      color={Colors.primary}
+                      strokeWidth={2}
+                    />
                   </View>
                 </TouchableOpacity>
               ))}
@@ -302,7 +357,7 @@ export default function TodayDashboardScreen() {
           )}
         </View>
 
-        {/* ── Upcoming jobs ─────────────────────────────────────────────── */}
+        {/* ── Upcoming jobs ─────────────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Jobs</Text>
@@ -314,36 +369,56 @@ export default function TodayDashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.upcomingJobsList}>
-            {upcomingJobs.slice(0, 3).map((job) => (
-              <TouchableOpacity
-                key={job.id}
-                style={styles.upcomingJobCard}
-                activeOpacity={0.8}
-                onPress={() => router.push(`/provider/job/${job.id}` as any)}
-              >
-                <View style={styles.upcomingJobInfo}>
-                  <Text style={styles.upcomingJobDate}>
-                    {new Date(job.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
-                  <Text style={styles.upcomingJobService}>{job.service}</Text>
-                  <Text style={styles.upcomingJobCustomer}>
-                    {job.customerName}
-                  </Text>
-                </View>
-                <View style={styles.upcomingJobActions}>
-                  <Text style={styles.upcomingJobPrice}>${job.price}</Text>
-                  <ArrowUpRight size={16} color={Colors.primary} strokeWidth={2} />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {upcomingJobs.length === 0 && !bookingsLoading ? (
+            <View style={[styles.emptyState, { paddingVertical: 24 }]}>
+              <Text style={styles.emptyStateDescription}>
+                No upcoming bookings
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.upcomingJobsList}>
+              {upcomingJobs.slice(0, 3).map((booking) => (
+                <TouchableOpacity
+                  key={booking.id}
+                  style={styles.upcomingJobCard}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    router.push(`/provider/job/${booking.id}` as any)
+                  }
+                >
+                  <View style={styles.upcomingJobInfo}>
+                    <Text style={styles.upcomingJobDate}>
+                      {booking.bookingDate
+                        ? new Date(booking.bookingDate).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric" },
+                          )
+                        : "—"}
+                    </Text>
+                    <Text style={styles.upcomingJobService}>
+                      {booking.listing?.title ?? "Service"}
+                    </Text>
+                    <Text style={styles.upcomingJobCustomer}>
+                      {booking.customer?.name ?? "Customer"}
+                    </Text>
+                  </View>
+                  <View style={styles.upcomingJobActions}>
+                    <Text style={styles.upcomingJobPrice}>
+                      {toNaira(booking.totalPriceCents ?? 0)}
+                    </Text>
+                    <ArrowUpRight
+                      size={16}
+                      color={Colors.primary}
+                      strokeWidth={2}
+                    />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* ── Quick actions ─────────────────────────────────────────────── */}
+        {/* ── Quick actions ─────────────────────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.quickActionsCard}>
             <Text style={styles.quickActionsTitle}>Quick Actions</Text>
@@ -375,10 +450,7 @@ export default function TodayDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -386,24 +458,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 16,
-  },
+  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
+  headerSubtitle: { fontSize: 15, color: "#6B7280" },
+  content: { flex: 1 },
+  contentContainer: { padding: 16 },
 
-  // ── Availability toggle card ────────────────────────────────────────────
   availabilityCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -413,329 +472,98 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     marginBottom: 16,
   },
-  availabilityCardOnline: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "#86EFAC",
-  },
-  availabilityCardOffline: {
-    backgroundColor: "#F9FAFB",
-    borderColor: "#E5E7EB",
-  },
-  availabilityLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  availabilityIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  availabilityIconOnline: {
-    backgroundColor: "#DCFCE7",
-  },
-  availabilityIconOffline: {
-    backgroundColor: "#F3F4F6",
-  },
-  availabilityLabel: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    marginBottom: 2,
-  },
-  availabilityLabelOnline: {
-    color: "#15803D",
-  },
-  availabilityLabelOffline: {
-    color: "#374151",
-  },
-  availabilitySubLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  availabilitySpinner: {
-    width: 51, // same footprint as the Switch so layout doesn't jump
-    height: 31,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  availabilityCardOnline: { backgroundColor: "#F0FDF4", borderColor: "#86EFAC" },
+  availabilityCardOffline: { backgroundColor: "#F9FAFB", borderColor: "#E5E7EB" },
+  availabilityLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  availabilityIconWrap: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
+  availabilityIconOnline: { backgroundColor: "#DCFCE7" },
+  availabilityIconOffline: { backgroundColor: "#F3F4F6" },
+  availabilityLabel: { fontSize: 16, fontWeight: "700" as const, marginBottom: 2 },
+  availabilityLabelOnline: { color: "#15803D" },
+  availabilityLabelOffline: { color: "#374151" },
+  availabilitySubLabel: { fontSize: 12, color: "#6B7280" },
+  availabilitySpinner: { width: 51, height: 31, justifyContent: "center", alignItems: "center" },
 
-  // ── Summary cards ───────────────────────────────────────────────────────
-  summaryCards: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 24,
-  },
+  summaryCards: { flexDirection: "row", gap: 12, marginBottom: 24 },
   summaryCard: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    flex: 1, padding: 16, backgroundColor: "#FFFFFF",
+    borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
   },
-  summaryCardPrimary: {
-    backgroundColor: "#EFF6FF",
-    borderColor: Colors.primary,
-  },
+  summaryCardPrimary: { backgroundColor: "#EFF6FF", borderColor: Colors.primary },
   summaryCardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFFFFF",
+    justifyContent: "center", alignItems: "center", marginBottom: 12,
   },
   summaryCardIconSecondary: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F9FAFB",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "#F9FAFB",
+    justifyContent: "center", alignItems: "center", marginBottom: 12,
   },
-  summaryCardValue: {
-    fontSize: 24,
-    fontWeight: "700" as const,
-    color: Colors.primary,
-    marginBottom: 4,
-  },
-  summaryCardLabel: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: "500" as const,
-  },
-  summaryCardValueSecondary: {
-    fontSize: 24,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-    marginBottom: 4,
-  },
-  summaryCardLabelSecondary: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
+  summaryCardValue: { fontSize: 20, fontWeight: "700" as const, color: Colors.primary, marginBottom: 4 },
+  summaryCardLabel: { fontSize: 12, color: Colors.primary, fontWeight: "500" as const },
+  summaryCardValueSecondary: { fontSize: 24, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
+  summaryCardLabelSecondary: { fontSize: 12, color: "#6B7280" },
 
-  // ── Sections ────────────────────────────────────────────────────────────
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
-  sectionLink: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: Colors.primary,
-  },
+  section: { marginBottom: 24 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
+  sectionLink: { fontSize: 14, fontWeight: "600" as const, color: Colors.primary },
 
-  // ── Job cards ───────────────────────────────────────────────────────────
-  jobsList: {
-    gap: 12,
-  },
+  jobsList: { gap: 12 },
   jobCard: {
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    padding: 16, backgroundColor: "#FFFFFF",
+    borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
   },
-  jobCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  customerInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
+  jobCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
+  customerInfo: { flexDirection: "row", alignItems: "center", flex: 1 },
   customerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#EFF6FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFF6FF",
+    justifyContent: "center", alignItems: "center", marginRight: 12,
   },
-  customerDetails: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-    marginBottom: 2,
-  },
-  jobCategory: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusBadgeConfirmed: {
-    backgroundColor: "#DBEAFE",
-  },
-  statusBadgePending: {
-    backgroundColor: "#FEF3C7",
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: "600" as const,
-  },
-  statusBadgeTextConfirmed: {
-    color: Colors.primary,
-  },
-  statusBadgeTextPending: {
-    color: "#92400E",
-  },
-  jobService: {
-    fontSize: 15,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-    marginBottom: 12,
-  },
-  jobDetails: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  jobDetailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  jobDetailText: {
-    fontSize: 14,
-    color: "#6B7280",
-    flex: 1,
-  },
-  jobCardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
-  jobPrice: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
+  customerDetails: { flex: 1 },
+  customerName: { fontSize: 16, fontWeight: "600" as const, color: "#2C2C2C", marginBottom: 2 },
+  jobCategory: { fontSize: 13, color: "#6B7280" },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  statusBadgeConfirmed: { backgroundColor: "#DBEAFE" },
+  statusBadgePending: { backgroundColor: "#FEF3C7" },
+  statusBadgeText: { fontSize: 12, fontWeight: "600" as const },
+  statusBadgeTextConfirmed: { color: Colors.primary },
+  statusBadgeTextPending: { color: "#92400E" },
+  jobService: { fontSize: 15, fontWeight: "600" as const, color: "#2C2C2C", marginBottom: 12 },
+  jobDetails: { gap: 8, marginBottom: 12 },
+  jobDetailRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  jobDetailText: { fontSize: 14, color: "#6B7280", flex: 1 },
+  jobCardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F3F4F6" },
+  jobPrice: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
+
   emptyState: {
-    alignItems: "center",
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    alignItems: "center", paddingVertical: 48, paddingHorizontal: 24,
+    backgroundColor: "#FFFFFF", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
   },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateDescription: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-  },
+  emptyStateTitle: { fontSize: 16, fontWeight: "600" as const, color: "#2C2C2C", marginTop: 16, marginBottom: 8 },
+  emptyStateDescription: { fontSize: 14, color: "#6B7280", textAlign: "center" },
 
-  // ── Upcoming jobs ───────────────────────────────────────────────────────
-  upcomingJobsList: {
-    gap: 12,
-  },
+  upcomingJobsList: { gap: 12 },
   upcomingJobCard: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    padding: 16, backgroundColor: "#FFFFFF", borderRadius: 12, borderWidth: 1, borderColor: "#F3F4F6",
   },
-  upcomingJobInfo: {
-    flex: 1,
-  },
-  upcomingJobDate: {
-    fontSize: 12,
-    fontWeight: "600" as const,
-    color: Colors.primary,
-    marginBottom: 4,
-  },
-  upcomingJobService: {
-    fontSize: 15,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-    marginBottom: 4,
-  },
-  upcomingJobCustomer: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  upcomingJobActions: {
-    alignItems: "flex-end",
-    gap: 8,
-  },
-  upcomingJobPrice: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
+  upcomingJobInfo: { flex: 1 },
+  upcomingJobDate: { fontSize: 12, fontWeight: "600" as const, color: Colors.primary, marginBottom: 4 },
+  upcomingJobService: { fontSize: 15, fontWeight: "600" as const, color: "#2C2C2C", marginBottom: 4 },
+  upcomingJobCustomer: { fontSize: 13, color: "#6B7280" },
+  upcomingJobActions: { alignItems: "flex-end", gap: 8 },
+  upcomingJobPrice: { fontSize: 16, fontWeight: "700" as const, color: "#2C2C2C" },
 
-  // ── Quick actions ───────────────────────────────────────────────────────
   quickActionsCard: {
-    padding: 20,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    padding: 20, backgroundColor: "#FFFFFF",
+    borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
   },
-  quickActionsTitle: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-    marginBottom: 16,
-  },
-  quickActionButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
+  quickActionsTitle: { fontSize: 16, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 16 },
+  quickActionButtons: { flexDirection: "row", gap: 12 },
   quickActionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 12,
-    gap: 8,
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 12, paddingHorizontal: 16, backgroundColor: "#EFF6FF",
+    borderRadius: 12, gap: 8,
   },
-  quickActionButtonText: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: Colors.primary,
-  },
+  quickActionButtonText: { fontSize: 14, fontWeight: "600" as const, color: Colors.primary },
 });

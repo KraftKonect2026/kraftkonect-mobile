@@ -110,3 +110,12 @@ export const SET_AVAILABILITY_MUTATION = gql`
     }
   }
 `;
+
+export const UPDATE_BOOKING_MUTATION = gql`
+  mutation UpdateBooking($id: ID!, $status: BookingStatus!) {
+    updateBooking(id: $id, input: { status: $status }) {
+      id
+      status
+    }
+  }
+`;
