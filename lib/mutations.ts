@@ -190,6 +190,30 @@ export const REMOVE_FROM_FAVOURITES_MUTATION = gql`
   }
 `;
 
+export const CREATE_BOOKING_MUTATION = gql`
+  mutation CreateBooking($input: CreateBookingInput!) {
+    createBooking(input: $input) {
+      id
+      bookingRef
+      status
+      paystackReference
+      paystackAccessCode
+      paystackAuthorizationUrl
+    }
+  }
+`;
+
+export const VERIFY_PAYMENT_MUTATION = gql`
+  mutation VerifyPayment($reference: String!) {
+    verifyPayment(reference: $reference) {
+      id
+      bookingRef
+      status
+      paystackReference
+    }
+  }
+`;
+
 export const SEND_MESSAGE_MUTATION = gql`
   mutation SendMessage($recipientId: ID!, $text: String!) {
     sendMessage(recipientId: $recipientId, text: $text) {

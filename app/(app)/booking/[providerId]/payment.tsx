@@ -1,4 +1,4 @@
-import { ArrowLeft, CreditCard, Lock, Shield } from "lucide-react-native";
+import { ArrowLeft, Shield, Lock, AlertCircle, CheckCircle2 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   View,
@@ -6,15 +6,23 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useQuery } from "@apollo/client";
+import { useQuery, useMutation } from "@apollo/client";
+import * as WebBrowser from "expo-web-browser";
+import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY } from "@/lib/queries";
-import { ActivityIndicator } from "react-native";
+import { CREATE_BOOKING_MUTATION, VERIFY_PAYMENT_MUTATION } from "@/lib/mutations";
+
+// The Paystack callback URL matches the app scheme so openAuthSessionAsync
+// can detect the redirect and close the browser automatically.
+const PAYSTACK_CALLBACK = "kraftkonect-app://payment-callback";
+
+type PaymentStep = "idle" | "creating" | "checkout" | "verifying" | "success" | "failed";
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -25,11 +33,8 @@ export default function PaymentScreen() {
     time: string;
   }>();
 
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardholderName, setCardholderName] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [step, setStep] = useState<PaymentStep>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
     variables: { providerId: `${providerId}` },
@@ -37,15 +42,18 @@ export default function PaymentScreen() {
     notifyOnNetworkStatusChange: true,
   });
 
+  const [createBooking] = useMutation(CREATE_BOOKING_MUTATION);
+  const [verifyPayment] = useMutation(VERIFY_PAYMENT_MUTATION);
+
   const provider = data?.provider;
   const service = (provider?.services || []).find((s: any) => s.id === serviceId);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+        <View style={styles.centeredState}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Initializing secure payment...</Text>
+          <Text style={styles.loadingText}>Loading payment details…</Text>
         </View>
       </SafeAreaView>
     );
@@ -54,7 +62,7 @@ export default function PaymentScreen() {
   if (error || !provider || !service || !date || !time) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
+        <View style={styles.centeredState}>
           <Text style={styles.errorText}>
             {error ? "Failed to load payment details" : "Booking information not found"}
           </Text>
@@ -69,39 +77,115 @@ export default function PaymentScreen() {
   const basePrice = service.priceCents ? service.priceCents / 100 : 0;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
-  const currencySymbol = service.currency === "NGN" ? "₦" : "$";
+  const currencySymbol = service.currency?.toUpperCase() === "NGN" ? "₦" : "$";
 
-  const handlePayment = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      const bookingId = `BK${Date.now()}`;
-      router.push(
-        `/(app)/booking/${providerId}/confirmation?serviceId=${serviceId}&date=${date}&time=${time}&bookingId=${bookingId}` as any
+  const handlePay = async () => {
+    if (step !== "idle" && step !== "failed") return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setErrorMessage(null);
+
+    // ── Step 1: Create booking ────────────────────────────────────────────────
+    setStep("creating");
+
+    let bookingId: string;
+    let reference: string;
+    let authorizationUrl: string;
+
+    try {
+      const bookingDate = new Date(`${date}T${time}`).toISOString();
+      const { data: bookingData, errors } = await createBooking({
+        variables: {
+          input: {
+            listingId: serviceId,
+            bookingDate,
+            description: `Booking for ${service.title}`,
+          },
+        },
+      });
+
+      if (errors?.length || !bookingData?.createBooking) {
+        throw new Error(errors?.[0]?.message || "Could not create booking");
+      }
+
+      const booking = bookingData.createBooking;
+      bookingId = booking.id;
+      reference = booking.paystackReference;
+      authorizationUrl = booking.paystackAuthorizationUrl;
+
+      if (!authorizationUrl || !reference) {
+        throw new Error("Payment could not be initialized. Please try again.");
+      }
+    } catch (err: any) {
+      setStep("failed");
+      setErrorMessage(err.message || "Failed to create booking. Please try again.");
+      return;
+    }
+
+    // ── Step 2: Open Paystack checkout ────────────────────────────────────────
+    setStep("checkout");
+
+    try {
+      const browserResult = await WebBrowser.openAuthSessionAsync(
+        authorizationUrl,
+        PAYSTACK_CALLBACK,
+        { showInRecents: false },
       );
-    }, 1500);
-  };
 
-  const formatCardNumber = (text: string) => {
-    const cleaned = text.replace(/\s/g, "");
-    const formatted = cleaned.match(/.{1,4}/g)?.join(" ") || cleaned;
-    setCardNumber(formatted);
-  };
+      // User dismissed the browser without completing payment
+      if (browserResult.type === "cancel" || browserResult.type === "dismiss") {
+        setStep("failed");
+        setErrorMessage("Payment was not completed. You can retry when ready.");
+        return;
+      }
+    } catch {
+      // Browser error — proceed to verify anyway in case payment went through
+    }
 
-  const formatExpiryDate = (text: string) => {
-    const cleaned = text.replace(/\D/g, "");
-    if (cleaned.length >= 2) {
-      setExpiryDate(cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4));
-    } else {
-      setExpiryDate(cleaned);
+    // ── Step 3: Verify with backend ───────────────────────────────────────────
+    setStep("verifying");
+
+    try {
+      const { data: verifyData, errors: verifyErrors } = await verifyPayment({
+        variables: { reference },
+      });
+
+      if (verifyErrors?.length) {
+        throw new Error(verifyErrors[0].message);
+      }
+
+      const confirmedBooking = verifyData?.verifyPayment;
+
+      if (confirmedBooking?.status === "confirmed") {
+        setStep("success");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Navigate to confirmation screen with the real booking ID
+        setTimeout(() => {
+          router.replace(
+            `/(app)/booking/${providerId}/confirmation?serviceId=${serviceId}&date=${date}&time=${time}&bookingId=${bookingId}` as any,
+          );
+        }, 800);
+      } else {
+        setStep("failed");
+        setErrorMessage(
+          "Payment could not be confirmed. If your bank was charged, please contact support.",
+        );
+      }
+    } catch (err: any) {
+      setStep("failed");
+      setErrorMessage(
+        err.message || "Could not verify payment. If you were charged, please contact support.",
+      );
     }
   };
 
-  const isFormValid =
-    cardNumber.length >= 15 &&
-    expiryDate.length === 5 &&
-    cvv.length >= 3 &&
-    cardholderName.length > 0;
+  const isProcessing = step === "creating" || step === "checkout" || step === "verifying";
+  const stepLabel =
+    step === "creating" ? "Creating your booking…"
+    : step === "checkout" ? "Waiting for payment…"
+    : step === "verifying" ? "Confirming payment…"
+    : step === "success" ? "Payment confirmed!"
+    : `Pay ${currencySymbol}${totalAmount.toFixed(2)}`;
 
   return (
     <View style={styles.wrapper}>
@@ -111,8 +195,9 @@ export default function PaymentScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
             activeOpacity={0.7}
+            disabled={isProcessing}
           >
-            <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
+            <ArrowLeft size={24} color={isProcessing ? "#D1D5DB" : "#2C2C2C"} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Payment</Text>
           <View style={styles.placeholder} />
@@ -122,115 +207,93 @@ export default function PaymentScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.secureCard}>
-            <Shield size={24} color={Colors.primary} />
-            <View style={styles.secureTextContainer}>
-              <Text style={styles.secureTitle}>Secure Escrow Payment</Text>
-              <Text style={styles.secureDescription}>
-                Your payment is held securely until the service is marked completed. This protects both you and the provider.
+          {/* Escrow banner */}
+          <View style={styles.secureBanner}>
+            <Shield size={20} color="#10B981" strokeWidth={2} />
+            <View style={styles.secureBannerText}>
+              <Text style={styles.secureBannerTitle}>Secure Escrow Payment</Text>
+              <Text style={styles.secureBannerBody}>
+                Your payment is held safely until the job is complete.
               </Text>
             </View>
           </View>
 
+          {/* Payment summary */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Payment Summary</Text>
+            <Text style={styles.cardTitle}>Order Summary</Text>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Service</Text>
-              <Text style={styles.summaryValue}>{service.title}</Text>
+              <Text style={styles.summaryValue} numberOfLines={1}>{service.title}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Price</Text>
+              <Text style={styles.summaryLabel}>Date</Text>
+              <Text style={styles.summaryValue}>{date}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Time</Text>
+              <Text style={styles.summaryValue}>{time}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Service price</Text>
               <Text style={styles.summaryValue}>{currencySymbol}{basePrice.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Service Fee</Text>
+              <Text style={styles.summaryLabel}>Platform fee (10%)</Text>
               <Text style={styles.summaryValue}>{currencySymbol}{serviceFee.toFixed(2)}</Text>
             </View>
-            <View style={styles.separator} />
+            <View style={styles.divider} />
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
             </View>
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.paymentHeader}>
-              <CreditCard size={24} color="#2C2C2C" />
-              <Text style={styles.cardTitle}>Card Details</Text>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Card Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="1234 5678 9012 3456"
-                placeholderTextColor="#9CA3AF"
-                value={cardNumber}
-                onChangeText={formatCardNumber}
-                keyboardType="number-pad"
-                maxLength={19}
-              />
-            </View>
-
-            <View style={styles.inputRow}>
-              <View style={[styles.inputContainer, styles.inputHalf]}>
-                <Text style={styles.inputLabel}>Expiry Date</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="MM/YY"
-                  placeholderTextColor="#9CA3AF"
-                  value={expiryDate}
-                  onChangeText={formatExpiryDate}
-                  keyboardType="number-pad"
-                  maxLength={5}
-                />
-              </View>
-
-              <View style={[styles.inputContainer, styles.inputHalf]}>
-                <Text style={styles.inputLabel}>CVV</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="123"
-                  placeholderTextColor="#9CA3AF"
-                  value={cvv}
-                  onChangeText={setCvv}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  secureTextEntry
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Cardholder Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="John Smith"
-                placeholderTextColor="#9CA3AF"
-                value={cardholderName}
-                onChangeText={setCardholderName}
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.securePaymentRow}>
-              <Lock size={16} color="#10B981" />
-              <Text style={styles.securePaymentText}>Secure payment powered by Stripe</Text>
-            </View>
+          {/* Paystack badge */}
+          <View style={styles.paystackBadge}>
+            <Lock size={14} color="#10B981" strokeWidth={2} />
+            <Text style={styles.paystackBadgeText}>
+              Secured by Paystack · PCI DSS compliant
+            </Text>
           </View>
+
+          {/* Error state */}
+          {errorMessage && step === "failed" && (
+            <View style={styles.errorBanner}>
+              <AlertCircle size={16} color="#DC2626" strokeWidth={2} />
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            </View>
+          )}
+
+          {/* Success state (brief flash before navigation) */}
+          {step === "success" && (
+            <View style={styles.successBanner}>
+              <CheckCircle2 size={16} color="#10B981" strokeWidth={2} />
+              <Text style={styles.successBannerText}>Payment confirmed! Redirecting…</Text>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
 
+      {/* Pay button — fixed at bottom */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.payButton, (!isFormValid || isProcessing) && styles.payButtonDisabled]}
-          activeOpacity={0.8}
-          onPress={handlePayment}
-          disabled={!isFormValid || isProcessing}
+          style={[
+            styles.payButton,
+            isProcessing && styles.payButtonProcessing,
+            step === "success" && styles.payButtonSuccess,
+          ]}
+          activeOpacity={0.85}
+          onPress={handlePay}
+          disabled={isProcessing || step === "success"}
         >
-          <Text style={styles.payButtonText}>
-            {isProcessing ? "Processing..." : `Pay ${currencySymbol}${totalAmount.toFixed(2)}`}
-          </Text>
+          {isProcessing ? (
+            <View style={styles.payButtonInner}>
+              <ActivityIndicator size="small" color="#FFFFFF" />
+              <Text style={styles.payButtonText}>{stepLabel}</Text>
+            </View>
+          ) : (
+            <Text style={styles.payButtonText}>{stepLabel}</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -238,13 +301,9 @@ export default function PaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  container: {
-    flex: 1,
-  },
+  wrapper: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
+
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -255,143 +314,85 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 120,
-  },
-  secureCard: {
+  backButton: { width: 40, height: 40, justifyContent: "center" },
+  headerTitle: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
+  placeholder: { width: 40 },
+
+  scrollContent: { padding: 20, paddingBottom: 140 },
+
+  secureBanner: {
     flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
     backgroundColor: "#ECFDF5",
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#10B981" + "30",
+    borderColor: "#A7F3D0",
   },
-  secureTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  secureTitle: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-    marginBottom: 4,
-  },
-  secureDescription: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 20,
-  },
+  secureBannerText: { flex: 1 },
+  secureBannerTitle: { fontSize: 15, fontWeight: "700" as const, color: "#065F46", marginBottom: 2 },
+  secureBannerBody: { fontSize: 13, color: "#047857", lineHeight: 18 },
+
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
+      android: { elevation: 2 },
     }),
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-    marginBottom: 16,
-  },
+  cardTitle: { fontSize: 17, fontWeight: "700" as const, color: "#111827", marginBottom: 16 },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
-  summaryLabel: {
-    fontSize: 15,
-    color: "#6B7280",
-  },
-  summaryValue: {
-    fontSize: 15,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#F3F4F6",
-    marginVertical: 12,
-  },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
-  totalValue: {
-    fontSize: 22,
-    fontWeight: "700" as const,
-    color: Colors.primary,
-  },
-  paymentHeader: {
+  summaryLabel: { fontSize: 14, color: "#6B7280" },
+  summaryValue: { fontSize: 14, fontWeight: "600" as const, color: "#111827", maxWidth: "55%" },
+  divider: { height: 1, backgroundColor: "#F3F4F6", marginVertical: 12 },
+  totalLabel: { fontSize: 16, fontWeight: "700" as const, color: "#111827" },
+  totalValue: { fontSize: 22, fontWeight: "700" as const, color: Colors.primary },
+
+  paystackBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: "#2C2C2C",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  inputRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  inputHalf: {
-    flex: 1,
-  },
-  securePaymentRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
-    paddingTop: 8,
+    marginBottom: 16,
   },
-  securePaymentText: {
-    fontSize: 13,
-    color: "#10B981",
-    fontWeight: "600" as const,
+  paystackBadgeText: { fontSize: 12, color: "#10B981", fontWeight: "500" as const },
+
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    marginTop: 4,
   },
+  errorBannerText: { flex: 1, fontSize: 13, color: "#DC2626", lineHeight: 18 },
+
+  successBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#ECFDF5",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    marginTop: 4,
+  },
+  successBannerText: { fontSize: 13, color: "#065F46", fontWeight: "600" as const },
+
   footer: {
     position: "absolute",
     bottom: 0,
@@ -402,15 +403,8 @@ const styles = StyleSheet.create({
     borderTopColor: "#F3F4F6",
     padding: 20,
     ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      android: { elevation: 8 },
     }),
   },
   payButton: {
@@ -420,45 +414,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  payButtonDisabled: {
-    backgroundColor: "#D1D5DB",
-  },
-  payButtonText: {
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: "#FFFFFF",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#EF4444",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6B7280",
-  },
-  retryButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 16,
-  },
+  payButtonProcessing: { backgroundColor: "#6B7280" },
+  payButtonSuccess: { backgroundColor: "#10B981" },
+  payButtonInner: { flexDirection: "row", alignItems: "center", gap: 10 },
+  payButtonText: { fontSize: 17, fontWeight: "700" as const, color: "#FFFFFF" },
+
+  centeredState: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24, gap: 12 },
+  loadingText: { fontSize: 15, color: "#6B7280" },
+  errorText: { fontSize: 15, color: "#EF4444", textAlign: "center" },
+  retryButton: { backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryButtonText: { color: "#FFFFFF", fontWeight: "700" as const, fontSize: 15 },
 });
