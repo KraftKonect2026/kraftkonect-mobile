@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,8 +18,13 @@ import {
   HelpCircle,
   FileText,
   CreditCard,
+  Navigation,
 } from "lucide-react-native";
+import * as Location from "expo-location";
+import { useQuery, useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { MY_PROVIDER_PROFILE_QUERY } from "@/lib/queries";
+import { UPDATE_PROVIDER_LOCATION_MUTATION } from "@/lib/mutations";
 
 export default function ProviderSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -30,6 +35,99 @@ export default function ProviderSettingsScreen() {
   const [promotions, setPromotions] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
+  const [gpsBoost, setGpsBoost] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  const locationSub = useRef<Location.LocationSubscription | null>(null);
+
+  const { data: profileData } = useQuery(MY_PROVIDER_PROFILE_QUERY);
+
+  const [updateProviderLocation] = useMutation(UPDATE_PROVIDER_LOCATION_MUTATION);
+
+  // Sync initial GPS state from server
+  useEffect(() => {
+    if (profileData?.myProviderProfile?.gpsEnabled != null) {
+      setGpsBoost(profileData.myProviderProfile.gpsEnabled);
+    }
+  }, [profileData]);
+
+  // Clean up subscription on unmount
+  useEffect(() => {
+    return () => {
+      locationSub.current?.remove();
+    };
+  }, []);
+
+  const startLocationWatch = async () => {
+    locationSub.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.Balanced,
+        distanceInterval: 100,
+      },
+      (loc) => {
+        updateProviderLocation({
+          variables: {
+            lat: loc.coords.latitude,
+            lon: loc.coords.longitude,
+            enabled: true,
+          },
+        }).catch(() => {});
+      },
+    );
+  };
+
+  const handleGpsToggle = async (value: boolean) => {
+    if (gpsLoading) return;
+    setGpsLoading(true);
+
+    try {
+      if (value) {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(
+            "Permission Required",
+            "Location permission was denied. Enable it in your device settings to use GPS Boost.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () => Linking.openSettings(),
+              },
+            ],
+          );
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        await updateProviderLocation({
+          variables: {
+            lat: loc.coords.latitude,
+            lon: loc.coords.longitude,
+            enabled: true,
+          },
+        });
+
+        setGpsBoost(true);
+        await startLocationWatch();
+      } else {
+        locationSub.current?.remove();
+        locationSub.current = null;
+
+        await updateProviderLocation({
+          variables: { enabled: false },
+        });
+
+        setGpsBoost(false);
+      }
+    } catch {
+      Alert.alert("Error", "Failed to update GPS Boost. Please try again.");
+    } finally {
+      setGpsLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -54,6 +152,47 @@ export default function ProviderSettingsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* GPS Boost */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>GPS BOOST</Text>
+          <View style={styles.card}>
+            <View style={styles.settingRow}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconContainer, gpsBoost && styles.iconContainerActive]}>
+                  <Navigation
+                    size={20}
+                    color={gpsBoost ? Colors.success : "#6B7280"}
+                    strokeWidth={2}
+                  />
+                </View>
+                <View style={styles.settingText}>
+                  <Text style={styles.settingLabel}>GPS Boost</Text>
+                  <Text style={styles.settingDescription}>
+                    Share your live location to rank higher and get a &apos;Near you now&apos; badge
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={gpsBoost}
+                onValueChange={handleGpsToggle}
+                disabled={gpsLoading}
+                trackColor={{ false: "#E5E7EB", true: Colors.success }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor="#E5E7EB"
+              />
+            </View>
+            {gpsBoost && (
+              <View style={styles.gpsActiveBanner}>
+                <Navigation size={14} color={Colors.success} strokeWidth={2} />
+                <Text style={styles.gpsActiveBannerText}>
+                  Live location active · +15 ranking boost applied
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Notifications */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
           <View style={styles.card}>
@@ -162,14 +301,14 @@ export default function ProviderSettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>PAYMENT</Text>
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
                 Alert.alert(
                   "Payout Methods",
                   "This feature allows you to manage your payout bank accounts and payment methods.",
-                  [{ text: "OK" }]
+                  [{ text: "OK" }],
                 );
               }}
             >
@@ -181,14 +320,14 @@ export default function ProviderSettingsScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
                 Alert.alert(
                   "Payout History",
                   "This feature shows all your past payouts and transaction history.",
-                  [{ text: "OK" }]
+                  [{ text: "OK" }],
                 );
               }}
             >
@@ -203,8 +342,8 @@ export default function ProviderSettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>PRIVACY & LEGAL</Text>
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
                 Linking.openURL("https://yourwebsite.com/privacy").catch(() => {
@@ -220,8 +359,8 @@ export default function ProviderSettingsScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
                 Linking.openURL("https://yourwebsite.com/terms").catch(() => {
@@ -240,8 +379,8 @@ export default function ProviderSettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SUPPORT</Text>
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
                 Linking.openURL("https://yourwebsite.com/help").catch(() => {
@@ -257,8 +396,8 @@ export default function ProviderSettingsScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
                 Alert.alert(
@@ -272,7 +411,7 @@ export default function ProviderSettingsScreen() {
                         Linking.openURL("mailto:support@yourapp.com");
                       },
                     },
-                  ]
+                  ],
                 );
               }}
             >
@@ -363,6 +502,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
+  iconContainerActive: {
+    backgroundColor: "#D1FAE5",
+  },
   settingText: {
     flex: 1,
   },
@@ -375,6 +517,21 @@ const styles = StyleSheet.create({
   settingDescription: {
     fontSize: 13,
     color: "#6B7280",
+  },
+  gpsActiveBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#A7F3D0",
+  },
+  gpsActiveBannerText: {
+    fontSize: 13,
+    color: "#065F46",
+    fontWeight: "500" as const,
   },
   menuItem: {
     flexDirection: "row",

@@ -1,5 +1,6 @@
 import {
   MapPin,
+  Navigation,
   Search,
   SlidersHorizontal,
   Heart,
@@ -210,6 +211,13 @@ export default function ExploreScreen() {
                     />
                   </TouchableOpacity>
 
+                  {provider.gpsEnabled && (
+                    <View style={styles.nearYouBadge}>
+                      <Navigation size={12} color="#FFFFFF" strokeWidth={2.5} />
+                      <Text style={styles.nearYouBadgeText}>Near you now</Text>
+                    </View>
+                  )}
+
                   <View style={styles.providerInfo}>
                     <View style={styles.providerHeader}>
                       <Image
@@ -395,6 +403,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+  },
+  nearYouBadge: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#10B981",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  nearYouBadgeText: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
   },
   providerInfo: {
     padding: 16,

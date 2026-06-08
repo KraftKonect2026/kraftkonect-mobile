@@ -144,3 +144,12 @@ export const VERIFY_PHONE_OTP_MUTATION = gql`
     }
   }
 `;
+
+export const UPDATE_PROVIDER_LOCATION_MUTATION = gql`
+  mutation UpdateProviderLocation($lat: Float, $lon: Float, $enabled: Boolean!) {
+    updateProviderLocation(lat: $lat, lon: $lon, enabled: $enabled) {
+      id
+      gpsEnabled
+    }
+  }
+`;

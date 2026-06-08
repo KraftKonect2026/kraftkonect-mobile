@@ -33,6 +33,7 @@ export const MY_PROVIDER_PROFILE_QUERY = gql`
     myProviderProfile {
       id
       available
+      gpsEnabled
     }
   }
 `
@@ -68,6 +69,7 @@ export const PROVIDERS_QUERY = gql`
             distance
             experience
             expertise
+            gpsEnabled
             id
             name
             portfolio
