@@ -34,6 +34,20 @@ export const MY_PROVIDER_PROFILE_QUERY = gql`
       id
       available
       gpsEnabled
+      categories
+      category
+    }
+  }
+`
+
+export const GET_DEMAND_FORECAST_QUERY = gql`
+  query GetDemandForecast($skill: String!) {
+    getDemandForecast(skill: $skill, limit: 6) {
+      id
+      forecastText
+      skill
+      area
+      weekStart
     }
   }
 `

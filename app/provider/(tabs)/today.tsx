@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Switch,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -22,9 +23,14 @@ import {
   User as UserIcon,
   Wifi,
   WifiOff,
+  Sparkles,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { MY_PROVIDER_PROFILE_QUERY, BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
+import {
+  MY_PROVIDER_PROFILE_QUERY,
+  BOOKINGS_FOR_PROVIDER_QUERY,
+  GET_DEMAND_FORECAST_QUERY,
+} from "@/lib/queries";
 import { SET_AVAILABILITY_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
 
@@ -63,10 +69,12 @@ export default function TodayDashboardScreen() {
   const router = useRouter();
   const toast = useToast();
 
+  const [refreshing, setRefreshing] = useState(false);
+
   // ── Availability toggle ─────────────────────────────────────────────────────
   const [optimisticAvailable, setOptimisticAvailable] = useState<boolean | null>(null);
 
-  const { data: profileData } = useQuery(MY_PROVIDER_PROFILE_QUERY, {
+  const { data: profileData, refetch: refetchProfile } = useQuery(MY_PROVIDER_PROFILE_QUERY, {
     fetchPolicy: "network-only",
     onCompleted: () => setOptimisticAvailable(null),
   });
@@ -102,10 +110,45 @@ export default function TodayDashboardScreen() {
   };
 
   // ── Jobs feed ───────────────────────────────────────────────────────────────
-  const { data: bookingsData, loading: bookingsLoading } = useQuery(
+  const { data: bookingsData, loading: bookingsLoading, refetch: refetchBookings } = useQuery(
     BOOKINGS_FOR_PROVIDER_QUERY,
     { fetchPolicy: "cache-and-network" },
   );
+
+  // ── Demand insights ─────────────────────────────────────────────────────────
+  const providerSkill: string | null =
+    profileData?.myProviderProfile?.categories?.[0] ??
+    profileData?.myProviderProfile?.category ??
+    null;
+
+  const { data: forecastData, loading: forecastLoading, refetch: refetchForecast } = useQuery(
+    GET_DEMAND_FORECAST_QUERY,
+    {
+      variables: { skill: providerSkill ?? "" },
+      skip: !providerSkill,
+      fetchPolicy: "cache-and-network",
+    },
+  );
+
+  const forecasts: any[] = forecastData?.getDemandForecast ?? [];
+
+  const weekLabel = forecasts[0]?.weekStart
+    ? `Week of ${new Date(forecasts[0].weekStart).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })}`
+    : null;
+
+  // ── Pull to refresh ─────────────────────────────────────────────────────────
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      refetchProfile(),
+      refetchBookings(),
+      providerSkill ? refetchForecast() : Promise.resolve(),
+    ]);
+    setRefreshing(false);
+  }, [refetchProfile, refetchBookings, refetchForecast, providerSkill]);
 
   const allBookings: any[] = bookingsData?.bookingsForProvider ?? [];
 
@@ -141,6 +184,13 @@ export default function TodayDashboardScreen() {
           { paddingBottom: insets.bottom + 20 },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+          />
+        }
       >
         {/* ── Availability toggle ──────────────────────────────────────────── */}
         <View
@@ -243,6 +293,64 @@ export default function TodayDashboardScreen() {
             <Text style={styles.summaryCardValueSecondary}>—</Text>
             <Text style={styles.summaryCardLabelSecondary}>Messages</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* ── AI Demand Insights ───────────────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.insightsTitleRow}>
+              <Sparkles size={16} color={Colors.primary} strokeWidth={2} />
+              <Text style={styles.sectionTitle}>AI Demand Insights</Text>
+            </View>
+            {weekLabel ? (
+              <View style={styles.weekBadge}>
+                <Text style={styles.weekBadgeText}>{weekLabel}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {!providerSkill ? (
+            <View style={styles.insightsCard}>
+              <Text style={styles.insightsEmptyText}>
+                Complete your provider profile to see demand insights for your skill.
+              </Text>
+            </View>
+          ) : forecastLoading && forecasts.length === 0 ? (
+            <View style={[styles.insightsCard, styles.insightsLoadingCard]}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={styles.insightsLoadingText}>Loading insights…</Text>
+            </View>
+          ) : forecasts.length === 0 ? (
+            <View style={styles.insightsCard}>
+              <Sparkles size={28} color="#D1D5DB" strokeWidth={1.5} />
+              <Text style={styles.insightsEmptyTitle}>
+                Insights loading — check back Monday
+              </Text>
+              <Text style={styles.insightsEmptyText}>
+                Our AI analyses demand every week. New insights drop on Monday morning.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.insightsCard}>
+              {forecasts.map((f: any, idx: number) => (
+                <View
+                  key={f.id}
+                  style={[
+                    styles.insightRow,
+                    idx < forecasts.length - 1 && styles.insightRowBorder,
+                  ]}
+                >
+                  {f.area ? (
+                    <View style={styles.areaChip}>
+                      <MapPin size={11} color={Colors.primary} strokeWidth={2.5} />
+                      <Text style={styles.areaChipText}>{f.area}</Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.insightText}>{f.forecastText}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* ── Today's schedule ─────────────────────────────────────────────── */}
@@ -566,4 +674,54 @@ const styles = StyleSheet.create({
     borderRadius: 12, gap: 8,
   },
   quickActionButtonText: { fontSize: 14, fontWeight: "600" as const, color: Colors.primary },
+
+  // ── Demand insights ────────────────────────────────────────────────────────
+  insightsTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  weekBadge: {
+    backgroundColor: `${Colors.primary}12`,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  weekBadgeText: { fontSize: 11, fontWeight: "600" as const, color: Colors.primary },
+
+  insightsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    alignItems: "flex-start",
+    gap: 4,
+  },
+  insightsLoadingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 20,
+  },
+  insightsLoadingText: { fontSize: 14, color: "#6B7280" },
+  insightsEmptyTitle: {
+    fontSize: 15,
+    fontWeight: "600" as const,
+    color: "#374151",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  insightsEmptyText: { fontSize: 13, color: "#9CA3AF", lineHeight: 18, textAlign: "center" },
+
+  insightRow: { width: "100%", paddingVertical: 10, gap: 6 },
+  insightRowBorder: { borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  areaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    backgroundColor: `${Colors.primary}10`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  areaChipText: { fontSize: 11, fontWeight: "700" as const, color: Colors.primary },
+  insightText: { fontSize: 14, color: "#374151", lineHeight: 20 },
 });
