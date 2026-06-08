@@ -23,6 +23,9 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+// Create a ref to access toast functions outside of React context
+export const toastRef = React.createRef<ToastContextType>();
+
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
@@ -148,6 +151,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     },
     []
   );
+
+  // Assign to ref for external access
+  React.useImperativeHandle(toastRef as any, () => ({
+    showToast,
+    success,
+    error,
+    warning,
+    info
+  }));
 
   const success = useCallback(
     (title: string, message?: string, duration?: number) => {

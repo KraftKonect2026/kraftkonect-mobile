@@ -92,3 +92,12 @@ export const ONBOARD_PROVIDER_MUTATION = gql`
     }
   }
 `;
+
+export const REFRESH_TOKEN_MUTATION = gql`
+  mutation RefreshToken($refreshToken: String!) {
+    refreshToken(token: $refreshToken) {
+      accessToken
+      refreshToken
+    }
+  }
+`;
