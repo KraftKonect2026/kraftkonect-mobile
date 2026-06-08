@@ -8,6 +8,7 @@ export interface Booking {
   providerCategory: string;
   providerRating: number;
   serviceName: string;
+  listingId?: string;
   date: string;
   time: string;
   address: string;
@@ -28,6 +29,7 @@ export const mockBookings: Booking[] = [
     providerCategory: "Cleaning",
     providerRating: 4.9,
     serviceName: "Deep Home Cleaning",
+    listingId: "listing-1",
     date: "2025-01-20",
     time: "10:00 AM",
     address: "123 Oak Street, Downtown",
@@ -60,6 +62,7 @@ export const mockBookings: Booking[] = [
     providerCategory: "Beauty",
     providerRating: 5.0,
     serviceName: "Haircut & Styling",
+    listingId: "listing-3",
     date: "2025-01-15",
     time: "11:00 AM",
     address: "789 Pine Road, Eastside",
@@ -76,6 +79,7 @@ export const mockBookings: Booking[] = [
     providerCategory: "Electrical",
     providerRating: 4.7,
     serviceName: "Outlet Installation",
+    listingId: "listing-4",
     date: "2025-01-10",
     time: "9:00 AM",
     address: "321 Maple Street, Southside",

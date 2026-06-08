@@ -204,6 +204,14 @@ export default function VerifyPhoneScreen() {
                     <Text style={styles.primaryButtonText}>Send Code</Text>
                   )}
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.skipButton}
+                  onPress={() => router.replace("/provider-onboarding/welcome" as any)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.skipButtonText}>Do it later</Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -303,6 +311,14 @@ export default function VerifyPhoneScreen() {
                     : "Resend Code"}
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={() => router.replace("/provider-onboarding/welcome" as any)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.skipButtonText}>Do it later</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -387,4 +403,6 @@ const styles = StyleSheet.create({
   resendDisabled: { opacity: 0.5 },
   resendButtonText: { color: Colors.primary, fontSize: 16, fontWeight: "600" as const },
   resendButtonTextDisabled: { color: Colors.textSecondary },
+  skipButton: { paddingVertical: 12, alignItems: "center" },
+  skipButtonText: { color: Colors.textSecondary, fontSize: 15, fontWeight: "500" as const },
 });

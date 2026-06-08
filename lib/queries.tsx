@@ -134,6 +134,7 @@ export const PROVIDER_QUERY = gql`
             portfolio
             pricePerHour
             distance
+            available
             reviews {
                 id
                 userId

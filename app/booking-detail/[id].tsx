@@ -4,6 +4,7 @@ import {
   Phone,
   MessageCircle,
   X,
+  RotateCw,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -15,12 +16,16 @@ import {
   Image,
   Modal,
   TextInput,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useLazyQuery } from "@apollo/client";
 
 import { mockBookings, BookingStatus } from "@/mocks/bookings";
 import Colors from "@/constants/colors";
+import { PROVIDER_QUERY } from "@/lib/queries";
 
 export default function BookingDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -30,6 +35,57 @@ export default function BookingDetailScreen() {
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
+
+  const [fetchProvider, { loading: checkingAvailability }] = useLazyQuery(
+    PROVIDER_QUERY,
+    { fetchPolicy: "network-only" },
+  );
+
+  const handleRebook = async () => {
+    if (!booking) return;
+    try {
+      const result = await fetchProvider({
+        variables: { providerId: booking.providerId },
+      });
+      const provider = result.data?.provider;
+
+      // AC4: artisan is marked unavailable on the backend
+      if (provider && provider.available === false) {
+        Alert.alert(
+          "Artisan Unavailable",
+          "This artisan is currently unavailable — would you like to find a similar artisan nearby?",
+          [
+            { text: "Not now", style: "cancel" },
+            {
+              text: "Find Similar",
+              onPress: () => router.push("/(app)/explore" as any),
+            },
+          ],
+        );
+        return;
+      }
+
+      // AC2: skip select-service, land directly on date-time with service pre-selected
+      // AC5: date-time screen fetches current pricing from backend
+      if (booking.listingId) {
+        router.push(
+          `/(app)/booking/${booking.providerId}/date-time?serviceId=${booking.listingId}` as any,
+        );
+      } else {
+        // Fallback when listingId not available: let customer re-select the service
+        router.push(`/(app)/booking/${booking.providerId}/select-service` as any);
+      }
+    } catch {
+      // AC3/graceful degradation: network error — proceed optimistically
+      if (booking.listingId) {
+        router.push(
+          `/(app)/booking/${booking.providerId}/date-time?serviceId=${booking.listingId}` as any,
+        );
+      } else {
+        router.push(`/(app)/booking/${booking.providerId}/select-service` as any);
+      }
+    }
+  };
 
   const cancellationReasons = [
     "Found a better provider",
@@ -352,20 +408,39 @@ export default function BookingDetailScreen() {
         </View>
       )}
 
-      {booking.status === "completed" && !booking.reviewed && (
+      {booking.status === "completed" && (
         <View
           style={[
             styles.bottomActions,
             { paddingBottom: insets.bottom + 16 },
           ]}
         >
+          {/* AC1: Book Again only on completed bookings */}
           <TouchableOpacity
-            style={styles.reviewButtonLarge}
+            style={[styles.rebookButton, checkingAvailability && styles.disabledButton]}
             activeOpacity={0.8}
-            onPress={() => router.push(`/review/${booking.id}`)}
+            onPress={handleRebook}
+            disabled={checkingAvailability}
           >
-            <Text style={styles.reviewButtonLargeText}>Leave a Review</Text>
+            {checkingAvailability ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <>
+                <RotateCw size={20} color="#FFFFFF" strokeWidth={2} />
+                <Text style={styles.rebookButtonText}>Book Again</Text>
+              </>
+            )}
           </TouchableOpacity>
+
+          {!booking.reviewed && (
+            <TouchableOpacity
+              style={styles.reviewButtonLarge}
+              activeOpacity={0.8}
+              onPress={() => router.push(`/review/${booking.id}`)}
+            >
+              <Text style={styles.reviewButtonLargeText}>Leave a Review</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -717,16 +792,35 @@ const styles = StyleSheet.create({
     fontWeight: "600" as const,
     color: "#EF4444",
   },
-  reviewButtonLarge: {
+  rebookButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: Colors.primary,
+    gap: 8,
+  },
+  rebookButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  reviewButtonLarge: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
     alignItems: "center",
   },
   reviewButtonLargeText: {
     fontSize: 16,
     fontWeight: "600" as const,
-    color: "#FFFFFF",
+    color: Colors.primary,
   },
   modalOverlay: {
     flex: 1,
