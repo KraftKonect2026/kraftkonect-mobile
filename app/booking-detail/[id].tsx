@@ -3,6 +3,7 @@ import {
   MapPin,
   Phone,
   MessageCircle,
+  RefreshCw,
   X,
   RotateCw,
 } from "lucide-react-native";
@@ -13,43 +14,112 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Modal,
   TextInput,
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useLazyQuery } from "@apollo/client";
+import { useQuery, useLazyQuery } from "@apollo/client";
 
-import { mockBookings, BookingStatus } from "@/mocks/bookings";
 import Colors from "@/constants/colors";
-import { PROVIDER_QUERY } from "@/lib/queries";
+import { BOOKING_DETAIL_QUERY, PROVIDER_QUERY } from "@/lib/queries";
+
+type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "refunded";
 
 export default function BookingDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
 
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
+
+  const { data, loading, error, refetch } = useQuery(BOOKING_DETAIL_QUERY, {
+    variables: { id },
+    skip: !id,
+    fetchPolicy: "cache-and-network",
+  });
 
   const [fetchProvider, { loading: checkingAvailability }] = useLazyQuery(
     PROVIDER_QUERY,
     { fetchPolicy: "network-only" },
   );
 
+  // Loading state
+  if (loading && !data) {
+    return (
+      <View style={[styles.container, styles.centeredState]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.stateText}>Loading booking…</Text>
+      </View>
+    );
+  }
+
+  // Error state
+  if (error && !data) {
+    return (
+      <View style={[styles.container, styles.centeredState]}>
+        <Text style={styles.errorTitle}>Couldn't load booking</Text>
+        <Text style={styles.errorText}>{error.message}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+          <RefreshCw size={16} color="#FFFFFF" strokeWidth={2} />
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Map backend booking to the shape the UI expects
+  const raw = data?.booking;
+  if (!raw) {
+    return (
+      <View style={[styles.container, styles.centeredState]}>
+        <Text style={styles.errorTitle}>Booking not found</Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 12 }}>
+          <Text style={{ color: Colors.primary, fontWeight: "600" as const }}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const dt = new Date(raw.bookingDate);
+  const booking = {
+    id: raw.id,
+    providerId: raw.provider?.id ?? "",
+    providerName: raw.provider?.name ?? "Unknown",
+    providerImage: raw.provider?.avatar ?? "",
+    providerCategory: raw.provider?.categories?.[0] ?? raw.provider?.category ?? "",
+    providerRating: raw.provider?.rating ? parseFloat(raw.provider.rating) : 0,
+    serviceName: raw.listing?.title ?? raw.description ?? "Service",
+    listingId: raw.listing?.id as string | undefined,
+    date: dt.toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
+    time: dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+    address: raw.description ?? raw.notes ?? "",
+    cost: (raw.totalPriceCents ?? 0) / 100,
+    currency: raw.currency ?? "ngn",
+    status: raw.status as BookingStatus,
+    bookingRef: raw.bookingRef ?? raw.id,
+    notes: raw.notes as string | undefined,
+    cancelReason: raw.status === "cancelled" ? raw.notes : undefined,
+  };
+
   const handleRebook = async () => {
-    if (!booking) return;
     try {
       const result = await fetchProvider({
         variables: { providerId: booking.providerId },
       });
       const provider = result.data?.provider;
 
-      // AC4: artisan is marked unavailable on the backend
       if (provider && provider.available === false) {
         Alert.alert(
           "Artisan Unavailable",
@@ -65,18 +135,14 @@ export default function BookingDetailScreen() {
         return;
       }
 
-      // AC2: skip select-service, land directly on date-time with service pre-selected
-      // AC5: date-time screen fetches current pricing from backend
       if (booking.listingId) {
         router.push(
           `/(app)/booking/${booking.providerId}/date-time?serviceId=${booking.listingId}` as any,
         );
       } else {
-        // Fallback when listingId not available: let customer re-select the service
         router.push(`/(app)/booking/${booking.providerId}/select-service` as any);
       }
     } catch {
-      // AC3/graceful degradation: network error — proceed optimistically
       if (booking.listingId) {
         router.push(
           `/(app)/booking/${booking.providerId}/date-time?serviceId=${booking.listingId}` as any,
@@ -96,8 +162,6 @@ export default function BookingDetailScreen() {
     "Other",
   ];
 
-  const booking = mockBookings.find((b) => b.id === id);
-
   const handleCancelBooking = () => {
     const finalReason = selectedReason === "Other" ? customReason : selectedReason;
     console.log("Booking cancelled with reason:", finalReason);
@@ -106,14 +170,6 @@ export default function BookingDetailScreen() {
     setCustomReason("");
     router.back();
   };
-
-  if (!booking) {
-    return (
-      <View style={styles.container}>
-        <Text>Booking not found</Text>
-      </View>
-    );
-  }
 
   const getStatusColor = (status: BookingStatus) => {
     switch (status) {
@@ -224,6 +280,7 @@ export default function BookingDetailScreen() {
             <Image
               source={{ uri: booking.providerImage }}
               style={styles.providerImage}
+              contentFit="cover"
             />
             <View style={styles.providerInfo}>
               <Text style={styles.providerName}>{booking.providerName}</Text>
@@ -259,8 +316,8 @@ export default function BookingDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Booking Information</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Booking ID</Text>
-            <Text style={styles.infoValue}>{booking.bookingId}</Text>
+            <Text style={styles.infoLabel}>Booking Ref</Text>
+            <Text style={styles.infoValue}>{booking.bookingRef}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Service</Text>
@@ -347,19 +404,19 @@ export default function BookingDetailScreen() {
           <Text style={styles.sectionTitle}>Payment Details</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Service Cost</Text>
-            <Text style={styles.infoValue}>${booking.cost.toFixed(2)}</Text>
+            <Text style={styles.infoValue}>₦{booking.cost.toLocaleString()}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Service Fee</Text>
             <Text style={styles.infoValue}>
-              ${(booking.cost * 0.1).toFixed(2)}
+              ₦{(booking.cost * 0.1).toLocaleString()}
             </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>
-              ${(booking.cost * 1.1).toFixed(2)}
+              ₦{(booking.cost * 1.1).toLocaleString()}
             </Text>
           </View>
           <View style={styles.escrowBanner}>
@@ -432,15 +489,13 @@ export default function BookingDetailScreen() {
             )}
           </TouchableOpacity>
 
-          {!booking.reviewed && (
-            <TouchableOpacity
-              style={styles.reviewButtonLarge}
-              activeOpacity={0.8}
-              onPress={() => router.push(`/review/${booking.id}`)}
-            >
-              <Text style={styles.reviewButtonLargeText}>Leave a Review</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.reviewButtonLarge}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/review/${booking.id}` as any)}
+          >
+            <Text style={styles.reviewButtonLargeText}>Leave a Review</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -559,6 +614,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F9FAFB",
   },
+  centeredState: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    padding: 40,
+  },
+  stateText: { fontSize: 16, color: "#6B7280" },
+  errorTitle: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
+  errorText: { fontSize: 14, color: "#6B7280", textAlign: "center" },
+  retryButton: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryText: { fontSize: 15, fontWeight: "600" as const, color: "#FFFFFF" },
   header: {
     flexDirection: "row",
     alignItems: "center",

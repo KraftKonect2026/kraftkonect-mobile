@@ -134,6 +134,66 @@ export const NEARBY_ARTISANS_QUERY = gql`
   }
 `
 
+export const BOOKINGS_FOR_USER_QUERY = gql`
+  query BookingsForUser {
+    bookingsForUser {
+      id
+      bookingRef
+      bookingDate
+      totalPriceCents
+      currency
+      status
+      notes
+      description
+      createdAt
+      listing {
+        id
+        title
+        category
+      }
+      provider {
+        id
+        name
+        avatar
+        rating
+        categories
+        category
+        available
+      }
+    }
+  }
+`
+
+export const BOOKING_DETAIL_QUERY = gql`
+  query BookingDetail($id: ID!) {
+    booking(id: $id) {
+      id
+      bookingRef
+      bookingDate
+      totalPriceCents
+      currency
+      status
+      notes
+      description
+      createdAt
+      listing {
+        id
+        title
+        category
+      }
+      provider {
+        id
+        name
+        avatar
+        rating
+        categories
+        category
+        available
+      }
+    }
+  }
+`
+
 export const PROVIDER_QUERY = gql`
     query Provider($providerId: ID!) {
         provider(id: $providerId) {
