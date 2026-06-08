@@ -34,6 +34,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import { useQuery } from "@apollo/client";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
@@ -80,6 +81,8 @@ export default function ExploreScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const cardAnims = useRef<Animated.Value[]>([]);
+  const heartScales = useRef<Record<string, Animated.Value>>({});
 
   const [locationState, setLocationState] = useState<LocationState>("requesting");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -133,18 +136,47 @@ export default function ExploreScreen() {
 
   const providers: any[] = data?.nearbyArtisans ?? [];
 
+  // Stagger card entrances when results arrive or change
+  useEffect(() => {
+    if (providers.length === 0) return;
+    cardAnims.current = providers.map(() => new Animated.Value(0));
+    Animated.stagger(
+      65,
+      cardAnims.current.map((anim) =>
+        Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 65, friction: 10 })
+      )
+    ).start();
+  }, [providers.length]);
+
+  const getHeartScale = useCallback((id: string) => {
+    if (!heartScales.current[id]) {
+      heartScales.current[id] = new Animated.Value(1);
+    }
+    return heartScales.current[id];
+  }, []);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
   }, [refetch]);
 
-  const toggleFavorite = (id: string) =>
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const toggleFavorite = useCallback(
+    (id: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const scale = getHeartScale(id);
+      Animated.sequence([
+        Animated.spring(scale, { toValue: 1.5, useNativeDriver: true, tension: 300, friction: 5 }),
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 7 }),
+      ]).start();
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+      });
+    },
+    [getHeartScale],
+  );
 
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 50],
@@ -351,15 +383,26 @@ export default function ExploreScreen() {
                 </Text>
               </View>
             ) : (
-              providers.map((provider: any) => {
+              providers.map((provider: any, index: number) => {
+                const cardAnim = cardAnims.current[index] ?? new Animated.Value(1);
+                const heartScale = getHeartScale(provider.id);
                 const distanceKm =
                   typeof provider.distanceMeters === "number"
                     ? provider.distanceMeters / 1000
                     : null;
 
                 return (
-                  <TouchableOpacity
+                  <Animated.View
                     key={provider.id}
+                    style={{
+                      opacity: cardAnim,
+                      transform: [
+                        { translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) },
+                        { scale: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
+                      ],
+                    }}
+                  >
+                  <TouchableOpacity
                     style={styles.providerCard}
                     activeOpacity={0.9}
                     onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
@@ -375,12 +418,14 @@ export default function ExploreScreen() {
                       activeOpacity={0.7}
                       onPress={() => toggleFavorite(provider.id)}
                     >
-                      <Heart
-                        size={20}
-                        color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
-                        fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
-                        strokeWidth={2}
-                      />
+                      <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                        <Heart
+                          size={20}
+                          color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
+                          fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
+                          strokeWidth={2}
+                        />
+                      </Animated.View>
                     </TouchableOpacity>
 
                     {provider.gpsEnabled && (
@@ -444,6 +489,7 @@ export default function ExploreScreen() {
                       </View>
                     </View>
                   </TouchableOpacity>
+                  </Animated.View>
                 );
               })
             )}

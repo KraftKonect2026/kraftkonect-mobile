@@ -127,6 +127,7 @@ export const NEARBY_ARTISANS_QUERY = gql`
       id
       name
       pricePerHour
+      experience
       rating
       reviewCount
       verified
@@ -238,6 +239,16 @@ export const ON_NEW_MESSAGE_SUBSCRIPTION = gql`
       text
       read
       createdAt
+    }
+  }
+`
+
+export const PARSE_JOB_DESCRIPTION_QUERY = gql`
+  query ParseJobDescription($description: String!) {
+    parseJobDescription(description: $description) {
+      skill
+      urgency
+      suggestedTitle
     }
   }
 `
