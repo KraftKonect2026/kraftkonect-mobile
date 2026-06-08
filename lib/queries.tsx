@@ -243,6 +243,27 @@ export const ON_NEW_MESSAGE_SUBSCRIPTION = gql`
   }
 `
 
+export const GET_FAVOURITES_QUERY = gql`
+  query GetFavourites {
+    favorites {
+      id
+      name
+      avatar
+      banner
+      categories
+      category
+      rating
+      reviewCount
+      pricePerHour
+      distance
+      distanceMeters
+      verified
+      experience
+      gpsEnabled
+    }
+  }
+`
+
 export const PARSE_JOB_DESCRIPTION_QUERY = gql`
   query ParseJobDescription($description: String!) {
     parseJobDescription(description: $description) {

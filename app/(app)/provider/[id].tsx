@@ -6,7 +6,7 @@ import {
   Calendar,
   Clock,
 } from "lucide-react-native";
-import React, { useRef } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -19,10 +19,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery } from "@apollo/client";
+import { useQuery, useMutation } from "@apollo/client";
+import * as Haptics from "expo-haptics";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
-import { PROVIDER_QUERY } from "@/lib/queries";
+import { PROVIDER_QUERY, GET_FAVOURITES_QUERY } from "@/lib/queries";
+import { ADD_TO_FAVOURITES_MUTATION, REMOVE_FROM_FAVOURITES_MUTATION } from "@/lib/mutations";
 import { ActivityIndicator } from "react-native";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
 
@@ -35,8 +37,9 @@ export default function ProviderProfileScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const scrollY = useRef(new Animated.Value(0)).current;
-  console.log(id, "line 38")
+  const heartScale = useRef(new Animated.Value(1)).current;
   const token = useAppSelector((state) => state.auth.accessToken);
+
   const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
     variables: { providerId: `${id}` },
     skip: !id,
@@ -44,7 +47,41 @@ export default function ProviderProfileScreen() {
   });
 
   const provider = data?.provider;
-  console.log(getApolloErrorMessage(error))
+
+  // Favourites
+  const { data: favsData } = useQuery(GET_FAVOURITES_QUERY, {
+    skip: !token,
+    fetchPolicy: "cache-first",
+  });
+  const isFav = !!(favsData?.favorites ?? []).find((f: any) => f.id === id);
+  const [localFav, setLocalFav] = useState<boolean | null>(null);
+  const isFavourite = localFav !== null ? localFav : isFav;
+
+  const [addToFavourites] = useMutation(ADD_TO_FAVOURITES_MUTATION, {
+    refetchQueries: [{ query: GET_FAVOURITES_QUERY }],
+  });
+  const [removeFromFavourites] = useMutation(REMOVE_FROM_FAVOURITES_MUTATION, {
+    refetchQueries: [{ query: GET_FAVOURITES_QUERY }],
+  });
+
+  const handleFavouriteToggle = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = !isFavourite;
+    setLocalFav(next);
+    Animated.sequence([
+      Animated.spring(heartScale, { toValue: 1.45, useNativeDriver: true, tension: 300, friction: 5 }),
+      Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 7 }),
+    ]).start();
+    try {
+      if (next) {
+        await addToFavourites({ variables: { providerId: id } });
+      } else {
+        await removeFromFavourites({ variables: { providerId: id } });
+      }
+    } catch {
+      setLocalFav(!next); // revert on error
+    }
+  }, [isFavourite, id, addToFavourites, removeFromFavourites, heartScale]);
 
   if (loading) {
     return (
@@ -95,8 +132,15 @@ export default function ProviderProfileScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()} activeOpacity={0.8}>
             <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} activeOpacity={0.8}>
-            <Heart size={24} color="#F3F4F6" strokeWidth={2} />
+          <TouchableOpacity style={styles.headerButton} activeOpacity={0.8} onPress={handleFavouriteToggle}>
+            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+              <Heart
+                size={24}
+                color={isFavourite ? "#EF4444" : "#F3F4F6"}
+                fill={isFavourite ? "#EF4444" : "transparent"}
+                strokeWidth={2}
+              />
+            </Animated.View>
           </TouchableOpacity>
         </View>
 

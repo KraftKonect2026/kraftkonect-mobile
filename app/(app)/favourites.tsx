@@ -1,122 +1,236 @@
-import { Heart, MapPin, Star } from "lucide-react-native";
-import React, { useState } from "react";
+import { Heart, MapPin, Search, Star } from "lucide-react-native";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
+  ActivityIndicator,
+  RefreshControl,
+  Platform,
+  Animated,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { useQuery, useMutation } from "@apollo/client";
 
-import { mockFavorites, FavoriteProvider } from "@/mocks/favorites";
 import Colors from "@/constants/colors";
+import { GET_FAVOURITES_QUERY } from "@/lib/queries";
+import { REMOVE_FROM_FAVOURITES_MUTATION } from "@/lib/mutations";
 
 export default function FavouritesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [favorites, setFavorites] = useState(mockFavorites);
 
-  const toggleFavorite = (id: string) => {
-    setFavorites((prev) => prev.filter((fav) => fav.id !== id));
-  };
+  // ── Data ──────────────────────────────────────────────────────────────────
 
-  const renderProviderCard = (provider: FavoriteProvider) => (
-    <TouchableOpacity
-      key={provider.id}
-      style={styles.providerCard}
-      activeOpacity={0.7}
-      onPress={() => router.push(`/(app)/provider/${provider.id}`)}
-    >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: provider.image }}
-          style={styles.providerImage}
-        />
-        <TouchableOpacity
-          style={styles.favoriteButton}
-          activeOpacity={0.7}
-          onPress={(e) => {
-            e.stopPropagation();
-            toggleFavorite(provider.id);
-          }}
-        >
-          <Heart
-            size={20}
-            color="#EF4444"
-            strokeWidth={2}
-            fill="#EF4444"
-          />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.cardContent}>
-        <View style={styles.nameRow}>
-          <Text style={styles.providerName} numberOfLines={1}>
-            {provider.name}
-          </Text>
-          {provider.verified && (
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedText}>✓</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.category}>{provider.category}</Text>
-        <View style={styles.ratingRow}>
-          <Star
-            size={14}
-            color="#F59E0B"
-            strokeWidth={2}
-            fill="#F59E0B"
-          />
-          <Text style={styles.ratingText}>
-            {provider.rating} ({provider.reviewCount})
-          </Text>
-        </View>
-        <View style={styles.footer}>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>From ${provider.pricePerHour}</Text>
-            <Text style={styles.priceUnit}>/hr</Text>
-          </View>
-          <View style={styles.distanceRow}>
-            <MapPin size={12} color="#6B7280" strokeWidth={2} />
-            <Text style={styles.distance}>{provider.distance}</Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
+  const { data, loading, error, refetch } = useQuery(GET_FAVOURITES_QUERY, {
+    fetchPolicy: "cache-and-network",
+    notifyOnNetworkStatusChange: true,
+  });
+
+  const [removeFromFavourites] = useMutation(REMOVE_FROM_FAVOURITES_MUTATION, {
+    refetchQueries: [{ query: GET_FAVOURITES_QUERY }],
+  });
+
+  const favourites: any[] = data?.favorites ?? [];
+
+  // ── Animations ────────────────────────────────────────────────────────────
+
+  // Staggered card entrance when data arrives
+  const cardAnims = useRef<Animated.Value[]>([]);
+  const heartScales = useRef<Record<string, Animated.Value>>({});
+
+  useEffect(() => {
+    if (favourites.length === 0) return;
+    cardAnims.current = favourites.map(() => new Animated.Value(0));
+    Animated.stagger(
+      60,
+      cardAnims.current.map((anim) =>
+        Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 65, friction: 10 })
+      )
+    ).start();
+  }, [favourites.length]);
+
+  const getHeartScale = useCallback((id: string) => {
+    if (!heartScales.current[id]) {
+      heartScales.current[id] = new Animated.Value(1);
+    }
+    return heartScales.current[id];
+  }, []);
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  const handleRemove = useCallback(
+    async (providerId: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const scale = getHeartScale(providerId);
+      // Animate heart out before removing
+      Animated.sequence([
+        Animated.spring(scale, { toValue: 1.4, useNativeDriver: true, tension: 300, friction: 5 }),
+        Animated.timing(scale, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+
+      try {
+        await removeFromFavourites({ variables: { providerId } });
+      } catch {
+        // Restore scale if mutation fails
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
+      }
+    },
+    [getHeartScale, removeFromFavourites],
   );
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>Favourites</Text>
-        <Text style={styles.subtitle}>Your saved providers</Text>
+        {!loading && favourites.length > 0 && (
+          <Text style={styles.subtitle}>{favourites.length} saved artisan{favourites.length !== 1 ? "s" : ""}</Text>
+        )}
+        {loading && !data && (
+          <Text style={styles.subtitle}>Loading…</Text>
+        )}
       </View>
+
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading && !!data}
+            onRefresh={refetch}
+            tintColor={Colors.primary}
+          />
+        }
       >
-        {favorites.length === 0 ? (
+        {/* Initial loading */}
+        {loading && !data ? (
+          <View style={styles.centeredState}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.stateText}>Loading your favourites…</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.centeredState}>
+            <Text style={styles.errorText}>Couldn't load favourites</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : favourites.length === 0 ? (
+          /* Empty state */
           <View style={styles.emptyState}>
             <Heart size={64} color="#E5E7EB" strokeWidth={1.5} />
             <Text style={styles.emptyTitle}>No favourites yet</Text>
             <Text style={styles.emptyText}>
-              Save providers you like to find them quickly later
+              Tap the heart on any artisan to save them here for quick rebooking
             </Text>
             <TouchableOpacity
               style={styles.exploreButton}
               activeOpacity={0.8}
-              onPress={() => router.push("/(app)/explore")}
+              onPress={() => router.push("/(app)/explore" as any)}
             >
-              <Text style={styles.exploreButtonText}>Explore Services</Text>
+              <Search size={18} color="#fff" strokeWidth={2} />
+              <Text style={styles.exploreButtonText}>Explore Artisans</Text>
             </TouchableOpacity>
           </View>
         ) : (
+          /* Grid of saved artisans */
           <View style={styles.grid}>
-            {favorites.map(renderProviderCard)}
+            {favourites.map((provider: any, index: number) => {
+              const cardAnim = cardAnims.current[index] ?? new Animated.Value(1);
+              const heartScale = getHeartScale(provider.id);
+
+              return (
+                <Animated.View
+                  key={provider.id}
+                  style={[
+                    styles.cardWrapper,
+                    {
+                      opacity: cardAnim,
+                      transform: [
+                        { translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) },
+                        { scale: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
+                      ],
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.providerCard}
+                    activeOpacity={0.85}
+                    onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
+                  >
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={{ uri: provider.banner ?? provider.avatar }}
+                        style={styles.providerImage}
+                        contentFit="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.favoriteButton}
+                        activeOpacity={0.7}
+                        onPress={() => handleRemove(provider.id)}
+                      >
+                        <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                          <Heart size={18} color="#EF4444" strokeWidth={2} fill="#EF4444" />
+                        </Animated.View>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.cardContent}>
+                      <View style={styles.nameRow}>
+                        <Text style={styles.providerName} numberOfLines={1}>
+                          {provider.name}
+                        </Text>
+                        {provider.verified && (
+                          <View style={styles.verifiedBadge}>
+                            <Text style={styles.verifiedText}>✓</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <Text style={styles.category} numberOfLines={1}>
+                        {provider.categories?.[0] ?? provider.category ?? ""}
+                      </Text>
+
+                      <View style={styles.ratingRow}>
+                        <Star size={13} color="#F59E0B" strokeWidth={2} fill="#F59E0B" />
+                        <Text style={styles.ratingText}>
+                          {(provider.rating || 0).toFixed(1)} ({provider.reviewCount || 0})
+                        </Text>
+                      </View>
+
+                      <View style={styles.footer}>
+                        {provider.pricePerHour != null && (
+                          <View style={styles.priceRow}>
+                            <Text style={styles.price}>₦{provider.pricePerHour}</Text>
+                            <Text style={styles.priceUnit}>/hr</Text>
+                          </View>
+                        )}
+                        {provider.distanceMeters != null && (
+                          <View style={styles.distanceRow}>
+                            <MapPin size={11} color="#6B7280" strokeWidth={2} />
+                            <Text style={styles.distance}>
+                              {(provider.distanceMeters / 1000).toFixed(1)} km
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -125,10 +239,8 @@ export default function FavouritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
+
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -136,135 +248,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 16,
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-  },
-  providerCard: {
-    width: "47.5%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  imageContainer: {
-    position: "relative",
-    width: "100%",
-    height: 160,
-  },
-  providerImage: {
-    width: "100%",
-    height: "100%",
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cardContent: {
-    padding: 12,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-  },
-  providerName: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-    flex: 1,
-  },
-  verifiedBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
+  subtitle: { fontSize: 14, color: "#6B7280" },
+
+  content: { flex: 1 },
+  contentContainer: { padding: 16 },
+
+  centeredState: { alignItems: "center", paddingTop: 80, gap: 12 },
+  stateText: { fontSize: 15, color: "#6B7280" },
+  errorText: { fontSize: 15, color: "#EF4444" },
+  retryButton: {
+    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     backgroundColor: Colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
+    borderRadius: 10,
   },
-  verifiedText: {
-    fontSize: 10,
-    color: "#FFFFFF",
-    fontWeight: "700" as const,
-  },
-  category: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginBottom: 6,
-  },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginBottom: 10,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: "700" as const,
-    color: "#2C2C2C",
-  },
-  priceUnit: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginLeft: 2,
-  },
-  distanceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  distance: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
+  retryButtonText: { color: "#FFFFFF", fontWeight: "600" as const, fontSize: 14 },
+
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 80,
     paddingHorizontal: 40,
+    gap: 0,
   },
   emptyTitle: {
     fontSize: 22,
@@ -274,21 +281,72 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#9CA3AF",
     textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 24,
+    lineHeight: 22,
+    marginBottom: 28,
   },
   exploreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: Colors.primary,
+    ...Platform.select({
+      ios: { shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      android: { elevation: 4 },
+    }),
   },
-  exploreButtonText: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#FFFFFF",
+  exploreButtonText: { fontSize: 16, fontWeight: "600" as const, color: "#FFFFFF" },
+
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  cardWrapper: { width: "47.5%" },
+
+  providerCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8 },
+      android: { elevation: 3 },
+    }),
   },
+  imageContainer: { position: "relative", width: "100%", height: 150 },
+  providerImage: { width: "100%", height: "100%", backgroundColor: "#F3F4F6" },
+  favoriteButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  cardContent: { padding: 10, gap: 3 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 1 },
+  providerName: { fontSize: 14, fontWeight: "600" as const, color: "#2C2C2C", flex: 1 },
+  verifiedBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  verifiedText: { fontSize: 9, color: "#FFFFFF", fontWeight: "700" as const },
+  category: { fontSize: 12, color: "#6B7280", textTransform: "capitalize" as const },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  ratingText: { fontSize: 12, fontWeight: "600" as const, color: "#2C2C2C" },
+  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6 },
+  priceRow: { flexDirection: "row", alignItems: "baseline" },
+  price: { fontSize: 14, fontWeight: "700" as const, color: "#2C2C2C" },
+  priceUnit: { fontSize: 11, color: "#6B7280", marginLeft: 2 },
+  distanceRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  distance: { fontSize: 11, color: "#6B7280" },
 });

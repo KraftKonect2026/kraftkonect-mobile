@@ -175,6 +175,21 @@ export const CREATE_REVIEW_MUTATION = gql`
   }
 `;
 
+export const ADD_TO_FAVOURITES_MUTATION = gql`
+  mutation AddToFavourites($providerId: ID!) {
+    addToFavorites(providerId: $providerId) {
+      id
+      providerId
+    }
+  }
+`;
+
+export const REMOVE_FROM_FAVOURITES_MUTATION = gql`
+  mutation RemoveFromFavourites($providerId: ID!) {
+    removeFromFavorites(providerId: $providerId)
+  }
+`;
+
 export const SEND_MESSAGE_MUTATION = gql`
   mutation SendMessage($recipientId: ID!, $text: String!) {
     sendMessage(recipientId: $recipientId, text: $text) {
