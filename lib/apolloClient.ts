@@ -154,7 +154,7 @@ const wsLink = new GraphQLWsLink(
     url: WS_ENDPOINT,
     connectionParams: () => {
       const token = store.getState().auth.accessToken;
-      return token ? { Authorization: token } : {};
+      return token ? { Authorization: token, authorization: token } : {};
     },
     shouldRetry: () => true,
     retryAttempts: 5,
