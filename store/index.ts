@@ -19,6 +19,7 @@ import { secureStorage } from "@/lib/storage";
 const authPersistConfig = {
   key: "auth",
   storage: secureStorage,
+  keyPrefix: "persist-",
 };
 
 const rootReducer = combineReducers({
