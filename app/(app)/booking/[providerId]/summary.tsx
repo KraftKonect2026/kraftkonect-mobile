@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Calendar, MapPin, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, Clock, Calendar, MapPin, ChevronRight, AlertCircle } from "lucide-react-native";
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, Platform,  } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
@@ -56,9 +56,10 @@ export default function SummaryScreen() {
     );
   }
 
-  const basePrice = service.priceCents ? service.priceCents / 100 : 0;
+  const basePrice = (service.priceCents ?? 0) / 100;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
+  const hasValidPrice = basePrice > 0;
 
   const handleContinue = () => {
     router.push(
@@ -144,6 +145,15 @@ export default function SummaryScreen() {
             </View>
           </View>
 
+          {!hasValidPrice && (
+            <View style={styles.priceWarning}>
+              <AlertCircle size={16} color="#D97706" strokeWidth={2} />
+              <Text style={styles.priceWarningText}>
+                This service has no price set. The provider needs to update their listing before you can book it.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.infoCard}>
             <Text style={styles.infoText}>
               By continuing, you agree to book this service. You can cancel free of charge up to 24 hours before the scheduled time.
@@ -158,9 +168,10 @@ export default function SummaryScreen() {
           <Text style={styles.totalFooterValue}>{formatCurrency(totalAmount, service.currency)}</Text>
         </View>
         <TouchableOpacity
-          style={styles.continueButton}
+          style={[styles.continueButton, !hasValidPrice && styles.continueButtonDisabled]}
           activeOpacity={0.8}
           onPress={handleContinue}
+          disabled={!hasValidPrice}
         >
           <Text style={styles.continueButtonText}>Proceed to Payment</Text>
           <ChevronRight size={20} color="#FFFFFF" strokeWidth={2} />
@@ -327,6 +338,23 @@ const styles = StyleSheet.create({
     fontWeight: "700" as const,
     color: Colors.primary,
   },
+  priceWarning: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FFFBEB",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  priceWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#92400E",
+    lineHeight: 18,
+  },
   infoCard: {
     backgroundColor: "#EFF6FF",
     borderRadius: 12,
@@ -383,6 +411,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
+  },
+  continueButtonDisabled: {
+    backgroundColor: "#D1D5DB",
   },
   continueButtonText: {
     fontSize: 18,

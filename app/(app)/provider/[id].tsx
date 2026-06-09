@@ -181,21 +181,29 @@ export default function ProviderProfileScreen() {
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Rate</Text>
-                <Text style={styles.statValue}>₦{provider.pricePerHour}/hr</Text>
+                <Text style={styles.statValue}>
+                  {provider.pricePerHour
+                    ? `₦${Number(provider.pricePerHour).toLocaleString("en-NG")}/hr`
+                    : provider.services?.length > 0
+                      ? `From ₦${Math.min(...(provider.services as any[]).filter((s: any) => s.priceCents > 0).map((s: any) => s.priceCents / 100)).toLocaleString("en-NG")}`
+                      : "Varies"}
+                </Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Expertise</Text>
-            <View style={styles.expertiseContainer}>
-              {(provider.expertise || []).map((skill: string, index: number) => (
-                <View key={index} style={styles.expertiseChip}>
-                  <Text style={styles.expertiseText}>{skill}</Text>
-                </View>
-              ))}
+          {(provider.expertise || []).length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Expertise</Text>
+              <View style={styles.expertiseContainer}>
+                {(provider.expertise as string[]).map((skill, index) => (
+                  <View key={index} style={styles.expertiseChip}>
+                    <Text style={styles.expertiseText}>{skill}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Services</Text>
@@ -219,48 +227,56 @@ export default function ProviderProfileScreen() {
             ))}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Portfolio</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.portfolio}>
-              {(provider.portfolio || []).map((imageUrl: string, index: number) => (
-                <Image
-                  key={index}
-                  source={{ uri: imageUrl }}
-                  style={styles.portfolioImage}
-                  contentFit="cover"
-                />
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Reviews ({provider.reviewCount})</Text>
-            {(provider.reviews || []).map((review: any) => (
-              <View key={review.id} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
+          {(provider.portfolio || []).length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Portfolio</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.portfolio}>
+                {(provider.portfolio as string[]).map((imageUrl, index) => (
                   <Image
-                    source={{ uri: review.userAvatar }}
-                    style={styles.reviewAvatar}
+                    key={index}
+                    source={{ uri: imageUrl }}
+                    style={styles.portfolioImage}
                     contentFit="cover"
                   />
-                  <View style={styles.reviewInfo}>
-                    <Text style={styles.reviewName}>{review.userName}</Text>
-                    <View style={styles.reviewRatingRow}>
-                      {Array.from({ length: review.rating || 0 }).map((_, i) => (
-                        <Star key={i} size={12} color="#FFA500" fill="#FFA500" />
-                      ))}
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Reviews{provider.reviewCount > 0 ? ` (${provider.reviewCount})` : ""}
+            </Text>
+            {(provider.reviews || []).length === 0 ? (
+              <Text style={styles.emptyReviews}>No reviews yet. Be the first to book!</Text>
+            ) : (
+              (provider.reviews as any[]).map((review) => (
+                <View key={review.id} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <Image
+                      source={{ uri: review.userAvatar }}
+                      style={styles.reviewAvatar}
+                      contentFit="cover"
+                    />
+                    <View style={styles.reviewInfo}>
+                      <Text style={styles.reviewName}>{review.userName}</Text>
+                      <View style={styles.reviewRatingRow}>
+                        {Array.from({ length: review.rating || 0 }).map((_, i) => (
+                          <Star key={i} size={12} color="#FFA500" fill="#FFA500" />
+                        ))}
+                      </View>
                     </View>
+                    <Text style={styles.reviewDate}>
+                      {review.date ? new Date(review.date).toLocaleDateString("en-NG", {
+                        month: "short",
+                        year: "numeric",
+                      }) : ""}
+                    </Text>
                   </View>
-                  <Text style={styles.reviewDate}>
-                    {review.date ? new Date(review.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      year: "numeric",
-                    }) : ""}
-                  </Text>
+                  <Text style={styles.reviewComment}>{review.comment}</Text>
                 </View>
-                <Text style={styles.reviewComment}>{review.comment}</Text>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         </View>
       </Animated.ScrollView>
@@ -555,6 +571,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: "#6B7280",
+  },
+  emptyReviews: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    paddingVertical: 8,
   },
   footer: {
     position: "absolute",

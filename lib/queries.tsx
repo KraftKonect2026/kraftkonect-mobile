@@ -135,6 +135,7 @@ export const PROVIDERS_QUERY = gql`
                 id
                 title
                 description
+                priceCents
                 durationMinutes
                 currency
                 category
@@ -334,6 +335,7 @@ export const PROVIDER_QUERY = gql`
                 id
                 title
                 description
+                priceCents
                 durationMinutes
                 currency
                 category
@@ -415,5 +417,11 @@ export const RESOLVE_BANK_ACCOUNT_QUERY = gql`
       accountNumber
       accountName
     }
+  }
+`
+
+export const MY_AVAILABLE_BALANCE_QUERY = gql`
+  query MyAvailableBalance {
+    myAvailableBalance
   }
 `

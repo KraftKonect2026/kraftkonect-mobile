@@ -69,11 +69,13 @@ export default function PaymentScreen() {
     );
   }
 
-  const basePrice = service.priceCents ? service.priceCents / 100 : 0;
+  const basePrice = (service.priceCents ?? 0) / 100;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
+  const hasValidPrice = basePrice > 0;
 
   const handlePay = async () => {
+    if (!hasValidPrice) return;
     if (step !== "idle" && step !== "failed") return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -250,6 +252,16 @@ export default function PaymentScreen() {
             </Text>
           </View>
 
+          {/* ₦0 price warning */}
+          {!hasValidPrice && (
+            <View style={styles.errorBanner}>
+              <AlertCircle size={16} color="#DC2626" strokeWidth={2} />
+              <Text style={styles.errorBannerText}>
+                This service has no price set. The provider needs to update their listing pricing before it can be booked.
+              </Text>
+            </View>
+          )}
+
           {/* Error state */}
           {errorMessage && step === "failed" && (
             <View style={styles.errorBanner}>
@@ -278,7 +290,7 @@ export default function PaymentScreen() {
           ]}
           activeOpacity={0.85}
           onPress={handlePay}
-          disabled={isProcessing || step === "success"}
+          disabled={isProcessing || step === "success" || !hasValidPrice}
         >
           {isProcessing ? (
             <View style={styles.payButtonInner}>

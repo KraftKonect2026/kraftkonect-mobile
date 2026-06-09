@@ -296,3 +296,14 @@ export const SAVE_PAYOUT_METHOD_MUTATION = gql`
     }
   }
 `;
+
+export const REQUEST_PAYOUT_MUTATION = gql`
+  mutation RequestPayout($amountCents: Int!) {
+    requestPayout(amountCents: $amountCents) {
+      id
+      amountCents
+      status
+      createdAt
+    }
+  }
+`;
