@@ -58,7 +58,11 @@ export default function ChatScreen() {
     avatar?: string;
   }>();
 
-  const conversationId = providerId;
+  const isNew = providerId === "new";
+  const [resolvedConvId, setResolvedConvId] = useState<string | null>(
+    isNew ? null : providerId,
+  );
+  const conversationId = resolvedConvId ?? "";
   const participantName = name ? decodeURIComponent(name) : "Chat";
   const participantAvatar = avatar ? decodeURIComponent(avatar) : "";
 
@@ -75,7 +79,7 @@ export default function ChatScreen() {
     GET_MESSAGES_QUERY,
     {
       variables: { conversationId },
-      skip: !conversationId,
+      skip: !resolvedConvId,
       fetchPolicy: "cache-and-network",
     },
   );
@@ -90,11 +94,11 @@ export default function ChatScreen() {
   // ── Subscription: real-time new messages ───────────────────────────────────
 
   useEffect(() => {
-    if (!conversationId) return;
+    if (!resolvedConvId) return;
 
     const unsubscribe = subscribeToMore({
       document: ON_NEW_MESSAGE_SUBSCRIPTION,
-      variables: { conversationId },
+      variables: { conversationId: resolvedConvId },
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data?.onNewMessage) return prev;
         const newMsg = subscriptionData.data.onNewMessage;
@@ -108,7 +112,7 @@ export default function ChatScreen() {
     });
 
     return () => unsubscribe();
-  }, [conversationId, subscribeToMore]);
+  }, [resolvedConvId, subscribeToMore]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -123,20 +127,26 @@ export default function ChatScreen() {
     update(cache, { data }) {
       if (!data?.sendMessage) return;
       const newMsg = data.sendMessage;
+      const convId = newMsg.conversationId;
+      if (!convId) return;
 
-      // Write the new message into the cache for this conversation
       const existing = cache.readQuery<{ getMessages: any[] }>({
         query: GET_MESSAGES_QUERY,
-        variables: { conversationId },
+        variables: { conversationId: convId },
       });
 
       if (existing) {
-        // Avoid adding duplicates (subscription may have already added it)
         if (existing.getMessages.some((m) => m.id === newMsg.id)) return;
         cache.writeQuery({
           query: GET_MESSAGES_QUERY,
-          variables: { conversationId },
+          variables: { conversationId: convId },
           data: { getMessages: [...existing.getMessages, newMsg] },
+        });
+      } else {
+        cache.writeQuery({
+          query: GET_MESSAGES_QUERY,
+          variables: { conversationId: convId },
+          data: { getMessages: [newMsg] },
         });
       }
     },
@@ -149,9 +159,13 @@ export default function ChatScreen() {
     setMessageText("");
 
     try {
-      await sendMessage({ variables: { recipientId, text } });
+      const { data: msgData } = await sendMessage({ variables: { recipientId, text } });
+      // On first message in a new conversation, resolve the conversation ID
+      // so GET_MESSAGES_QUERY activates and subscription wires up
+      if (!resolvedConvId && msgData?.sendMessage?.conversationId) {
+        setResolvedConvId(msgData.sendMessage.conversationId);
+      }
     } catch {
-      // Restore the text so the user can retry
       setMessageText(text);
     }
   };

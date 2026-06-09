@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY, GET_FAVOURITES_QUERY } from "@/lib/queries";
+import { useOpenChat } from "@/lib/useOpenChat";
 import { ADD_TO_FAVOURITES_MUTATION, REMOVE_FROM_FAVOURITES_MUTATION } from "@/lib/mutations";
 import { ActivityIndicator } from "react-native";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
@@ -57,6 +58,13 @@ export default function ProviderProfileScreen() {
   const [removeFromFavourites] = useMutation(REMOVE_FROM_FAVOURITES_MUTATION, {
     refetchQueries: [{ query: GET_FAVOURITES_QUERY }],
   });
+
+  const openChat = useOpenChat();
+
+  const handleChat = useCallback(() => {
+    if (!provider?.user?.id) return;
+    openChat(provider.user.id, provider.name ?? "", provider.avatar ?? "");
+  }, [provider, openChat]);
 
   const handleFavouriteToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -282,7 +290,7 @@ export default function ProviderProfileScreen() {
       </Animated.ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <TouchableOpacity style={styles.chatButton} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.chatButton} activeOpacity={0.8} onPress={handleChat}>
           <MessageCircle size={20} color={Colors.primary} strokeWidth={2} />
         </TouchableOpacity>
         <TouchableOpacity

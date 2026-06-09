@@ -20,6 +20,7 @@ import Colors from "@/constants/colors";
 import { BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
 import { UPDATE_BOOKING_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
+import { useOpenChat } from "@/lib/useOpenChat";
 
 function toNaira(cents: number): string {
   return `₦${(cents / 100).toLocaleString()}`;
@@ -60,6 +61,7 @@ export default function JobDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const toast = useToast();
+  const openChat = useOpenChat();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   // Read from cache (populated by today.tsx) and refetch if needed
@@ -220,7 +222,14 @@ export default function JobDetailScreen() {
               <TouchableOpacity
                 style={styles.iconButton}
                 activeOpacity={0.7}
-                onPress={() => router.push(`/chat/${booking.id}` as any)}
+                onPress={() =>
+                  booking.customer?.id &&
+                  openChat(
+                    booking.customer.id,
+                    booking.customer.name ?? "Customer",
+                    booking.customer.avatarUrl ?? "",
+                  )
+                }
               >
                 <MessageCircle size={20} color={Colors.primary} strokeWidth={2} />
               </TouchableOpacity>

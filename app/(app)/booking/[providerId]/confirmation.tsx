@@ -11,9 +11,11 @@ import { PROVIDER_QUERY } from "@/lib/queries";
 import { formatCurrency } from "@/utils/currency";
 import { formatBookingDate } from "@/utils/datetime";
 import { ActivityIndicator } from "react-native";
+import { useOpenChat } from "@/lib/useOpenChat";
 
 export default function ConfirmationScreen() {
   const router = useRouter();
+  const openChat = useOpenChat();
   const { providerId, serviceId, date, time, bookingId } = useLocalSearchParams<{
     providerId: string;
     serviceId: string;
@@ -150,7 +152,10 @@ export default function ConfirmationScreen() {
           <TouchableOpacity
             style={styles.chatButton}
             activeOpacity={0.8}
-            onPress={() => router.push("/(app)/messages" as any)}
+            onPress={() =>
+              provider?.user?.id &&
+              openChat(provider.user.id, provider.name ?? "", provider.avatar ?? "")
+            }
           >
             <MessageCircle size={20} color="#FFFFFF" strokeWidth={2} />
             <Text style={styles.chatButtonText}>Message Provider</Text>

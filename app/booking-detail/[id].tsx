@@ -19,6 +19,7 @@ import { useQuery, useLazyQuery } from "@apollo/client";
 
 import Colors from "@/constants/colors";
 import { BOOKING_DETAIL_QUERY, PROVIDER_QUERY } from "@/lib/queries";
+import { useOpenChat } from "@/lib/useOpenChat";
 
 type BookingStatus =
   | "pending"
@@ -31,6 +32,7 @@ type BookingStatus =
 export default function BookingDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openChat = useOpenChat();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
@@ -91,6 +93,7 @@ export default function BookingDetailScreen() {
   const booking = {
     id: raw.id,
     providerId: raw.provider?.id ?? "",
+    providerUserId: raw.provider?.user?.id ?? "",
     providerName: raw.provider?.name ?? "Unknown",
     providerImage: raw.provider?.avatar ?? "",
     providerCategory: raw.provider?.categories?.[0] ?? raw.provider?.category ?? "",
@@ -296,7 +299,10 @@ export default function BookingDetailScreen() {
               <TouchableOpacity
                 style={styles.iconButton}
                 activeOpacity={0.7}
-                onPress={() => router.push(`/chat/${booking.providerId}`)}
+                onPress={() =>
+                  booking.providerUserId &&
+                  openChat(booking.providerUserId, booking.providerName, booking.providerImage)
+                }
               >
                 <MessageCircle
                   size={20}
@@ -434,7 +440,10 @@ export default function BookingDetailScreen() {
         >
           <Button
             title="Message Provider"
-            onPress={() => router.push(`/chat/${booking.providerId}`)}
+            onPress={() =>
+              booking.providerUserId &&
+              openChat(booking.providerUserId, booking.providerName, booking.providerImage)
+            }
             icon={<MessageCircle size={20} color="#FFFFFF" strokeWidth={2} />}
             style={{ marginBottom: 12 }}
           />

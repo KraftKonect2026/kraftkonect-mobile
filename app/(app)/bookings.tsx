@@ -10,6 +10,7 @@ import { useQuery } from "@apollo/client";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
 import { BOOKINGS_FOR_USER_QUERY } from "@/lib/queries";
+import { useOpenChat } from "@/lib/useOpenChat";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ type BookingStatus =
 interface Booking {
   id: string;
   providerId: string;
+  providerUserId: string;
   providerName: string;
   providerImage: string;
   providerCategory: string;
@@ -46,6 +48,7 @@ function mapBooking(b: any): Booking {
   return {
     id: b.id,
     providerId: b.provider?.id ?? "",
+    providerUserId: b.provider?.user?.id ?? "",
     providerName: b.provider?.name ?? "Unknown",
     providerImage: b.provider?.avatar ?? "",
     providerCategory:
@@ -107,6 +110,7 @@ const STATUS_LABEL: Record<BookingStatus, string> = {
 export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const openChat = useOpenChat();
   const [activeTab, setActiveTab] = useState<Tab>("active");
 
   const token = useAppSelector((state) => state.auth.accessToken);
@@ -197,7 +201,9 @@ export default function BookingsScreen() {
               activeOpacity={0.7}
               onPress={(e) => {
                 e.stopPropagation();
-                router.push(`/chat/${booking.providerId}` as any);
+                if (booking.providerUserId) {
+                  openChat(booking.providerUserId, booking.providerName, booking.providerImage);
+                }
               }}
             >
               <MessageCircle size={16} color="#FFFFFF" strokeWidth={2} />

@@ -205,6 +205,9 @@ export const BOOKINGS_FOR_USER_QUERY = gql`
         categories
         category
         available
+        user {
+          id
+        }
       }
     }
   }
@@ -235,6 +238,9 @@ export const BOOKING_DETAIL_QUERY = gql`
         categories
         category
         available
+        user {
+          id
+        }
       }
     }
   }
@@ -323,6 +329,9 @@ export const PROVIDER_QUERY = gql`
     query Provider($providerId: ID!) {
         provider(id: $providerId) {
             id
+            user {
+                id
+            }
             status
             category
             categories
