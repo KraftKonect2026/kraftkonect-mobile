@@ -1,21 +1,17 @@
 import { ArrowLeft, Shield, Lock, AlertCircle, CheckCircle2 } from "lucide-react-native";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation } from "@apollo/client";
-import * as WebBrowser from "expo-web-browser";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY } from "@/lib/queries";
 import { CREATE_BOOKING_MUTATION, VERIFY_PAYMENT_MUTATION } from "@/lib/mutations";
 import { formatCurrency } from "@/utils/currency";
 import { combineDateAndTime, formatBookingDate } from "@/utils/datetime";
-
-// The Paystack callback URL matches the app scheme so openAuthSessionAsync
-// can detect the redirect and close the browser automatically.
-const PAYSTACK_CALLBACK = "kraftkonect-app://payment-callback";
+import PaystackWebViewModal from "@/components/PaystackWebViewModal";
 
 type PaymentStep = "idle" | "creating" | "checkout" | "verifying" | "success" | "failed";
 
@@ -30,6 +26,9 @@ export default function PaymentScreen() {
 
   const [step, setStep] = useState<PaymentStep>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [pendingRef, setPendingRef] = useState<string | null>(null);
+  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
 
   const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
     variables: { providerId: `${providerId}` },
@@ -74,19 +73,14 @@ export default function PaymentScreen() {
   const totalAmount = basePrice + serviceFee;
   const hasValidPrice = basePrice > 0;
 
+  // ── Step 1: Create booking + open WebView ──────────────────────────────────
   const handlePay = async () => {
     if (!hasValidPrice) return;
     if (step !== "idle" && step !== "failed") return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setErrorMessage(null);
-
-    // ── Step 1: Create booking ────────────────────────────────────────────────
     setStep("creating");
-
-    let bookingId: string;
-    let reference: string;
-    let authorizationUrl: string;
 
     try {
       const bookingDate = combineDateAndTime(date, time);
@@ -105,62 +99,45 @@ export default function PaymentScreen() {
       }
 
       const booking = bookingData.createBooking;
-      bookingId = booking.id;
-      reference = booking.paystackReference;
-      authorizationUrl = booking.paystackAuthorizationUrl;
-
-      if (!authorizationUrl || !reference) {
+      if (!booking.paystackAuthorizationUrl || !booking.paystackReference) {
         throw new Error("Payment could not be initialized. Please try again.");
       }
+
+      setPendingBookingId(booking.id);
+      setPendingRef(booking.paystackReference);
+      setCheckoutUrl(booking.paystackAuthorizationUrl);
+      setStep("checkout");
     } catch (err: any) {
       setStep("failed");
       setErrorMessage(err.message || "Failed to create booking. Please try again.");
-      return;
     }
+  };
 
-    // ── Step 2: Open Paystack checkout ────────────────────────────────────────
-    setStep("checkout");
-
-    try {
-      await WebBrowser.openAuthSessionAsync(
-        authorizationUrl,
-        PAYSTACK_CALLBACK,
-        { showInRecents: false },
-      );
-      // Regardless of how the browser closes (user closes it after paying,
-      // or the Paystack page redirects), always proceed to verify.
-      // The verification call is authoritative — not the browser result type.
-    } catch {
-      // Browser error — proceed to verify anyway in case payment went through
-    }
-
-    // ── Step 3: Verify with backend ───────────────────────────────────────────
+  // ── Step 2: WebView closed — verify with backend ───────────────────────────
+  const handlePaymentDone = async () => {
+    setCheckoutUrl(null);
     setStep("verifying");
 
     try {
       const { data: verifyData, errors: verifyErrors } = await verifyPayment({
-        variables: { reference },
+        variables: { reference: pendingRef },
       });
 
-      if (verifyErrors?.length) {
-        throw new Error(verifyErrors[0].message);
-      }
+      if (verifyErrors?.length) throw new Error(verifyErrors[0].message);
 
-      const confirmedBooking = verifyData?.verifyPayment;
-
-      if (confirmedBooking?.status === "confirmed") {
+      const confirmed = verifyData?.verifyPayment;
+      if (confirmed?.status === "confirmed") {
         setStep("success");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Navigate to confirmation screen with the real booking ID
         setTimeout(() => {
           router.replace(
-            `/(app)/booking/${providerId}/confirmation?serviceId=${serviceId}&date=${date}&time=${time}&bookingId=${bookingId}` as any,
+            `/(app)/booking/${providerId}/confirmation?serviceId=${serviceId}&date=${date}&time=${time}&bookingId=${pendingBookingId}` as any,
           );
         }, 800);
       } else {
         setStep("failed");
         setErrorMessage(
-          "Payment not completed. If you closed the browser before paying, tap Retry to try again. If you were charged, please contact support.",
+          "Payment not completed. If you were charged, please contact support.",
         );
       }
     } catch (err: any) {
@@ -171,10 +148,16 @@ export default function PaymentScreen() {
     }
   };
 
-  const isProcessing = step === "creating" || step === "checkout" || step === "verifying";
+  // User closed the WebView without paying
+  const handlePaymentCancel = () => {
+    setCheckoutUrl(null);
+    setStep("failed");
+    setErrorMessage("Payment was cancelled. Tap Retry to try again.");
+  };
+
+  const isProcessing = step === "creating" || step === "verifying";
   const stepLabel =
-    step === "creating" ? "Creating your booking…"
-    : step === "checkout" ? "Waiting for payment…"
+    step === "creating" ? "Preparing checkout…"
     : step === "verifying" ? "Confirming payment…"
     : step === "success" ? "Payment confirmed!"
     : `Pay ${formatCurrency(totalAmount, service.currency)}`;
@@ -298,6 +281,16 @@ export default function PaymentScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Paystack WebView modal — opens when checkout URL is ready */}
+      {checkoutUrl && (
+        <PaystackWebViewModal
+          visible={step === "checkout"}
+          authorizationUrl={checkoutUrl}
+          onPaymentDone={handlePaymentDone}
+          onCancel={handlePaymentCancel}
+        />
+      )}
     </View>
   );
 }
