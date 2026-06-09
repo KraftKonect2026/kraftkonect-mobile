@@ -1,48 +1,29 @@
 import { Tabs } from "expo-router";
 import { Home, Heart, Calendar, MessageCircle, User } from "lucide-react-native";
-import { Platform } from "react-native";
-import Colors from "@/constants/colors";
+import { FloatingTabBar } from "@/components/FloatingTabBar";
 
 export default function AppLayout() {
   return (
     <Tabs
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: "#9CA3AF",
-        tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopWidth: 1,
-          borderTopColor: "#F3F4F6",
-          ...Platform.select({
-            ios: {
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-            },
-            android: {
-              elevation: 8,
-            },
-          }),
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "600" as const,
-          marginTop: 4,
-        },
-        tabBarIconStyle: {
-          marginTop: 4,
-        },
       }}
     >
       <Tabs.Screen
-        name="explore"
+        name="index"
         options={{
-          title: "Explore",
+          title: "Home",
           tabBarIcon: ({ color, size, focused }) => (
             <Home size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
+        }}
+      />
+      {/* Explore is reachable from the "More" category tile on Home */}
+      <Tabs.Screen
+        name="explore"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen

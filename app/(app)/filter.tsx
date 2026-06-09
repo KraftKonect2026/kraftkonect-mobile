@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Slider from "@react-native-community/slider";
 import Colors from "@/constants/colors";
-import { categories } from "@/mocks/providers";
+import { categories } from "@/constants/categories";
 
 export default function FilterScreen() {
   const router = useRouter();

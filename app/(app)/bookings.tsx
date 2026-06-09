@@ -269,7 +269,7 @@ export default function BookingsScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
           {filteredBookings.length === 0 ? (
             <View style={styles.emptyState}>
               <Calendar size={64} color="#E5E7EB" strokeWidth={1.5} />

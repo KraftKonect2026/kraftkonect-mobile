@@ -37,14 +37,14 @@ export const uploadImageToCloudinary = async (
   try {
     const response = await fetch(CLOUDINARY_URL, {
       method: "POST",
-      body: formData,
+      body: formData as any,
       headers: {
         Accept: "application/json",
         "Content-Type": "multipart/form-data",
       },
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok) {
       return data.secure_url;

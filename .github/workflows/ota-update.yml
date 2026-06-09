@@ -1,0 +1,57 @@
+name: OTA Update
+
+on:
+  push:
+    branches:
+      - main        # → production channel
+      - staging     # → preview channel
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Update channel (production | preview)"
+        required: true
+        default: "production"
+
+jobs:
+  publish:
+    name: Publish OTA update
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Set update channel
+        id: channel
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "channel=production" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
+            echo "channel=preview" >> $GITHUB_OUTPUT
+          else
+            echo "channel=${{ github.event.inputs.channel }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Push update to channel
+        run: |
+          eas update \
+            --channel ${{ steps.channel.outputs.channel }} \
+            --message "Deploy from ${{ github.ref_name }} @ ${{ github.sha }}" \
+            --non-interactive
+        env:
+          EXPO_PUBLIC_GRAPHQL_ENDPOINT: ${{ secrets.EXPO_PUBLIC_GRAPHQL_ENDPOINT }}

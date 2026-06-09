@@ -59,9 +59,10 @@ export default function SignInScreen() {
           }));
         }
         if (authPayload.user?.metadata?.email_verified) {
-          router.replace("/(app)/explore" as any);
+          // Flip auth state first so the root layout mounts the (app) stack,
+          // then navigate — otherwise the target route isn't registered yet.
           dispatch(setIsAuthenticated(true));
-          console.log("User is authenticated, navigating to app.");
+          router.replace("/(app)" as any);
         } else {
           router.replace("/sign-up/verify-email" as any);
         }

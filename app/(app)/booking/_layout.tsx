@@ -6,13 +6,19 @@ export default function BookingLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        animation: "slide_from_right",
+        animationDuration: 250,
       }}
     >
       <Stack.Screen name="[providerId]/select-service" />
       <Stack.Screen name="[providerId]/date-time" />
       <Stack.Screen name="[providerId]/summary" />
       <Stack.Screen name="[providerId]/payment" />
-      <Stack.Screen name="[providerId]/confirmation" />
+      {/* Confirmation slides up like a success sheet */}
+      <Stack.Screen
+        name="[providerId]/confirmation"
+        options={{ animation: "slide_from_bottom", gestureEnabled: false }}
+      />
     </Stack>
   );
 }

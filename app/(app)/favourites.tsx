@@ -104,7 +104,7 @@ export default function FavouritesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.contentContainer,
-          { paddingBottom: insets.bottom + 24 },
+          { paddingBottom: insets.bottom + 100 },
         ]}
         refreshControl={
           <RefreshControl

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { useFonts } from "expo-font";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Provider } from "react-redux";
@@ -10,32 +11,45 @@ import { useAppSelector } from "@/store";
 import { store, persistor } from "@/store";
 import apolloClient from "@/lib/apolloClient";
 import { ToastProvider } from "@/lib/toast";
+import { interFontMap, applyGlobalInterFont } from "@/lib/fonts";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { StatusBar } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
+
+// Apply Inter to every Text/TextInput in the app (once, at module load).
+applyGlobalInterFont();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
-  console.log("isAuthenticated:", isAuthenticated);
   const isRehydrated = useAppSelector((state) => state._persist?.rehydrated);
 
-  console.log("isAuthenticated:", isAuthenticated, "isRehydrated:", isRehydrated);
+  const [fontsLoaded] = useFonts(interFontMap);
 
-  // Hide splash screen once rehydrated
+  const ready = isRehydrated && fontsLoaded;
+
+  // Hide splash screen once state is rehydrated and fonts are loaded
   useEffect(() => {
-    if (isRehydrated) {
+    if (ready) {
       SplashScreen.hideAsync();
     }
-  }, [isRehydrated]);
+  }, [ready]);
 
-  // Don't render navigation until rehydrated
-  if (!isRehydrated) {
+  // Don't render navigation until rehydrated and fonts are ready
+  if (!ready) {
     return null;
   }
   return (
-    <Stack screenOptions={{ headerShown: false, headerBackTitle: "Back" }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        headerBackTitle: "Back",
+        animation: "slide_from_right",
+        animationDuration: 250,
+      }}
+    >
       {isAuthenticated === false ? (
         // Auth Screens (shown when not authenticated)
         <>
@@ -83,6 +97,7 @@ export default function RootLayout() {
             <ToastProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <RootLayoutNav />
+                <UpdateBanner />
               </GestureHandlerRootView>
             </ToastProvider>
           </QueryClientProvider>

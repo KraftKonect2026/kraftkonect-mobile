@@ -186,7 +186,7 @@ export default function ConfirmationScreen() {
         <TouchableOpacity
           style={styles.homeButton}
           activeOpacity={0.8}
-          onPress={() => router.push("/(app)/explore" as any)}
+          onPress={() => router.replace("/(app)" as any)}
         >
           <Home size={20} color="#FFFFFF" strokeWidth={2} />
           <Text style={styles.homeButtonText}>Back to Home</Text>

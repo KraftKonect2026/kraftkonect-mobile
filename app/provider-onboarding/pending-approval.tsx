@@ -20,15 +20,11 @@ export default function PendingApprovalScreen() {
   const handleContactSupport = () => {
     Alert.alert(
       "Contact Support",
-      "Email: support@app.com\nPhone: +1 (555) 123-4567\n\nHow would you like to contact us?",
+      "How would you like to reach us?",
       [
         {
-          text: "Call",
-          onPress: () => Linking.openURL("tel:+15551234567"),
-        },
-        {
           text: "Email",
-          onPress: () => Linking.openURL("mailto:support@app.com"),
+          onPress: () => Linking.openURL("mailto:support@kraftkonect.com"),
         },
         {
           text: "Cancel",

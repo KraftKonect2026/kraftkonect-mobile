@@ -4,6 +4,7 @@ import {
   HttpLink,
   from,
   split,
+  Observable,
 } from "@apollo/client";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { getMainDefinition } from "@apollo/client/utilities";
@@ -63,12 +64,12 @@ const errorLink = onError(
           err.message === "Unauthorized" ||
           err.extensions?.code === "UNAUTHENTICATED"
         ) {
-          let forward$;
+          let forward$: Observable<void>;
 
           if (!isRefreshing) {
             isRefreshing = true;
-            forward$ = from(
-              new Promise<void>(async (resolve, reject) => {
+            forward$ = new Observable<void>((observer) => {
+              (async () => {
                 try {
                   const state = store.getState();
                   const refreshToken = state.auth.refreshToken;
@@ -93,7 +94,7 @@ const errorLink = onError(
                     }),
                   });
 
-                  const result = await response.json();
+                  const result: any = await response.json();
 
                   if (result.errors || !result.data?.refreshToken) {
                     throw new Error("Failed to refresh token");
@@ -106,24 +107,26 @@ const errorLink = onError(
                     setTokens({ accessToken, refreshToken: newRefreshToken }),
                   );
 
-                  resolve();
                   resolvePendingRequests();
+                  observer.next();
+                  observer.complete();
                 } catch (error) {
                   pendingRequests = [];
                   store.dispatch(signOut());
                   toastRef.current?.error("Session expired", "Please login again");
-                  reject(error);
+                  observer.error(error);
                 } finally {
                   isRefreshing = false;
                 }
-              }),
-            );
+              })();
+            });
           } else {
-            forward$ = from(
-              new Promise<void>((resolve) => {
-                pendingRequests.push(() => resolve());
-              }),
-            );
+            forward$ = new Observable<void>((observer) => {
+              pendingRequests.push(() => {
+                observer.next();
+                observer.complete();
+              });
+            });
           }
 
           return forward$.flatMap(() => {

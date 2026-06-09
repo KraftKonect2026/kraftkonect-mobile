@@ -26,7 +26,20 @@ export default function SubmitScreen() {
   const [submitProvider, { loading }] = useMutation(ONBOARD_PROVIDER_MUTATION);
   const { showToast } = useToast()
 
+  const isComplete =
+    !!basicInfo.name &&
+    !!basicInfo.email &&
+    !!basicInfo.phone &&
+    selectedCategories.length > 0 &&
+    !!verification.idUrl &&
+    !!verification.selfieUrl &&
+    !!experience.description;
+
   const handleSubmit = async () => {
+    if (!isComplete) {
+      showToast("error", "Please complete all steps before submitting.");
+      return;
+    }
     try {
       await submitProvider({
         variables: {
@@ -116,10 +129,10 @@ export default function SubmitScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <TouchableOpacity
-          style={[styles.submitButton, loading && { opacity: 0.7 }]}
+          style={[styles.submitButton, (loading || !isComplete) && { opacity: 0.5 }]}
           activeOpacity={0.8}
           onPress={handleSubmit}
-          disabled={loading}
+          disabled={loading || !isComplete}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />

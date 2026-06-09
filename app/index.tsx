@@ -45,13 +45,13 @@ export default function SplashScreen() {
         if (isAuthenticated && isProvider) {
           router.replace("/provider/(tabs)/today");
         } else if (isAuthenticated && !isProvider) {
-          router.replace("/(app)/explore");
+          router.replace("/(app)" as any);
         } else {
           router.replace("/get-started");
         }
       } else {
         const isAuthenticated = store.getState().auth.accessToken !== null;
-        router.replace(isAuthenticated ? "/(app)/explore" : "/get-started");
+        router.replace((isAuthenticated ? "/(app)" : "/get-started") as any);
       }
     }, 2000);
 

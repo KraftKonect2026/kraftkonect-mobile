@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,26 +9,23 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
-import { ArrowLeft, Check } from "lucide-react-native";
+import { ArrowLeft, Check, ImagePlus, X } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
 import { Formik } from "formik";
 import * as Yup from "yup";
+import { useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
 import { useAppDispatch } from "@/store";
 import { addListing as addListingAction } from "@/store/providerSlice";
-
-const categories = [
-  "Cleaning",
-  "Electrical",
-  "Plumbing",
-  "Painting",
-  "Handyman",
-  "Beauty",
-  "Carpentry",
-  "Gardening",
-];
+import { categories } from "@/constants/categories";
+import { CREATE_LISTING_MUTATION } from "@/lib/mutations";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { useToast } from "@/lib/toast";
 
 const addListingSchema = Yup.object().shape({
   title: Yup.string()
@@ -37,39 +34,89 @@ const addListingSchema = Yup.object().shape({
   description: Yup.string()
     .min(20, "Description must be at least 20 characters")
     .required("Description is required"),
-  category: Yup.string()
-    .required("Category is required"),
-  pricePerHour: Yup.number()
-    .positive("Price must be positive")
-    .required("Price is required"),
-  duration: Yup.number()
-    .positive("Duration must be positive")
-    .required("Duration is required"),
+  category: Yup.string().required("Category is required"),
+  pricePerHour: Yup.number().positive("Price must be positive").required("Price is required"),
+  duration: Yup.number().positive("Duration must be positive").required("Duration is required"),
 });
 
 export default function AddListingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const addListing = (listing: any) => dispatch(addListingAction(listing));
+  const { showToast } = useToast();
 
-  const handleSave = (values: { title: string; description: string; category: string; pricePerHour: number; duration: number }) => {
-    addListing({
-      title: values.title,
-      description: values.description,
-      category: values.category,
-      pricePerHour: values.pricePerHour,
-      duration: values.duration,
-      visible: true,
-      photos: [],
-    });
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [createListing, { loading: saving }] = useMutation(CREATE_LISTING_MUTATION);
 
-    Alert.alert("Success", "Your service listing has been created!", [
-      {
-        text: "OK",
-        onPress: () => router.back(),
-      },
-    ]);
+  const handleAddPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.6,
+      });
+      if (result.canceled) return;
+      setUploadingPhoto(true);
+      const url = await uploadImageToCloudinary(result.assets[0].uri);
+      setPhotos((prev) => [...prev, url]);
+    } catch {
+      Alert.alert("Upload failed", "Couldn't upload that photo. Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = (url: string) =>
+    setPhotos((prev) => prev.filter((p) => p !== url));
+
+  const handleSave = async (values: {
+    title: string;
+    description: string;
+    category: string;
+    pricePerHour: number;
+    duration: number;
+  }) => {
+    if (photos.length === 0) {
+      showToast("error", "Add at least one photo so customers can see your work.");
+      return;
+    }
+    try {
+      const { data } = await createListing({
+        variables: {
+          input: {
+            title: values.title,
+            description: values.description,
+            category: values.category,
+            priceCents: Math.round(values.pricePerHour * 100),
+            durationMinutes: Math.round(values.duration * 60),
+            currency: "ngn",
+            photos,
+          },
+        },
+      });
+
+      // Keep the local provider services tab in sync with the new listing.
+      if (data?.createListing) {
+        dispatch(
+          addListingAction({
+            title: values.title,
+            description: values.description,
+            category: values.category,
+            pricePerHour: values.pricePerHour,
+            duration: values.duration,
+            visible: true,
+            photos,
+          }),
+        );
+      }
+
+      showToast("success", "Service listing created!");
+      router.back();
+    } catch (e: any) {
+      showToast("error", e.message || "Couldn't create the listing. Please try again.");
+    }
   };
 
   return (
@@ -144,24 +191,24 @@ export default function AddListingScreen() {
                   <View style={styles.categoriesGrid}>
                     {categories.map((cat) => (
                       <TouchableOpacity
-                        key={cat}
+                        key={cat.id}
                         style={[
                           styles.categoryChip,
-                          values.category === cat && styles.categoryChipSelected,
+                          values.category === cat.id && styles.categoryChipSelected,
                         ]}
                         activeOpacity={0.7}
-                        onPress={() => setFieldValue("category", cat)}
+                        onPress={() => setFieldValue("category", cat.id)}
                       >
-                        {values.category === cat && (
+                        {values.category === cat.id && (
                           <Check size={16} color="#FFFFFF" strokeWidth={2.5} />
                         )}
                         <Text
                           style={[
                             styles.categoryChipText,
-                            values.category === cat && styles.categoryChipTextSelected,
+                            values.category === cat.id && styles.categoryChipTextSelected,
                           ]}
                         >
-                          {cat}
+                          {cat.name}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -175,7 +222,7 @@ export default function AddListingScreen() {
                   <View style={[styles.inputGroup, styles.inputGroupHalf]}>
                     <Text style={styles.label}>Price per Hour</Text>
                     <View style={[styles.inputWithPrefix, touched.pricePerHour && errors.pricePerHour && styles.inputError]}>
-                      <Text style={styles.inputPrefix}>$</Text>
+                      <Text style={styles.inputPrefix}>₦</Text>
                       <TextInput
                         style={[styles.input, styles.inputWithPrefixInput]}
                         placeholder="45"
@@ -208,6 +255,40 @@ export default function AddListingScreen() {
                   </View>
                 </View>
 
+                {/* Photos — required so the listing surfaces to customers */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Photos of your work</Text>
+                  <View style={styles.photosRow}>
+                    {photos.map((url) => (
+                      <View key={url} style={styles.photoThumb}>
+                        <Image source={{ uri: url }} style={styles.photoImage} contentFit="cover" />
+                        <TouchableOpacity
+                          style={styles.photoRemove}
+                          onPress={() => removePhoto(url)}
+                          activeOpacity={0.8}
+                        >
+                          <X size={12} color="#FFFFFF" strokeWidth={3} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={styles.addPhotoButton}
+                      onPress={handleAddPhoto}
+                      activeOpacity={0.7}
+                      disabled={uploadingPhoto}
+                    >
+                      {uploadingPhoto ? (
+                        <ActivityIndicator size="small" color={Colors.primary} />
+                      ) : (
+                        <ImagePlus size={24} color={Colors.primary} strokeWidth={2} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.photoHint}>
+                    At least one photo is required for your service to appear in search.
+                  </Text>
+                </View>
+
                 <View style={styles.infoCard}>
                   <Text style={styles.infoTitle}>💡 Tips for a great listing</Text>
                   <Text style={styles.infoText}>
@@ -222,12 +303,16 @@ export default function AddListingScreen() {
 
             <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
               <TouchableOpacity
-                style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+                style={[styles.saveButton, (!isValid || saving || uploadingPhoto) && styles.saveButtonDisabled]}
                 activeOpacity={0.8}
-                disabled={!isValid}
+                disabled={!isValid || saving || uploadingPhoto}
                 onPress={() => handleSubmit()}
               >
-                <Text style={styles.saveButtonText}>Create Listing</Text>
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Create Listing</Text>
+                )}
               </TouchableOpacity>
             </View>
           </>
@@ -312,6 +397,42 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
+  photosRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  photoThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  photoImage: { width: "100%", height: "100%", backgroundColor: "#F3F4F6" },
+  photoRemove: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addPhotoButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EFF6FF",
+  },
+  photoHint: { fontSize: 12, color: "#9CA3AF", marginTop: 4 },
   categoryChip: {
     flexDirection: "row",
     alignItems: "center",

@@ -16,6 +16,7 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { useProviderOnboarding } from "./context";
+import { useAppSelector } from "@/store";
 
 const basicInfoSchema = Yup.object().shape({
   name: Yup.string()
@@ -34,6 +35,14 @@ export default function BasicInfoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { basicInfo, setBasicInfo } = useProviderOnboarding();
+  const user = useAppSelector((state) => state.auth.user);
+
+  // Prefill from the logged-in account so the user doesn't re-type known details.
+  const initialValues = {
+    name: basicInfo.name || user?.name || "",
+    email: basicInfo.email || user?.email || "",
+    phone: basicInfo.phone || user?.phone || "",
+  };
 
   return (
     <KeyboardAvoidingView
@@ -41,7 +50,7 @@ export default function BasicInfoScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <Formik
-        initialValues={basicInfo}
+        initialValues={initialValues}
         validationSchema={basicInfoSchema}
         onSubmit={(values) => {
           setBasicInfo(values);

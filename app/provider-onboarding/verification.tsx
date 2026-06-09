@@ -5,11 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { ArrowLeft, ArrowRight, Camera, Shield, Upload, Loader2 } from "lucide-react-native";
+import { ArrowLeft, ArrowRight, Camera, Shield, Upload } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useProviderOnboarding } from "./context";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
@@ -44,7 +46,7 @@ export default function VerificationScreen() {
       }
     } catch (error) {
       console.error("Upload failed:", error);
-      alert("Failed to upload image. Please try again.");
+      Alert.alert("Error", "Failed to upload image. Please try again.");
     } finally {
       setUploadingId(false);
       setUploadingSelfie(false);
@@ -105,7 +107,7 @@ export default function VerificationScreen() {
           >
             <View style={styles.uploadIconContainer}>
               {uploadingId ? (
-                <Loader2 size={24} color={Colors.primary} className="animate-spin" />
+                <ActivityIndicator size="small" color={Colors.primary} />
               ) : (
                 <Upload
                   size={28}
@@ -139,7 +141,7 @@ export default function VerificationScreen() {
           >
             <View style={styles.uploadIconContainer}>
               {uploadingSelfie ? (
-                <Loader2 size={24} color={Colors.primary} className="animate-spin" />
+                <ActivityIndicator size="small" color={Colors.primary} />
               ) : (
                 <Camera
                   size={28}

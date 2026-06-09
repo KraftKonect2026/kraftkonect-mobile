@@ -9,7 +9,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,16 +20,40 @@ import {
   Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { useQuery } from "@apollo/client";
 
-import { useAppSelector } from "@/store";
+import { useAppSelector, useAppDispatch } from "@/store";
+import { updateUser } from "@/store/authSlice";
+import { USER_PROFILE_QUERY } from "@/lib/queries";
 import Colors from "@/constants/colors";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const [contactModalVisible, setContactModalVisible] = useState(false);
+
+  // Pick up a server-side role change (e.g. provider application approved)
+  // without forcing the user to log out and back in.
+  const { refetch } = useQuery(USER_PROFILE_QUERY, { fetchPolicy: "network-only" });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch()
+        .then(({ data }) => {
+          const me = data?.me;
+          if (me && me.role && me.role !== user?.role) {
+            dispatch(updateUser({ role: me.role }));
+            if (me.role === "provider") {
+              router.replace("/provider/(tabs)/today" as any);
+            }
+          }
+        })
+        .catch(() => {});
+    }, [refetch, user?.role, dispatch, router]),
+  );
 
   const menuSections = [
     {
@@ -182,7 +206,7 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {user?.role === "provider" && <View style={[styles.floatingButton, { bottom: insets.bottom + 20 }]}>
+      {user?.role === "provider" && <View style={[styles.floatingButton, { bottom: insets.bottom + 96 }]}>
         <TouchableOpacity
           style={styles.switchToProviderButton}
           activeOpacity={0.9}

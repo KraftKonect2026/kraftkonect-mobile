@@ -190,6 +190,23 @@ export const REMOVE_FROM_FAVOURITES_MUTATION = gql`
   }
 `;
 
+export const CREATE_LISTING_MUTATION = gql`
+  mutation CreateListing($input: CreateListingInput!) {
+    createListing(input: $input) {
+      id
+      title
+      description
+      priceCents
+      durationMinutes
+      currency
+      category
+      photos
+      active
+      createdAt
+    }
+  }
+`;
+
 export const CREATE_BOOKING_MUTATION = gql`
   mutation CreateBooking($input: CreateBookingInput!) {
     createBooking(input: $input) {

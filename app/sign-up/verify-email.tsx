@@ -61,7 +61,7 @@ export default function VerifyEmailScreen() {
             refreshToken: authPayload.refreshToken,
           }));
         }
-        router.replace("/(app)/explore" as any);
+        router.replace("/(app)" as any);
       }
 
     } catch (e: any) {

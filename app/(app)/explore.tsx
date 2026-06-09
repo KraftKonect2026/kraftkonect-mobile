@@ -13,9 +13,11 @@ import {
   Droplet,
   Paintbrush,
   Wrench,
-  Scissors,
   Hammer,
-  Leaf,
+  Grid,
+  Wind,
+  Lock,
+  Power,
 } from "lucide-react-native";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
@@ -38,7 +40,7 @@ import * as Haptics from "expo-haptics";
 import { useQuery } from "@apollo/client";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
-import { categories as categoriesData } from "@/mocks/providers";
+import { categories as categoriesData } from "@/constants/categories";
 import { NEARBY_ARTISANS_QUERY } from "@/lib/queries";
 
 const LAGOS_LGAS = [
@@ -70,9 +72,11 @@ const iconMap: Record<string, any> = {
   droplet: Droplet,
   paintbrush: Paintbrush,
   wrench: Wrench,
-  scissors: Scissors,
   hammer: Hammer,
-  leaf: Leaf,
+  grid: Grid,
+  wind: Wind,
+  lock: Lock,
+  power: Power,
 };
 
 type LocationState = "requesting" | "granted" | "denied";
