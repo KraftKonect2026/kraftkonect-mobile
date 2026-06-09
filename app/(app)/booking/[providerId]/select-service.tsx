@@ -1,13 +1,7 @@
 import { ArrowLeft, Clock, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Platform,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";

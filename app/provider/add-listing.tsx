@@ -1,16 +1,8 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,  } from "react-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
@@ -24,6 +16,7 @@ import { useAppDispatch } from "@/store";
 import { addListing as addListingAction } from "@/store/providerSlice";
 import { categories } from "@/constants/categories";
 import { CREATE_LISTING_MUTATION } from "@/lib/mutations";
+import { MY_LISTINGS_QUERY } from "@/lib/queries";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { useToast } from "@/lib/toast";
 
@@ -47,7 +40,11 @@ export default function AddListingScreen() {
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [createListing, { loading: saving }] = useMutation(CREATE_LISTING_MUTATION);
+  const [createListing, { loading: saving }] = useMutation(CREATE_LISTING_MUTATION, {
+    // Refresh the provider's services list so the new listing appears immediately.
+    refetchQueries: [{ query: MY_LISTINGS_QUERY }],
+    awaitRefetchQueries: true,
+  });
 
   const handleAddPhoto = async () => {
     try {
@@ -153,38 +150,29 @@ export default function AddListingScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.form}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Service Title</Text>
-                  <TextInput
-                    style={[styles.input, touched.title && errors.title && styles.inputError]}
-                    placeholder="e.g., Professional Home Cleaning"
-                    placeholderTextColor="#9CA3AF"
-                    value={values.title}
-                    onChangeText={handleChange("title")}
-                    onBlur={handleBlur("title")}
-                  />
-                  {touched.title && errors.title && (
-                    <Text style={styles.errorText}>{errors.title}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Service Title"
+                  placeholder="e.g., Professional Home Cleaning"
+                  value={values.title}
+                  onChangeText={handleChange("title")}
+                  onBlur={handleBlur("title")}
+                  touched={touched.title}
+                  error={errors.title}
+                />
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Description</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea, touched.description && errors.description && styles.inputError]}
-                    placeholder="Describe your service in detail..."
-                    placeholderTextColor="#9CA3AF"
-                    value={values.description}
-                    onChangeText={handleChange("description")}
-                    onBlur={handleBlur("description")}
-                    multiline
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                  />
-                  {touched.description && errors.description && (
-                    <Text style={styles.errorText}>{errors.description}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Description"
+                  placeholder="Describe your service in detail..."
+                  value={values.description}
+                  onChangeText={handleChange("description")}
+                  onBlur={handleBlur("description")}
+                  touched={touched.description}
+                  error={errors.description}
+                  multiline
+                  numberOfLines={4}
+                  style={{ height: 100, borderRadius: 20 }}
+                  inputStyle={{ textAlignVertical: "top", paddingTop: 12 }}
+                />
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Category</Text>
@@ -219,39 +207,31 @@ export default function AddListingScreen() {
                 </View>
 
                 <View style={styles.row}>
-                  <View style={[styles.inputGroup, styles.inputGroupHalf]}>
-                    <Text style={styles.label}>Price per Hour</Text>
-                    <View style={[styles.inputWithPrefix, touched.pricePerHour && errors.pricePerHour && styles.inputError]}>
-                      <Text style={styles.inputPrefix}>₦</Text>
-                      <TextInput
-                        style={[styles.input, styles.inputWithPrefixInput]}
-                        placeholder="45"
-                        placeholderTextColor="#9CA3AF"
-                        value={values.pricePerHour ? values.pricePerHour.toString() : ""}
-                        onChangeText={(text) => setFieldValue("pricePerHour", parseFloat(text) || 0)}
-                        onBlur={handleBlur("pricePerHour")}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                    {touched.pricePerHour && errors.pricePerHour && (
-                      <Text style={styles.errorText}>{errors.pricePerHour}</Text>
-                    )}
+                  <View style={styles.inputGroupHalf}>
+                    <Input
+                      label="Price per Hour"
+                      placeholder="45"
+                      value={values.pricePerHour ? values.pricePerHour.toString() : ""}
+                      onChangeText={(text) => setFieldValue("pricePerHour", parseFloat(text) || 0)}
+                      onBlur={handleBlur("pricePerHour")}
+                      touched={touched.pricePerHour}
+                      error={errors.pricePerHour}
+                      keyboardType="numeric"
+                      icon={<Text style={{ fontSize: 16, fontWeight: "600", color: "#2C2C2C" }}>₦</Text>}
+                    />
                   </View>
 
-                  <View style={[styles.inputGroup, styles.inputGroupHalf]}>
-                    <Text style={styles.label}>Duration (hours)</Text>
-                    <TextInput
-                      style={[styles.input, touched.duration && errors.duration && styles.inputError]}
+                  <View style={styles.inputGroupHalf}>
+                    <Input
+                      label="Duration (hours)"
                       placeholder="2"
-                      placeholderTextColor="#9CA3AF"
                       value={values.duration ? values.duration.toString() : ""}
                       onChangeText={(text) => setFieldValue("duration", parseFloat(text) || 0)}
                       onBlur={handleBlur("duration")}
+                      touched={touched.duration}
+                      error={errors.duration}
                       keyboardType="numeric"
                     />
-                    {touched.duration && errors.duration && (
-                      <Text style={styles.errorText}>{errors.duration}</Text>
-                    )}
                   </View>
                 </View>
 
@@ -302,18 +282,12 @@ export default function AddListingScreen() {
             </ScrollView>
 
             <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-              <TouchableOpacity
-                style={[styles.saveButton, (!isValid || saving || uploadingPhoto) && styles.saveButtonDisabled]}
-                activeOpacity={0.8}
-                disabled={!isValid || saving || uploadingPhoto}
+              <Button
+                title="Create Listing"
                 onPress={() => handleSubmit()}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Create Listing</Text>
-                )}
-              </TouchableOpacity>
+                loading={saving}
+                disabled={!isValid || uploadingPhoto}
+              />
             </View>
           </>
         )}

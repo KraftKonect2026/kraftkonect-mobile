@@ -1,21 +1,14 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft, Mail } from "lucide-react-native";
 import React from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 
 const forgotPasswordSchema = Yup.object().shape({
   email: Yup.string()
@@ -77,33 +70,23 @@ export default function ForgotPasswordScreen() {
                 </View>
 
                 <View style={styles.form}>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Email Address</Text>
-                    <TextInput
-                      style={[styles.input, touched.email && errors.email && styles.inputError]}
-                      placeholder="john@example.com"
-                      value={values.email}
-                      onChangeText={handleChange("email")}
-                      onBlur={handleBlur("email")}
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                      placeholderTextColor={Colors.textSecondary}
-                    />
-                    {touched.email && errors.email && (
-                      <Text style={styles.errorText}>{errors.email}</Text>
-                    )}
-                  </View>
+                  <Input
+                    label="Email Address"
+                    placeholder="john@example.com"
+                    value={values.email}
+                    onChangeText={handleChange("email")}
+                    onBlur={handleBlur("email")}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    touched={touched.email}
+                    error={errors.email}
+                  />
 
-                  <TouchableOpacity
-                    style={[styles.sendButton, isSubmitting && styles.disabledButton]}
-                    onPress={() => handleSubmit()}
-                    disabled={isSubmitting}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.sendButtonText}>
-                      {isSubmitting ? "Sending..." : "Send Recovery Link"}
-                    </Text>
-                  </TouchableOpacity>
+                  <Button
+                    title={isSubmitting ? "Sending..." : "Send Recovery Link"}
+                    onPress={handleSubmit}
+                    loading={isSubmitting}
+                  />
 
                   <TouchableOpacity
                     style={styles.backToSignInButton}

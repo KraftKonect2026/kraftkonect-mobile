@@ -1,14 +1,6 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, ArrowRight, User, Mail, Phone } from "lucide-react-native";
@@ -17,6 +9,8 @@ import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { useProviderOnboarding } from "./context";
 import { useAppSelector } from "@/store";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 
 const basicInfoSchema = Yup.object().shape({
   name: Yup.string()
@@ -95,76 +89,52 @@ export default function BasicInfoScreen() {
               </View>
 
               <View style={styles.form}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Full Name</Text>
-                  <View style={[styles.inputWrapper, touched.name && errors.name && styles.inputWrapperError]}>
-                    <User size={20} color="#9CA3AF" strokeWidth={2} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your full name"
-                      placeholderTextColor="#9CA3AF"
-                      value={values.name}
-                      onChangeText={handleChange("name")}
-                      onBlur={handleBlur("name")}
-                      autoCapitalize="words"
-                    />
-                  </View>
-                  {touched.name && errors.name && (
-                    <Text style={styles.errorText}>{errors.name}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Full Name"
+                  placeholder="Enter your full name"
+                  value={values.name}
+                  onChangeText={handleChange("name")}
+                  onBlur={handleBlur("name")}
+                  autoCapitalize="words"
+                  touched={touched.name}
+                  error={errors.name}
+                  icon={<User size={20} color="#9CA3AF" strokeWidth={2} />}
+                />
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Email Address</Text>
-                  <View style={[styles.inputWrapper, touched.email && errors.email && styles.inputWrapperError]}>
-                    <Mail size={20} color="#9CA3AF" strokeWidth={2} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your email"
-                      placeholderTextColor="#9CA3AF"
-                      value={values.email}
-                      onChangeText={handleChange("email")}
-                      onBlur={handleBlur("email")}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                  {touched.email && errors.email && (
-                    <Text style={styles.errorText}>{errors.email}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Email Address"
+                  placeholder="Enter your email"
+                  value={values.email}
+                  onChangeText={handleChange("email")}
+                  onBlur={handleBlur("email")}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  touched={touched.email}
+                  error={errors.email}
+                  icon={<Mail size={20} color="#9CA3AF" strokeWidth={2} />}
+                />
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Phone Number</Text>
-                  <View style={[styles.inputWrapper, touched.phone && errors.phone && styles.inputWrapperError]}>
-                    <Phone size={20} color="#9CA3AF" strokeWidth={2} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your phone number"
-                      placeholderTextColor="#9CA3AF"
-                      value={values.phone}
-                      onChangeText={handleChange("phone")}
-                      onBlur={handleBlur("phone")}
-                      keyboardType="phone-pad"
-                    />
-                  </View>
-                  {touched.phone && errors.phone && (
-                    <Text style={styles.errorText}>{errors.phone}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Phone Number"
+                  placeholder="Enter your phone number"
+                  value={values.phone}
+                  onChangeText={handleChange("phone")}
+                  onBlur={handleBlur("phone")}
+                  keyboardType="phone-pad"
+                  touched={touched.phone}
+                  error={errors.phone}
+                  icon={<Phone size={20} color="#9CA3AF" strokeWidth={2} />}
+                />
               </View>
             </ScrollView>
 
             <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-              <TouchableOpacity
-                style={[styles.continueButton, !isValid && styles.continueButtonDisabled]}
-                activeOpacity={0.8}
+              <Button
+                title="Continue"
+                onPress={handleSubmit}
                 disabled={!isValid}
-                onPress={() => handleSubmit()}
-              >
-                <Text style={styles.continueButtonText}>Continue</Text>
-                <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
-              </TouchableOpacity>
+                icon={<ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />}
+              />
             </View>
           </>
         )}

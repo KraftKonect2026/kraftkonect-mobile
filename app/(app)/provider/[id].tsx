@@ -7,15 +7,8 @@ import {
   Clock,
 } from "lucide-react-native";
 import React, { useRef, useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Animated,
-  Platform,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Animated, Platform,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";

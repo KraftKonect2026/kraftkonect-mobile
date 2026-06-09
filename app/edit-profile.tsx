@@ -1,17 +1,13 @@
 import { ArrowLeft, User } from "lucide-react-native";
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
 import * as Yup from "yup";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 
 import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser as updateUserAction } from "@/store/authSlice";
@@ -82,68 +78,50 @@ export default function EditProfileScreen() {
               </View>
 
               <View style={styles.form}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Full Name</Text>
-                  <TextInput
-                    style={[styles.input, touched.name && errors.name && styles.inputError]}
-                    value={values.name}
-                    onChangeText={handleChange("name")}
-                    onBlur={handleBlur("name")}
-                    placeholder="Enter your full name"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                  {touched.name && errors.name && (
-                    <Text style={styles.errorText}>{errors.name}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Full Name"
+                  placeholder="Enter your full name"
+                  value={values.name}
+                  onChangeText={handleChange("name")}
+                  onBlur={handleBlur("name")}
+                  touched={touched.name}
+                  error={errors.name}
+                />
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email</Text>
-                  <TextInput
-                    style={[styles.input, touched.email && errors.email && styles.inputError]}
-                    value={values.email}
-                    onChangeText={handleChange("email")}
-                    onBlur={handleBlur("email")}
-                    placeholder="Enter your email"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                  {touched.email && errors.email && (
-                    <Text style={styles.errorText}>{errors.email}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Email"
+                  placeholder="Enter your email"
+                  value={values.email}
+                  onChangeText={handleChange("email")}
+                  onBlur={handleBlur("email")}
+                  touched={touched.email}
+                  error={errors.email}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Phone Number</Text>
-                  <TextInput
-                    style={[styles.input, touched.phone && errors.phone && styles.inputError]}
-                    value={values.phone}
-                    onChangeText={handleChange("phone")}
-                    onBlur={handleBlur("phone")}
-                    placeholder="Enter your phone number"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="phone-pad"
-                  />
-                  {touched.phone && errors.phone && (
-                    <Text style={styles.errorText}>{errors.phone}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Phone Number"
+                  placeholder="Enter your phone number"
+                  value={values.phone}
+                  onChangeText={handleChange("phone")}
+                  onBlur={handleBlur("phone")}
+                  touched={touched.phone}
+                  error={errors.phone}
+                  keyboardType="phone-pad"
+                />
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Address (Optional)</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={values.address}
-                    onChangeText={handleChange("address")}
-                    onBlur={handleBlur("address")}
-                    placeholder="Enter your address"
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                  />
-                </View>
+                <Input
+                  label="Address (Optional)"
+                  placeholder="Enter your address"
+                  value={values.address}
+                  onChangeText={handleChange("address")}
+                  onBlur={handleBlur("address")}
+                  multiline
+                  numberOfLines={3}
+                  style={{ height: 100, borderRadius: 20 }}
+                  inputStyle={{ textAlignVertical: "top", paddingTop: 12 }}
+                />
               </View>
             </ScrollView>
 
@@ -153,16 +131,11 @@ export default function EditProfileScreen() {
                 { paddingBottom: insets.bottom + 16 },
               ]}
             >
-              <TouchableOpacity
-                style={[styles.saveButton, isSubmitting && styles.saveButtonDisabled]}
+              <Button
+                title="Save Changes"
                 onPress={() => handleSubmit()}
-                disabled={isSubmitting}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.saveButtonText}>
-                  {isSubmitting ? "Saving..." : "Save Changes"}
-                </Text>
-              </TouchableOpacity>
+                loading={isSubmitting}
+              />
             </View>
           </>
         )}

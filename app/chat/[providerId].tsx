@@ -8,18 +8,10 @@ import {
   RefreshCw,
 } from "lucide-react-native";
 import React, { useState, useRef, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Modal, ActivityIndicator,  } from "react-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -279,15 +271,15 @@ export default function ChatScreen() {
         <TouchableOpacity style={styles.attachButton} activeOpacity={0.7}>
           <ImageIcon size={24} color="#6B7280" strokeWidth={2} />
         </TouchableOpacity>
-        <TextInput
-          style={styles.input}
+        <Input
           value={messageText}
           onChangeText={setMessageText}
           placeholder="Type a message..."
-          placeholderTextColor="#9CA3AF"
           multiline
           maxLength={500}
-          onSubmitEditing={handleSend}
+          containerStyle={{ flex: 1 }}
+          style={{ height: 40, borderRadius: 20 }}
+          inputStyle={{ paddingVertical: 8, height: "100%" }}
         />
         <TouchableOpacity
           style={[
@@ -405,39 +397,27 @@ export default function ChatScreen() {
             </ScrollView>
 
             <View style={styles.reportActions}>
-              <TouchableOpacity
-                style={styles.reportCancelButton}
-                activeOpacity={0.7}
+              <Button
+                title="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                textStyle={{ color: "#6B7280" }}
                 onPress={() => {
                   setReportModalVisible(false);
                   setSelectedReason(null);
                 }}
-              >
-                <Text style={styles.reportCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.reportSubmitButton,
-                  !selectedReason && styles.reportSubmitButtonDisabled,
-                ]}
-                activeOpacity={0.7}
-                disabled={!selectedReason}
+              />
+              <Button
+                title="Submit Report"
                 onPress={() => {
                   if (selectedReason) {
                     setReportModalVisible(false);
                     setSelectedReason(null);
                   }
                 }}
-              >
-                <Text
-                  style={[
-                    styles.reportSubmitText,
-                    !selectedReason && styles.reportSubmitTextDisabled,
-                  ]}
-                >
-                  Submit Report
-                </Text>
-              </TouchableOpacity>
+                disabled={!selectedReason}
+                style={{ flex: 1, backgroundColor: "#F59E0B", borderColor: "#F59E0B" }}
+              />
             </View>
           </TouchableOpacity>
         </TouchableOpacity>

@@ -1,20 +1,14 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { ArrowLeft, ArrowRight, Camera, Shield, Upload } from "lucide-react-native";
+import { ArrowLeft, ArrowRight, Camera, Shield, Upload, Loader2 } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useProviderOnboarding } from "./context";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { Button } from "@/components/Button";
 
 export default function VerificationScreen() {
   const insets = useSafeAreaInsets();
@@ -54,6 +48,7 @@ export default function VerificationScreen() {
   };
 
   const isValid = !!verification.idUrl && !!verification.selfieUrl;
+  const checkmarkContainerStyle = styles.checkmarkContainer;
 
   return (
     <View style={styles.container}>
@@ -107,7 +102,7 @@ export default function VerificationScreen() {
           >
             <View style={styles.uploadIconContainer}>
               {uploadingId ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
+                <Loader2 size={24} color={Colors.primary} />
               ) : (
                 <Upload
                   size={28}
@@ -127,7 +122,7 @@ export default function VerificationScreen() {
               </Text>
             </View>
             {verification.idUrl && (
-              <View style={styles.checkmarkContainer}>
+              <View style={checkmarkContainerStyle}>
                 <View style={styles.checkmark} />
               </View>
             )}
@@ -141,7 +136,7 @@ export default function VerificationScreen() {
           >
             <View style={styles.uploadIconContainer}>
               {uploadingSelfie ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
+                <Loader2 size={24} color={Colors.primary} />
               ) : (
                 <Camera
                   size={28}
@@ -161,7 +156,7 @@ export default function VerificationScreen() {
               </Text>
             </View>
             {verification.selfieUrl && (
-              <View style={styles.checkmarkContainer}>
+              <View style={checkmarkContainerStyle}>
                 <View style={styles.checkmark} />
               </View>
             )}
@@ -180,15 +175,12 @@ export default function VerificationScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity
-          style={[styles.continueButton, !isValid && styles.continueButtonDisabled]}
-          activeOpacity={0.8}
-          disabled={!isValid}
+        <Button
+          title="Continue"
           onPress={() => router.push("/provider-onboarding/experience" as any)}
-        >
-          <Text style={styles.continueButtonText}>Continue</Text>
-          <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
-        </TouchableOpacity>
+          disabled={!isValid}
+          icon={<ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />}
+        />
       </View>
     </View>
   );

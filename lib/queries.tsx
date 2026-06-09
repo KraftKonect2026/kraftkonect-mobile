@@ -32,6 +32,7 @@ export const MY_PROVIDER_PROFILE_QUERY = gql`
   query MyProviderProfile {
     myProviderProfile {
       id
+      status
       available
       gpsEnabled
       categories

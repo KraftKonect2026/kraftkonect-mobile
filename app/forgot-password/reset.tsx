@@ -1,21 +1,14 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft, Lock } from "lucide-react-native";
 import React from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 
 const resetPasswordSchema = Yup.object().shape({
   newPassword: Yup.string()
@@ -83,48 +76,33 @@ export default function ResetPasswordScreen() {
                 </View>
 
                 <View style={styles.form}>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>New Password</Text>
-                    <TextInput
-                      style={[styles.input, touched.newPassword && errors.newPassword && styles.inputError]}
-                      placeholder="Enter new password"
-                      value={values.newPassword}
-                      onChangeText={handleChange("newPassword")}
-                      onBlur={handleBlur("newPassword")}
-                      secureTextEntry
-                      placeholderTextColor={Colors.textSecondary}
-                    />
-                    {touched.newPassword && errors.newPassword && (
-                      <Text style={styles.errorText}>{errors.newPassword}</Text>
-                    )}
-                  </View>
+                  <Input
+                    label="New Password"
+                    placeholder="Enter new password"
+                    value={values.newPassword}
+                    onChangeText={handleChange("newPassword")}
+                    onBlur={handleBlur("newPassword")}
+                    secureTextEntry
+                    touched={touched.newPassword}
+                    error={errors.newPassword}
+                  />
 
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Confirm Password</Text>
-                    <TextInput
-                      style={[styles.input, touched.confirmPassword && errors.confirmPassword && styles.inputError]}
-                      placeholder="Re-enter new password"
-                      value={values.confirmPassword}
-                      onChangeText={handleChange("confirmPassword")}
-                      onBlur={handleBlur("confirmPassword")}
-                      secureTextEntry
-                      placeholderTextColor={Colors.textSecondary}
-                    />
-                    {touched.confirmPassword && errors.confirmPassword && (
-                      <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-                    )}
-                  </View>
+                  <Input
+                    label="Confirm Password"
+                    placeholder="Re-enter new password"
+                    value={values.confirmPassword}
+                    onChangeText={handleChange("confirmPassword")}
+                    onBlur={handleBlur("confirmPassword")}
+                    secureTextEntry
+                    touched={touched.confirmPassword}
+                    error={errors.confirmPassword}
+                  />
 
-                  <TouchableOpacity
-                    style={[styles.resetButton, isSubmitting && styles.disabledButton]}
-                    onPress={() => handleSubmit()}
-                    disabled={isSubmitting}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.resetButtonText}>
-                      {isSubmitting ? "Resetting..." : "Reset Password"}
-                    </Text>
-                  </TouchableOpacity>
+                  <Button
+                    title={isSubmitting ? "Resetting..." : "Reset Password"}
+                    onPress={handleSubmit}
+                    loading={isSubmitting}
+                  />
                 </View>
               </ScrollView>
             )}

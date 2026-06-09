@@ -8,17 +8,10 @@ import {
   RotateCw,
 } from "lucide-react-native";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Modal, Alert, ActivityIndicator,  } from "react-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -71,10 +64,12 @@ export default function BookingDetailScreen() {
       <View style={[styles.container, styles.centeredState]}>
         <Text style={styles.errorTitle}>Couldn't load booking</Text>
         <Text style={styles.errorText}>{error.message}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-          <RefreshCw size={16} color="#FFFFFF" strokeWidth={2} />
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+        <Button
+          title="Retry"
+          onPress={() => refetch()}
+          icon={<RefreshCw size={16} color="#FFFFFF" strokeWidth={2} />}
+          style={{ width: "100%", marginTop: 8 }}
+        />
       </View>
     );
   }
@@ -437,24 +432,20 @@ export default function BookingDetailScreen() {
             { paddingBottom: insets.bottom + 16 },
           ]}
         >
-          <TouchableOpacity
-            style={styles.messageProviderButton}
-            activeOpacity={0.8}
+          <Button
+            title="Message Provider"
             onPress={() => router.push(`/chat/${booking.providerId}`)}
-          >
-            <MessageCircle size={20} color="#FFFFFF" strokeWidth={2} />
-            <Text style={styles.messageProviderButtonText}>
-              Message Provider
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cancelBookingButton}
-            activeOpacity={0.8}
+            icon={<MessageCircle size={20} color="#FFFFFF" strokeWidth={2} />}
+            style={{ marginBottom: 12 }}
+          />
+          <Button
+            title="Cancel Booking"
+            variant="outline"
+            style={{ borderColor: "#FEE2E2", backgroundColor: "#FEF2F2" }}
+            textStyle={{ color: "#EF4444" }}
+            icon={<X size={20} color="#EF4444" strokeWidth={2} />}
             onPress={() => setCancelModalVisible(true)}
-          >
-            <X size={20} color="#EF4444" strokeWidth={2} />
-            <Text style={styles.cancelBookingButtonText}>Cancel Booking</Text>
-          </TouchableOpacity>
+          />
         </View>
       )}
 
@@ -466,29 +457,19 @@ export default function BookingDetailScreen() {
           ]}
         >
           {/* AC1: Book Again only on completed bookings */}
-          <TouchableOpacity
-            style={[styles.rebookButton, checkingAvailability && styles.disabledButton]}
-            activeOpacity={0.8}
+          <Button
+            title="Book Again"
             onPress={handleRebook}
-            disabled={checkingAvailability}
-          >
-            {checkingAvailability ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
-                <RotateCw size={20} color="#FFFFFF" strokeWidth={2} />
-                <Text style={styles.rebookButtonText}>Book Again</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            loading={checkingAvailability}
+            icon={<RotateCw size={20} color="#FFFFFF" strokeWidth={2} />}
+            style={{ marginBottom: 12 }}
+          />
 
-          <TouchableOpacity
-            style={styles.reviewButtonLarge}
-            activeOpacity={0.8}
+          <Button
+            title="Leave a Review"
+            variant="outline"
             onPress={() => router.push(`/review/${booking.id}` as any)}
-          >
-            <Text style={styles.reviewButtonLargeText}>Leave a Review</Text>
-          </TouchableOpacity>
+          />
         </View>
       )}
 
@@ -551,48 +532,38 @@ export default function BookingDetailScreen() {
               </View>
 
               {selectedReason === "Other" && (
-                <TextInput
-                  style={styles.customReasonInput}
+                <Input
                   placeholder="Please specify your reason"
-                  placeholderTextColor="#9CA3AF"
                   value={customReason}
                   onChangeText={setCustomReason}
                   multiline
                   numberOfLines={3}
-                  textAlignVertical="top"
+                  style={{ minHeight: 80, borderRadius: 20, marginBottom: 20 }}
+                  inputStyle={{ textAlignVertical: "top", paddingTop: 12 }}
                 />
               )}
 
               <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.modalBackButton}
+                <Button
+                  title="Go Back"
+                  variant="outline"
+                  style={{ flex: 1 }}
+                  textStyle={{ color: "#6B7280" }}
                   onPress={() => {
                     setCancelModalVisible(false);
                     setSelectedReason("");
                     setCustomReason("");
                   }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.modalBackButtonText}>Go Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.modalConfirmButton,
-                    (!selectedReason ||
-                      (selectedReason === "Other" && !customReason.trim())) &&
-                      styles.modalConfirmButtonDisabled,
-                  ]}
+                />
+                <Button
+                  title="Confirm Cancel"
                   onPress={handleCancelBooking}
-                  activeOpacity={0.7}
                   disabled={
                     !selectedReason ||
                     (selectedReason === "Other" && !customReason.trim())
                   }
-                >
-                  <Text style={styles.modalConfirmButtonText}>
-                    Confirm Cancel
-                  </Text>
-                </TouchableOpacity>
+                  style={{ flex: 1, backgroundColor: "#EF4444", borderColor: "#EF4444" }}
+                />
               </View>
             </View>
           </TouchableOpacity>

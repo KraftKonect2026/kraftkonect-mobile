@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,  } from "react-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { useQuery, useMutation } from "@apollo/client";
@@ -139,30 +132,23 @@ export default function EditListingScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Service Title</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Professional Home Cleaning"
-              placeholderTextColor="#9CA3AF"
-              value={title}
-              onChangeText={setTitle}
-            />
-          </View>
+          <Input
+            label="Service Title"
+            placeholder="e.g., Professional Home Cleaning"
+            value={title}
+            onChangeText={setTitle}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Describe your service in detail..."
-              placeholderTextColor="#9CA3AF"
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
+          <Input
+            label="Description"
+            placeholder="Describe your service in detail..."
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+            style={{ height: 100, borderRadius: 20 }}
+            inputStyle={{ textAlignVertical: "top", paddingTop: 12 }}
+          />
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Category</Text>
@@ -194,27 +180,21 @@ export default function EditListingScreen() {
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.inputGroupHalf]}>
-              <Text style={styles.label}>Price per Hour</Text>
-              <View style={styles.inputWithPrefix}>
-                <Text style={styles.inputPrefix}>₦</Text>
-                <TextInput
-                  style={[styles.input, styles.inputWithPrefixInput]}
-                  placeholder="45"
-                  placeholderTextColor="#9CA3AF"
-                  value={pricePerHour}
-                  onChangeText={setPricePerHour}
-                  keyboardType="numeric"
-                />
-              </View>
+            <View style={styles.inputGroupHalf}>
+              <Input
+                label="Price per Hour"
+                placeholder="45"
+                value={pricePerHour}
+                onChangeText={setPricePerHour}
+                keyboardType="numeric"
+                icon={<Text style={{ fontSize: 16, fontWeight: "600", color: "#2C2C2C" }}>₦</Text>}
+              />
             </View>
 
-            <View style={[styles.inputGroup, styles.inputGroupHalf]}>
-              <Text style={styles.label}>Duration (hours)</Text>
-              <TextInput
-                style={styles.input}
+            <View style={styles.inputGroupHalf}>
+              <Input
+                label="Duration (hours)"
                 placeholder="2"
-                placeholderTextColor="#9CA3AF"
                 value={duration}
                 onChangeText={setDuration}
                 keyboardType="numeric"
@@ -225,18 +205,12 @@ export default function EditListingScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity
-          style={[styles.saveButton, (!isValid || saving) && styles.saveButtonDisabled]}
-          activeOpacity={0.8}
-          disabled={!isValid || saving}
+        <Button
+          title="Save Changes"
           onPress={handleSave}
-        >
-          {saving ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
+          loading={saving}
+          disabled={!isValid}
+        />
       </View>
     </KeyboardAvoidingView>
   );

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, TouchableOpacity, View, Text, Platform } from "react-native";
+import { Animated, StyleSheet, View, Text, Platform } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowUpCircle } from "lucide-react-native";
 

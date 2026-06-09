@@ -1,9 +1,11 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { Button } from "@/components/Button";
 
 export default function GetStartedScreen() {
   const router = useRouter();
@@ -14,7 +16,7 @@ export default function GetStartedScreen() {
         <View style={styles.content}>
           <View style={styles.header}>
             <Image
-              source={{ uri: "https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/btlhywtjwcxau0pm0xpab" }}
+              source={require("../assets/images/icon.png")}
               style={styles.logo}
               contentFit="contain"
             />
@@ -33,21 +35,16 @@ export default function GetStartedScreen() {
           </View>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.primaryButton}
+            <Button
+              title="Sign Up"
               onPress={() => router.push("/sign-up" as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.primaryButtonText}>Sign Up</Text>
-            </TouchableOpacity>
+            />
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
+            <Button
+              title="Sign In"
+              variant="outline"
               onPress={() => router.push("/sign-in" as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.secondaryButtonText}>Sign In</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </SafeAreaView>

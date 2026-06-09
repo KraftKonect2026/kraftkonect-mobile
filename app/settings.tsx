@@ -10,17 +10,10 @@ import {
   Smartphone,
 } from "lucide-react-native";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  Modal,
-  TextInput,
-  Linking,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Switch, Modal, Linking,  } from "react-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
@@ -264,30 +257,27 @@ export default function SettingsScreen() {
               This action is permanent. You can recover your account within 30 days.
               After 30 days, your account will be deleted forever.
             </Text>
-            <TextInput
-              style={styles.passwordInput}
+            <Input
               placeholder="Enter your password to confirm"
-              placeholderTextColor="#9CA3AF"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              style={{ marginBottom: 24 }}
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
+              <Button
+                title="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                textStyle={{ color: "#6B7280" }}
                 onPress={() => {
                   setDeleteModalVisible(false);
                   setPassword("");
                 }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalDeleteButton,
-                  !password && styles.modalDeleteButtonDisabled,
-                ]}
+              />
+              <Button
+                title="Delete account"
+                disabled={!password}
                 onPress={() => {
                   if (password) {
                     console.log("Account deleted");
@@ -295,13 +285,8 @@ export default function SettingsScreen() {
                     setPassword("");
                   }
                 }}
-                activeOpacity={0.7}
-                disabled={!password}
-              >
-                <Text style={styles.modalDeleteButtonText}>
-                  Delete account
-                </Text>
-              </TouchableOpacity>
+                style={{ flex: 1, backgroundColor: "#EF4444", borderColor: "#EF4444" }}
+              />
             </View>
           </View>
         </View>
@@ -321,24 +306,22 @@ export default function SettingsScreen() {
               Are you sure you want to sign out of your account?
             </Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
+              <Button
+                title="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                textStyle={{ color: "#6B7280" }}
                 onPress={() => setSignOutModalVisible(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
+              />
+              <Button
+                title="Sign out"
                 onPress={() => {
                   dispatch({ type: "auth/signOut" });
                   router.replace("/get-started");
                   setSignOutModalVisible(false);
                 }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalConfirmButtonText}>Sign out</Text>
-              </TouchableOpacity>
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         </View>
@@ -378,56 +361,44 @@ export default function SettingsScreen() {
                 : "Enter the 6-digit code sent to your phone"}
             </Text>
 
-            <View style={styles.phoneInputGroup}>
-              <Text style={styles.phoneLabel}>Phone Number</Text>
-              <TextInput
-                style={[styles.phoneInput, codeSent && styles.phoneInputDisabled]}
-                placeholder="+1 (555) 000-0000"
-                placeholderTextColor="#9CA3AF"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                editable={!codeSent}
-              />
-            </View>
+            <Input
+              label="Phone Number"
+              placeholder="+1 (555) 000-0000"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              editable={!codeSent}
+              style={codeSent ? { opacity: 0.6 } : undefined}
+              containerStyle={{ marginBottom: 16 }}
+            />
 
             {codeSent && (
-              <View style={styles.phoneInputGroup}>
-                <Text style={styles.phoneLabel}>Verification Code</Text>
-                <TextInput
-                  style={styles.phoneInput}
-                  placeholder="Enter 6-digit code"
-                  placeholderTextColor="#9CA3AF"
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                />
-              </View>
+              <Input
+                label="Verification Code"
+                placeholder="Enter 6-digit code"
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                maxLength={6}
+                containerStyle={{ marginBottom: 16 }}
+              />
             )}
 
-            <TouchableOpacity
-              style={[
-                styles.phoneModalButton,
-                (!phone || (codeSent && !code)) && styles.phoneModalButtonDisabled,
-              ]}
+            <Button
+              title={codeSent ? "Verify Phone" : "Send Code"}
               onPress={codeSent ? handleVerifyPhone : handleSendCode}
               disabled={!phone || (codeSent && !code)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.phoneModalButtonText}>
-                {codeSent ? "Verify Phone" : "Send Code"}
-              </Text>
-            </TouchableOpacity>
+              style={{ marginTop: 8 }}
+            />
 
             {codeSent && (
-              <TouchableOpacity
-                style={styles.resendLink}
+              <Button
+                title="Resend Code"
+                variant="outline"
+                style={{ borderWidth: 0, height: 48, marginTop: 8 }}
+                textStyle={{ color: Colors.primary, fontWeight: "600", fontSize: 16 }}
                 onPress={handleSendCode}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.resendLinkText}>Resend Code</Text>
-              </TouchableOpacity>
+              />
             )}
           </View>
         </View>

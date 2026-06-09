@@ -1,17 +1,11 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Linking,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Alert, Linking,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Clock, Mail, MessageCircle } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Button } from "@/components/Button";
 
 export default function PendingApprovalScreen() {
   const insets = useSafeAreaInsets();
@@ -113,22 +107,19 @@ export default function PendingApprovalScreen() {
         </View>
 
         <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.supportButton}
-            activeOpacity={0.8}
+          <Button
+            title="Contact Support"
             onPress={handleContactSupport}
-          >
-            <MessageCircle size={20} color={Colors.primary} strokeWidth={2} />
-            <Text style={styles.supportButtonText}>Contact Support</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.doneButton}
-            activeOpacity={0.8}
+            icon={<MessageCircle size={20} color="#FFFFFF" strokeWidth={2.5} />}
+            style={{ marginBottom: 12 }}
+          />
+          <Button
+            title="Back to Profile"
+            variant="outline"
+            style={{ borderWidth: 0, height: 48 }}
+            textStyle={{ color: "#6B7280", fontWeight: "500", fontSize: 15 }}
             onPress={() => router.replace("/(app)/profile" as any)}
-          >
-            <Text style={styles.doneButtonText}>Back to Profile</Text>
-          </TouchableOpacity>
+          />
         </View>
       </ScrollView>
     </View>

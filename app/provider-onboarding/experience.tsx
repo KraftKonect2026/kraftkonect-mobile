@@ -1,19 +1,13 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, ArrowRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useProviderOnboarding } from "./context";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 
 export default function ExperienceScreen() {
   const insets = useSafeAreaInsets();
@@ -67,32 +61,27 @@ export default function ExperienceScreen() {
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Years of Experience</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., 5 years"
-              placeholderTextColor="#9CA3AF"
-              value={experience.years}
-              onChangeText={(text) => handleUpdate({ years: text })}
-            />
-          </View>
+          <Input
+            label="Years of Experience"
+            placeholder="e.g., 5 years"
+            value={experience.years}
+            onChangeText={(text) => handleUpdate({ years: text })}
+          />
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>About Your Services</Text>
             <Text style={styles.characterCount}>
               {experience.description.length} / 200 characters (min 50)
             </Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
+            <Input
               placeholder="Describe your experience, specialties, and what customers can expect when working with you..."
-              placeholderTextColor="#9CA3AF"
               value={experience.description}
               onChangeText={(text) => handleUpdate({ description: text })}
               multiline
               numberOfLines={8}
               maxLength={200}
-              textAlignVertical="top"
+              style={{ height: 160, borderRadius: 20 }}
+              inputStyle={{ textAlignVertical: "top", paddingTop: 12, height: "100%" }}
             />
           </View>
 
@@ -109,15 +98,12 @@ export default function ExperienceScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity
-          style={[styles.continueButton, !isValid && styles.continueButtonDisabled]}
-          activeOpacity={0.8}
-          disabled={!isValid}
+        <Button
+          title="Continue"
           onPress={() => router.push("/provider-onboarding/submit" as any)}
-        >
-          <Text style={styles.continueButtonText}>Continue</Text>
-          <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
-        </TouchableOpacity>
+          disabled={!isValid}
+          icon={<ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />}
+        />
       </View>
     </KeyboardAvoidingView>
   );

@@ -1,14 +1,7 @@
 import { CheckCircle, Calendar, Clock, MessageCircle, Home } from "lucide-react-native";
 import React, { useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  Animated,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Platform, Animated,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";

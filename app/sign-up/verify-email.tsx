@@ -1,19 +1,11 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft, Mail } from "lucide-react-native";
-import React, { useState, useRef } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { Button } from "@/components/Button";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
 import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
 import { AuthPayload } from "@/types";
@@ -128,6 +120,18 @@ export default function VerifyEmailScreen() {
     inputRefs.current[0]?.focus();
   };
 
+  // Auto-send the verification code as soon as the screen opens so the user
+  // doesn't have to tap "Resend" to receive it. Fires once per mount.
+  const autoSentRef = useRef(false);
+  useEffect(() => {
+    if (autoSentRef.current) return;
+    if (!user?.email) return;
+    autoSentRef.current = true;
+    handleResendOtp({ email: user.email });
+    start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
+
   return (
     <View style={styles.wrapper}>
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -179,27 +183,21 @@ export default function VerifyEmailScreen() {
             </View>
 
             <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.continueButton, isVerifyEmailLoading && styles.disabledButton]}
+              <Button
+                title="Verify"
                 onPress={handleVerifyEmail.bind(null, { email: user?.email || '', otp: otp.join('') })}
-                disabled={isVerifyEmailLoading}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.continueButtonText}>
-                  {isVerifyEmailLoading ? "Verifying..." : "Verify"}
-                </Text>
-              </TouchableOpacity>
+                loading={isVerifyEmailLoading}
+                style={{ marginBottom: 12 }}
+              />
 
-              <TouchableOpacity
-                style={styles.resendButton}
+              <Button
+                title={isActive ? `Resend Code in ${formattedTime}` : "Resend Code"}
+                variant="outline"
+                style={{ borderWidth: 0, height: 48 }}
+                textStyle={{ color: Colors.primary, fontWeight: "600", fontSize: 16 }}
                 onPress={handleResend}
                 disabled={isResendOtpLoading || isActive}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.resendButtonText}>
-                  {isActive ? `Resend Code in ${formattedTime}` : "Resend Code"}
-                </Text>
-              </TouchableOpacity>
+              />
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -1,20 +1,13 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Smartphone } from "lucide-react-native";
 import React, { useState, useRef, useEffect } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 import { useAppDispatch } from "@/store";
 import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
 import { useToast } from "@/lib/toast";
@@ -173,21 +166,17 @@ export default function VerifyPhoneScreen() {
               </View>
 
               <View style={styles.form}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Phone Number</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="+2348012345678"
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                    placeholderTextColor={Colors.textSecondary}
-                    autoFocus
-                  />
-                </View>
+                <Input
+                  label="Phone Number"
+                  placeholder="+2348012345678"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  autoFocus
+                />
 
-                <TouchableOpacity
-                  style={[styles.primaryButton, sendingOtp && styles.disabledButton]}
+                <Button
+                  title="Send Code"
                   onPress={() => {
                     if (!phone || phone.length < 10) {
                       toast.error("Please enter a valid phone number");
@@ -195,23 +184,17 @@ export default function VerifyPhoneScreen() {
                     }
                     sendOtp(phone);
                   }}
-                  disabled={sendingOtp}
-                  activeOpacity={0.8}
-                >
-                  {sendingOtp ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>Send Code</Text>
-                  )}
-                </TouchableOpacity>
+                  loading={sendingOtp}
+                  style={{ marginTop: 8, marginBottom: 8 }}
+                />
 
-                <TouchableOpacity
-                  style={styles.skipButton}
+                <Button
+                  title="Do it later"
+                  variant="outline"
+                  style={{ borderWidth: 0, height: 48 }}
+                  textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
                   onPress={() => router.replace("/provider-onboarding/welcome" as any)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.skipButtonText}>Do it later</Text>
-                </TouchableOpacity>
+                />
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -278,47 +261,29 @@ export default function VerifyPhoneScreen() {
             </View>
 
             <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.primaryButton, verifying && styles.disabledButton]}
+              <Button
+                title="Verify"
                 onPress={handleVerify}
-                disabled={verifying}
-                activeOpacity={0.8}
-              >
-                {verifying ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.primaryButtonText}>Verify</Text>
-                )}
-              </TouchableOpacity>
+                loading={verifying}
+                style={{ marginBottom: 12 }}
+              />
 
-              {/* AC4: resend with 60-second cooldown */}
-              <TouchableOpacity
-                style={[styles.resendButton, (cooldownActive || sendingOtp) && styles.resendDisabled]}
+              <Button
+                title={cooldownActive ? `Resend in ${formattedTime}` : sendingOtp ? "Sending…" : "Resend Code"}
+                variant="outline"
+                style={{ borderWidth: 0, height: 48, marginBottom: 12 }}
+                textStyle={{ color: Colors.primary, fontWeight: "600", fontSize: 16 }}
                 onPress={handleResend}
                 disabled={cooldownActive || sendingOtp}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.resendButtonText,
-                    (cooldownActive || sendingOtp) && styles.resendButtonTextDisabled,
-                  ]}
-                >
-                  {cooldownActive
-                    ? `Resend in ${formattedTime}`
-                    : sendingOtp
-                    ? "Sending…"
-                    : "Resend Code"}
-                </Text>
-              </TouchableOpacity>
+              />
 
-              <TouchableOpacity
-                style={styles.skipButton}
+              <Button
+                title="Do it later"
+                variant="outline"
+                style={{ borderWidth: 0, height: 48 }}
+                textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
                 onPress={() => router.replace("/provider-onboarding/welcome" as any)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.skipButtonText}>Do it later</Text>
-              </TouchableOpacity>
+              />
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

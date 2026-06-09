@@ -15,18 +15,9 @@ import {
   Layers,
 } from "lucide-react-native";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  ActivityIndicator,
-  Linking,
-  Platform,
-  Animated,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Linking, Platform, Animated,  } from "react-native";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -297,27 +288,17 @@ export default function HomeScreen() {
 
         {/* AI Search bar */}
         <Animated.View style={[styles.searchWrapper, makeSectionStyle(1)]}>
-          <Animated.View
-            style={[
-              styles.searchBar,
-              aiLoading && styles.searchBarDisabled,
-              { borderColor: searchBorderColor },
-            ]}
-          >
-            <Search size={20} color={aiLoading ? "#D1D5DB" : "#9CA3AF"} strokeWidth={2} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Describe your problem or search..."
-              placeholderTextColor="#9CA3AF"
-              value={query}
-              onChangeText={(t) => { setQuery(t); setAiError(null); }}
-              onSubmitEditing={handleAiSearch}
-              returnKeyType="search"
-              editable={!aiLoading}
-              blurOnSubmit={false}
-            />
-            {aiLoading && <ActivityIndicator size="small" color={Colors.primary} />}
-          </Animated.View>
+          <Input
+            placeholder="Describe your problem or search..."
+            value={query}
+            onChangeText={(t) => { setQuery(t); setAiError(null); }}
+            onSubmitEditing={handleAiSearch}
+            returnKeyType="search"
+            editable={!aiLoading}
+            blurOnSubmit={false}
+            icon={<Search size={20} color={aiLoading ? "#D1D5DB" : "#9CA3AF"} strokeWidth={2} />}
+            style={{ borderColor: searchBorderColor, opacity: aiLoading ? 0.7 : 1 }}
+          />
 
           {aiLoading && (
             <Text style={styles.aiLoadingText}>Finding the right artisan for you…</Text>

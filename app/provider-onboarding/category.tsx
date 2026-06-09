@@ -1,11 +1,6 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -29,6 +24,8 @@ const categories = [
   { id: "handyman", name: "Handyman", icon: Home },
   { id: "beauty", name: "Beauty & Wellness", icon: Scissors },
 ];
+
+import { Button } from "@/components/Button";
 
 export default function CategoryScreen() {
   const insets = useSafeAreaInsets();
@@ -122,15 +119,12 @@ export default function CategoryScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity
-          style={[styles.continueButton, !isValid && styles.continueButtonDisabled]}
-          activeOpacity={0.8}
-          disabled={!isValid}
+        <Button
+          title="Continue"
           onPress={() => router.push("/provider-onboarding/verification" as any)}
-        >
-          <Text style={styles.continueButtonText}>Continue</Text>
-          <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
-        </TouchableOpacity>
+          disabled={!isValid}
+          icon={<ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />}
+        />
       </View>
     </View>
   );

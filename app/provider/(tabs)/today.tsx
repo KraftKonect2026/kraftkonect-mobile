@@ -1,14 +1,6 @@
 import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  ActivityIndicator,
-  RefreshControl,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation } from "@apollo/client";

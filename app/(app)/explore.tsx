@@ -20,18 +20,8 @@ import {
   Power,
 } from "lucide-react-native";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Animated,
-  RefreshControl,
-  Platform,
-  ActivityIndicator,
-  Linking,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Animated, RefreshControl, Platform, ActivityIndicator, Linking,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";

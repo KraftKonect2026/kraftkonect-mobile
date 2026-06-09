@@ -78,7 +78,7 @@ export default function SplashScreen() {
       >
         <Animated.View style={{ opacity: logoOpacity }}>
           <Image
-            source={{ uri: "https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/btlhywtjwcxau0pm0xpab" }}
+            source={require("../assets/images/icon.png")}
             style={styles.logo}
             contentFit="contain"
           />

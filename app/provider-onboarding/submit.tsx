@@ -1,11 +1,6 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { CheckCircle2, ArrowRight } from "lucide-react-native";
@@ -17,6 +12,8 @@ import { useProviderOnboarding } from "./context";
 import { ActivityIndicator, Alert } from "react-native";
 import { useState } from "react";
 import { useToast } from "@/lib/toast";
+
+import { Button } from "@/components/Button";
 
 export default function SubmitScreen() {
   const insets = useSafeAreaInsets();
@@ -128,29 +125,22 @@ export default function SubmitScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity
-          style={[styles.submitButton, (loading || !isComplete) && { opacity: 0.5 }]}
-          activeOpacity={0.8}
+        <Button
+          title="Submit Application"
           onPress={handleSubmit}
-          disabled={loading || !isComplete}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <Text style={styles.submitButtonText}>Submit Application</Text>
-              <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
-            </>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.backButton}
-          activeOpacity={0.8}
+          loading={loading}
+          disabled={!isComplete}
+          icon={<ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />}
+          style={{ marginBottom: 12 }}
+        />
+        <Button
+          title="Go back to edit"
+          variant="outline"
+          style={{ borderWidth: 0, height: 48 }}
+          textStyle={{ color: "#6B7280", fontWeight: "500", fontSize: 15 }}
           onPress={() => router.back()}
           disabled={loading}
-        >
-          <Text style={styles.backButtonText}>Go back to edit</Text>
-        </TouchableOpacity>
+        />
       </View>
     </View>
   );

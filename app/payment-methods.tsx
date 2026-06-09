@@ -1,14 +1,9 @@
 import { ArrowLeft, CreditCard, Plus, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Modal,  } from "react-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
@@ -148,14 +143,13 @@ export default function PaymentMethodsScreen() {
           </View>
         )}
 
-        <TouchableOpacity
-          style={styles.addButton}
-          activeOpacity={0.8}
+        <Button
+          title="Add Payment Method"
+          variant="outline"
+          style={{ borderStyle: "dashed", borderWidth: 2 }}
+          icon={<Plus size={20} color={Colors.primary} strokeWidth={2.5} />}
           onPress={() => setAddModalVisible(true)}
-        >
-          <Plus size={20} color={Colors.primary} strokeWidth={2.5} />
-          <Text style={styles.addButtonText}>Add Payment Method</Text>
-        </TouchableOpacity>
+        />
       </ScrollView>
 
       <Modal
@@ -171,23 +165,21 @@ export default function PaymentMethodsScreen() {
               This payment method will be permanently removed from your account.
             </Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
+              <Button
+                title="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                textStyle={{ color: "#6B7280" }}
                 onPress={() => {
                   setDeleteModalVisible(false);
                   setMethodToDelete(null);
                 }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalDeleteButton}
+              />
+              <Button
+                title="Delete"
                 onPress={removePaymentMethod}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalDeleteButtonText}>Delete</Text>
-              </TouchableOpacity>
+                style={{ flex: 1, backgroundColor: "#EF4444", borderColor: "#EF4444" }}
+              />
             </View>
           </View>
         </View>
@@ -202,65 +194,57 @@ export default function PaymentMethodsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.addCardModal}>
             <Text style={styles.modalTitle}>Add Payment Method</Text>
-            <TextInput
-              style={styles.cardInput}
+            <Input
               placeholder="Cardholder Name"
-              placeholderTextColor="#9CA3AF"
               value={newCard.name}
               onChangeText={(text) => setNewCard({ ...newCard, name: text })}
+              style={{ marginBottom: 12 }}
             />
-            <TextInput
-              style={styles.cardInput}
+            <Input
               placeholder="Card Number"
-              placeholderTextColor="#9CA3AF"
               value={newCard.number}
               onChangeText={(text) => setNewCard({ ...newCard, number: text })}
               keyboardType="numeric"
               maxLength={16}
+              style={{ marginBottom: 12 }}
             />
             <View style={styles.cardRow}>
-              <TextInput
-                style={[styles.cardInput, styles.cardInputHalf]}
+              <Input
                 placeholder="MM/YY"
-                placeholderTextColor="#9CA3AF"
                 value={newCard.expiry}
                 onChangeText={(text) => setNewCard({ ...newCard, expiry: text })}
                 maxLength={5}
+                containerStyle={{ flex: 1 }}
+                style={{ marginBottom: 12 }}
               />
-              <TextInput
-                style={[styles.cardInput, styles.cardInputHalf]}
+              <Input
                 placeholder="CVV"
-                placeholderTextColor="#9CA3AF"
                 value={newCard.cvv}
                 onChangeText={(text) => setNewCard({ ...newCard, cvv: text })}
                 keyboardType="numeric"
                 maxLength={4}
                 secureTextEntry
+                containerStyle={{ flex: 1 }}
+                style={{ marginBottom: 12 }}
               />
             </View>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
+              <Button
+                title="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                textStyle={{ color: "#6B7280" }}
                 onPress={() => {
                   setAddModalVisible(false);
                   setNewCard({ number: "", expiry: "", cvv: "", name: "" });
                 }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalAddButton,
-                  (!newCard.number || !newCard.expiry || !newCard.cvv || !newCard.name) &&
-                    styles.modalAddButtonDisabled,
-                ]}
+              />
+              <Button
+                title="Add Card"
                 onPress={handleAddCard}
-                activeOpacity={0.7}
                 disabled={!newCard.number || !newCard.expiry || !newCard.cvv || !newCard.name}
-              >
-                <Text style={styles.modalAddButtonText}>Add Card</Text>
-              </TouchableOpacity>
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         </View>

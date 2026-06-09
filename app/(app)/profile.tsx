@@ -10,22 +10,15 @@ import {
   Phone,
 } from "lucide-react-native";
 import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  Linking,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Modal, Linking,  } from "react-native";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useQuery } from "@apollo/client";
 
 import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser } from "@/store/authSlice";
-import { USER_PROFILE_QUERY } from "@/lib/queries";
+import { USER_PROFILE_QUERY, MY_PROVIDER_PROFILE_QUERY } from "@/lib/queries";
 import Colors from "@/constants/colors";
 
 export default function ProfileScreen() {
@@ -38,6 +31,14 @@ export default function ProfileScreen() {
   // Pick up a server-side role change (e.g. provider application approved)
   // without forcing the user to log out and back in.
   const { refetch } = useQuery(USER_PROFILE_QUERY, { fetchPolicy: "network-only" });
+
+  // Provider application status — drives the "Become a Provider" button state.
+  const { data: providerData, refetch: refetchProvider } = useQuery(
+    MY_PROVIDER_PROFILE_QUERY,
+    { fetchPolicy: "cache-and-network", errorPolicy: "all" },
+  );
+  const applicationStatus: string | null =
+    providerData?.myProviderProfile?.status ?? null;
 
   useFocusEffect(
     useCallback(() => {
@@ -52,7 +53,8 @@ export default function ProfileScreen() {
           }
         })
         .catch(() => {});
-    }, [refetch, user?.role, dispatch, router]),
+      refetchProvider().catch(() => {});
+    }, [refetch, refetchProvider, user?.role, dispatch, router]),
   );
 
   const menuSections = [
@@ -81,10 +83,21 @@ export default function ProfileScreen() {
       items: [
         {
           icon: ArrowRight,
-          label: "Become a Provider",
-          subtitle: "Offer your services on KraftKonect",
+          label:
+            applicationStatus === "pending"
+              ? "Application Pending Review"
+              : applicationStatus === "rejected"
+                ? "Reapply as a Provider"
+                : "Become a Provider",
+          subtitle:
+            applicationStatus === "pending"
+              ? "We're reviewing your application — we'll email you"
+              : applicationStatus === "rejected"
+                ? "Your previous application was not approved"
+                : "Offer your services on KraftKonect",
           route: null,
           special: true,
+          disabled: applicationStatus === "pending",
         },
       ],
     },
@@ -112,11 +125,12 @@ export default function ProfileScreen() {
       return (
         <TouchableOpacity
           key={index}
-          style={styles.specialMenuItem}
+          style={[styles.specialMenuItem, item.disabled && { opacity: 0.75 }]}
           activeOpacity={0.7}
           onPress={() => {
-            if (item.route) {
-              router.push(item.route);
+            // Pending applicants can view their status but can't re-apply.
+            if (applicationStatus === "pending") {
+              router.push("/provider-onboarding/pending-approval" as any);
             } else {
               router.push("/provider-onboarding/welcome" as any);
             }

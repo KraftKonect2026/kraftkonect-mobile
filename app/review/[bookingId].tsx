@@ -1,16 +1,9 @@
 import { X, Star, AlertCircle } from "lucide-react-native";
 import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Animated,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Animated, ActivityIndicator, Alert,  } from "react-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation } from "@apollo/client";
@@ -274,16 +267,15 @@ export default function ReviewScreen() {
           <Text style={styles.sectionTitle}>
             Share more about your experience (optional)
           </Text>
-          <TextInput
-            style={styles.textInput}
+          <Input
             value={reviewText}
             onChangeText={(t) => { setReviewText(t); setSubmitError(null); }}
             placeholder="Tell us what you think..."
-            placeholderTextColor="#9CA3AF"
             multiline
             numberOfLines={6}
             maxLength={500}
-            textAlignVertical="top"
+            style={{ height: 140, borderRadius: 20 }}
+            inputStyle={{ textAlignVertical: "top", paddingTop: 12 }}
           />
           <Text style={styles.charCount}>{reviewText.length}/500</Text>
         </View>
@@ -299,32 +291,20 @@ export default function ReviewScreen() {
 
       {/* Bottom actions */}
       <View style={[styles.bottomActions, { paddingBottom: insets.bottom + 16 }]}>
-        <TouchableOpacity
-          style={styles.skipButton}
+        <Button
+          title="Skip for now"
+          variant="outline"
           onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.skipButtonText}>Skip for now</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
+          style={{ flex: 1, height: 52 }}
+          textStyle={{ color: "#6B7280", fontWeight: "600", fontSize: 16 }}
+        />
+        <Button
+          title="Submit Review"
           onPress={handleSubmit}
-          activeOpacity={0.8}
+          loading={submitting}
           disabled={!canSubmit}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text
-              style={[
-                styles.submitButtonText,
-                !canSubmit && styles.submitButtonTextDisabled,
-              ]}
-            >
-              Submit Review
-            </Text>
-          )}
-        </TouchableOpacity>
+          style={{ flex: 1, height: 52 }}
+        />
       </View>
     </View>
   );

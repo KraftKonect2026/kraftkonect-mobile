@@ -14,6 +14,7 @@ export const SIGN_IN_MUTATION = gql`
         name
         phone
         role
+        emailVerified
       }
     }
   }

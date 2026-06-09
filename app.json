@@ -24,7 +24,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kraftkonect"
+      "bundleIdentifier": "com.kraftkonect",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
