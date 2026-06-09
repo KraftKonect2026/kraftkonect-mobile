@@ -91,6 +91,7 @@ export default function AppLayout() {
         name="booking"
         options={{
           href: null,
+          tabBarStyle: { display: "none" },
         }}
       />
     </Tabs>

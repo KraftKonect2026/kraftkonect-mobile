@@ -19,6 +19,17 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   const insets = useSafeAreaInsets();
   const scales = useRef<Record<string, Animated.Value>>({}).current;
 
+  // Hide the tab bar if the current route has tabBarStyle: { display: 'none' }
+  const activeRouteKey = state.routes[state.index].key;
+  const activeRouteOptions = descriptors[activeRouteKey]?.options;
+  const tabBarStyle = activeRouteOptions?.tabBarStyle as any;
+  if (tabBarStyle) {
+    if (tabBarStyle.display === "none") return null;
+    if (Array.isArray(tabBarStyle) && tabBarStyle.some((s) => s && s.display === "none")) {
+      return null;
+    }
+  }
+
   const visibleRoutes = state.routes.filter(
     (r) => descriptors[r.key].options.tabBarIcon != null,
   );
