@@ -19,7 +19,7 @@ import { useQuery, useMutation } from "@apollo/client";
 
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
-import { GET_MESSAGES_QUERY, ON_NEW_MESSAGE_SUBSCRIPTION } from "@/lib/queries";
+import { GET_MESSAGES_QUERY } from "@/lib/queries";
 import { SEND_MESSAGE_MUTATION } from "@/lib/mutations";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -75,12 +75,13 @@ export default function ChatScreen() {
 
   // ── Query: message history ─────────────────────────────────────────────────
 
-  const { data, loading, error, refetch, subscribeToMore } = useQuery(
+  const { data, loading, error, refetch } = useQuery(
     GET_MESSAGES_QUERY,
     {
       variables: { conversationId },
       skip: !resolvedConvId,
       fetchPolicy: "cache-and-network",
+      pollInterval: 3000,
     },
   );
 
@@ -91,28 +92,7 @@ export default function ChatScreen() {
     createdAt: m.createdAt,
   }));
 
-  // ── Subscription: real-time new messages ───────────────────────────────────
-
-  useEffect(() => {
-    if (!resolvedConvId) return;
-
-    const unsubscribe = subscribeToMore({
-      document: ON_NEW_MESSAGE_SUBSCRIPTION,
-      variables: { conversationId: resolvedConvId },
-      updateQuery: (prev, { subscriptionData }) => {
-        if (!subscriptionData.data?.onNewMessage) return prev;
-        const newMsg = subscriptionData.data.onNewMessage;
-
-        // Avoid duplicates (the sender already sees their own message via the mutation response)
-        const existing: any[] = prev.getMessages ?? [];
-        if (existing.some((m: any) => m.id === newMsg.id)) return prev;
-
-        return { getMessages: [...existing, newMsg] };
-      },
-    });
-
-    return () => unsubscribe();
-  }, [resolvedConvId, subscribeToMore]);
+  // Real-time messages are handled via HTTP pollInterval on useQuery
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -229,8 +209,8 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={0}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>

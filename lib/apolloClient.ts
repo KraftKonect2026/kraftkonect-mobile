@@ -3,14 +3,10 @@ import {
   InMemoryCache,
   HttpLink,
   from,
-  split,
   Observable,
 } from "@apollo/client";
-import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { getMainDefinition } from "@apollo/client/utilities";
 import { onError } from "@apollo/client/link/error";
 import { setContext } from "@apollo/client/link/context";
-import { createClient } from "graphql-ws";
 import { store } from "@/store";
 import { setTokens, signOut } from "@/store/authSlice";
 import { toastRef } from "@/lib/toast";
@@ -21,10 +17,7 @@ const HTTP_ENDPOINT =
   process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT ||
   "https://kraftkonnect-backend-230084714703.us-central1.run.app/graphql";
 
-// Derive the WebSocket URL from the HTTP endpoint
-const WS_ENDPOINT = HTTP_ENDPOINT.replace(/^https?:\/\//, (prefix) =>
-  prefix === "https://" ? "wss://" : "ws://",
-);
+
 
 // ── HTTP link ─────────────────────────────────────────────────────────────────
 
@@ -147,38 +140,10 @@ const errorLink = onError(
   },
 );
 
-// ── WebSocket link (subscriptions) ────────────────────────────────────────────
-
-const wsLink = new GraphQLWsLink(
-  createClient({
-    url: WS_ENDPOINT,
-    connectionParams: () => {
-      const token = store.getState().auth.accessToken;
-      return token ? { Authorization: token, authorization: token } : {};
-    },
-    shouldRetry: () => true,
-    retryAttempts: 5,
-  }),
-);
-
-// ── Split: subscriptions → WS, everything else → HTTP ────────────────────────
-
-const splitLink = split(
-  ({ query }) => {
-    const definition = getMainDefinition(query);
-    return (
-      definition.kind === "OperationDefinition" &&
-      definition.operation === "subscription"
-    );
-  },
-  wsLink,
-  from([errorLink, authLink, httpLink]),
-);
-
 // ── Apollo Client ─────────────────────────────────────────────────────────────
 
 const client = new ApolloClient({
-  link: splitLink,
+  link: from([errorLink, authLink, httpLink]),
   cache: new InMemoryCache(),
   defaultOptions: {
     watchQuery: {

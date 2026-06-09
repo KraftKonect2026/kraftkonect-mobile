@@ -66,7 +66,7 @@ export default function MessagesScreen() {
   const { data, loading, error, refetch } = useQuery(GET_CONVERSATIONS_QUERY, {
     skip: !token,
     fetchPolicy: "cache-and-network",
-    pollInterval: 30_000, // refresh every 30s as a safety net alongside subscriptions
+    pollInterval: 10_000, // refresh every 10s for updated last messages / unread badges
   });
 
   const conversations: Conversation[] = (data?.getConversations ?? []).map(mapConversation);
