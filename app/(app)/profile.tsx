@@ -78,29 +78,33 @@ export default function ProfileScreen() {
         },
       ],
     },
-    {
-      title: "Provider Mode",
-      items: [
-        {
-          icon: ArrowRight,
-          label:
-            applicationStatus === "pending"
-              ? "Application Pending Review"
-              : applicationStatus === "rejected"
-                ? "Reapply as a Provider"
-                : "Become a Provider",
-          subtitle:
-            applicationStatus === "pending"
-              ? "We're reviewing your application — we'll email you"
-              : applicationStatus === "rejected"
-                ? "Your previous application was not approved"
-                : "Offer your services on KraftKonect",
-          route: null,
-          special: true,
-          disabled: applicationStatus === "pending",
-        },
-      ],
-    },
+    ...(user?.role !== "provider" && applicationStatus !== "approved"
+      ? [
+          {
+            title: "Provider Mode",
+            items: [
+              {
+                icon: ArrowRight,
+                label:
+                  applicationStatus === "pending"
+                    ? "Application Pending Review"
+                    : applicationStatus === "rejected"
+                      ? "Reapply as a Provider"
+                      : "Become a Provider",
+                subtitle:
+                  applicationStatus === "pending"
+                    ? "We're reviewing your application — we'll email you"
+                    : applicationStatus === "rejected"
+                      ? "Your previous application was not approved"
+                      : "Offer your services on KraftKonect",
+                route: null,
+                special: true,
+                disabled: applicationStatus === "pending",
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Support",
       items: [
