@@ -66,7 +66,7 @@ export default function SubmitScreen() {
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
-          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 120 },
+          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 180 },
         ]}
         showsVerticalScrollIndicator={false}
       >
