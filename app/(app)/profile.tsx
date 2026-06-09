@@ -15,6 +15,7 @@ import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useQuery } from "@apollo/client";
+import { Image } from "expo-image";
 
 import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser } from "@/store/authSlice";
@@ -45,9 +46,19 @@ export default function ProfileScreen() {
       refetch()
         .then(({ data }) => {
           const me = data?.me;
-          if (me && me.role && me.role !== user?.role) {
-            dispatch(updateUser({ role: me.role }));
-            if (me.role === "provider") {
+          if (me) {
+            dispatch(
+              updateUser({
+                role: me.role,
+                avatarUrl: me.avatarUrl,
+                name: me.name,
+                phone: me.phone,
+                email: me.email,
+                emailVerified: me.emailVerified,
+                phoneVerified: me.phoneVerified,
+              })
+            );
+            if (me.role === "provider" && user?.role !== "provider") {
               router.replace("/provider/(tabs)/today" as any);
             }
           }
@@ -196,7 +207,14 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <User size={48} color={Colors.primary} strokeWidth={2} />
+              {user?.avatarUrl ? (
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  style={{ width: "100%", height: "100%", borderRadius: 50 }}
+                />
+              ) : (
+                <User size={48} color={Colors.primary} strokeWidth={2} />
+              )}
             </View>
           </View>
           <Text style={styles.name}>{user?.name || "User"}</Text>

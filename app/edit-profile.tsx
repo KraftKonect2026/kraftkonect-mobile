@@ -12,6 +12,7 @@ import { Input } from "@/components/Input";
 import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser as updateUserAction } from "@/store/authSlice";
 import Colors from "@/constants/colors";
+import { Image } from "expo-image";
 
 const editProfileSchema = Yup.object().shape({
   name: Yup.string()
@@ -70,7 +71,14 @@ export default function EditProfileScreen() {
             >
               <View style={styles.avatarSection}>
                 <View style={styles.avatar}>
-                  <User size={48} color={Colors.primary} strokeWidth={2} />
+                  {user?.avatarUrl ? (
+                    <Image
+                      source={{ uri: user.avatarUrl }}
+                      style={{ width: "100%", height: "100%", borderRadius: 50 }}
+                    />
+                  ) : (
+                    <User size={48} color={Colors.primary} strokeWidth={2} />
+                  )}
                 </View>
                 <TouchableOpacity style={styles.changePhotoButton} activeOpacity={0.7}>
                   <Text style={styles.changePhotoText}>Change Photo</Text>

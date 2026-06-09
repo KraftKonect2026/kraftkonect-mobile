@@ -13,6 +13,7 @@ import {
   Star,
 } from "lucide-react-native";
 import { useQuery } from "@apollo/client";
+import { Image } from "expo-image";
 import Colors from "@/constants/colors";
 import { useAppSelector } from "@/store";
 import { MY_PROVIDER_PROFILE_QUERY, BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
@@ -59,7 +60,14 @@ export default function ProviderProfileScreen() {
       >
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <User size={48} color={Colors.primary} strokeWidth={2} />
+            {profile?.avatar || user?.avatarUrl ? (
+              <Image
+                source={{ uri: profile?.avatar || user?.avatarUrl }}
+                style={{ width: "100%", height: "100%", borderRadius: 50 }}
+              />
+            ) : (
+              <User size={48} color={Colors.primary} strokeWidth={2} />
+            )}
           </View>
           <Text style={styles.name}>{user?.name || "Provider"}</Text>
           <View style={styles.ratingContainer}>
