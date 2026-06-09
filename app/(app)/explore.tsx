@@ -377,115 +377,114 @@ export default function ExploreScreen() {
                 </Text>
               </View>
             ) : (
-              providers.map((provider: any, index: number) => {
-                const cardAnim = cardAnims.current[index] ?? new Animated.Value(1);
-                const heartScale = getHeartScale(provider.id);
-                const distanceKm =
-                  typeof provider.distanceMeters === "number"
-                    ? provider.distanceMeters / 1000
-                    : null;
+              <View style={styles.providersGrid}>
+                {providers.map((provider: any, index: number) => {
+                  const cardAnim = cardAnims.current[index] ?? new Animated.Value(1);
+                  const heartScale = getHeartScale(provider.id);
+                  const distanceKm =
+                    typeof provider.distanceMeters === "number"
+                      ? provider.distanceMeters / 1000
+                      : null;
+                  const categoryName =
+                    provider.categories?.length > 0
+                      ? provider.categories
+                          .map((catId: string) => categoriesData.find((c) => c.id === catId)?.name)
+                          .filter(Boolean)
+                          .join(", ")
+                      : categoriesData.find((c) => c.id === provider.category)?.name ??
+                        provider.category;
 
-                return (
-                  <Animated.View
-                    key={provider.id}
-                    style={{
-                      opacity: cardAnim,
-                      transform: [
-                        { translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) },
-                        { scale: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
-                      ],
-                    }}
-                  >
-                  <TouchableOpacity
-                    style={styles.providerCard}
-                    activeOpacity={0.9}
-                    onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
-                  >
-                    <Image
-                      source={{ uri: provider.banner }}
-                      style={styles.providerImage}
-                      contentFit="cover"
-                    />
-
-                    <TouchableOpacity
-                      style={styles.favoriteButton}
-                      activeOpacity={0.7}
-                      onPress={() => toggleFavorite(provider.id)}
+                  return (
+                    <Animated.View
+                      key={provider.id}
+                      style={[
+                        styles.gridItem,
+                        {
+                          opacity: cardAnim,
+                          transform: [
+                            { translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) },
+                            { scale: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
+                          ],
+                        },
+                      ]}
                     >
-                      <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                        <Heart
-                          size={20}
-                          color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
-                          fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
-                          strokeWidth={2}
-                        />
-                      </Animated.View>
-                    </TouchableOpacity>
-
-                    {provider.gpsEnabled && (
-                      <View style={styles.nearYouBadge}>
-                        <Navigation size={12} color="#FFFFFF" strokeWidth={2.5} />
-                        <Text style={styles.nearYouBadgeText}>Near you now</Text>
-                      </View>
-                    )}
-
-                    <View style={styles.providerInfo}>
-                      <View style={styles.providerHeader}>
+                      <TouchableOpacity
+                        style={styles.providerCard}
+                        activeOpacity={0.9}
+                        onPress={() => router.push(`/(app)/provider/${provider.id}` as any)}
+                      >
                         <Image
-                          source={{ uri: provider.avatar }}
-                          style={styles.providerAvatar}
+                          source={{ uri: provider.banner }}
+                          style={styles.providerImage}
                           contentFit="cover"
                         />
-                        <View style={styles.providerDetails}>
+
+                        <TouchableOpacity
+                          style={styles.favoriteButton}
+                          activeOpacity={0.7}
+                          onPress={() => toggleFavorite(provider.id)}
+                        >
+                          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                            <Heart
+                              size={18}
+                              color={favorites.has(provider.id) ? "#EF4444" : "#F3F4F6"}
+                              fill={favorites.has(provider.id) ? "#EF4444" : "transparent"}
+                              strokeWidth={2}
+                            />
+                          </Animated.View>
+                        </TouchableOpacity>
+
+                        {provider.gpsEnabled && (
+                          <View style={styles.nearYouBadge}>
+                            <Navigation size={10} color="#FFFFFF" strokeWidth={2.5} />
+                            <Text style={styles.nearYouBadgeText}>Near you</Text>
+                          </View>
+                        )}
+
+                        <View style={styles.providerInfo}>
                           <View style={styles.nameRow}>
-                            <Text style={styles.providerName}>{provider.name}</Text>
+                            <Text style={styles.providerName} numberOfLines={1}>
+                              {provider.name}
+                            </Text>
                             {provider.verified && (
                               <View style={styles.verifiedBadge}>
                                 <Text style={styles.verifiedText}>✓</Text>
                               </View>
                             )}
                           </View>
-                          <Text style={styles.categoryLabel}>
-                            {provider.categories?.length > 0
-                              ? provider.categories
-                                  .map(
-                                    (catId: string) =>
-                                      categoriesData.find((c) => c.id === catId)?.name,
-                                  )
-                                  .filter(Boolean)
-                                  .join(", ")
-                              : categoriesData.find((c) => c.id === provider.category)
-                                  ?.name ?? provider.category}
+
+                          <Text style={styles.categoryLabel} numberOfLines={1}>
+                            {categoryName}
                           </Text>
+
                           <View style={styles.ratingRow}>
-                            <Star size={14} color="#FFA500" fill="#FFA500" />
+                            <Star size={13} color="#FFA500" fill="#FFA500" />
                             <Text style={styles.rating}>
-                              {(provider.rating || 0).toFixed(1)} (
-                              {provider.reviewCount || 0})
+                              {(provider.rating || 0).toFixed(1)} ({provider.reviewCount || 0})
+                            </Text>
+                          </View>
+
+                          <View style={styles.providerFooter}>
+                            <View style={styles.priceContainer}>
+                              <Text style={styles.price}>₦{provider.pricePerHour}</Text>
+                              <Text style={styles.priceLabel}>/hr</Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.distanceContainer}>
+                            <MapPin size={12} color="#9CA3AF" />
+                            <Text style={styles.distance} numberOfLines={1}>
+                              {distanceKm != null
+                                ? `${distanceKm.toFixed(1)} km away`
+                                : selectedNeighbourhood ?? "Nearby"}
                             </Text>
                           </View>
                         </View>
-                      </View>
-
-                      <View style={styles.providerFooter}>
-                        <View style={styles.priceContainer}>
-                          <Text style={styles.price}>₦{provider.pricePerHour}</Text>
-                          <Text style={styles.priceLabel}>/hour</Text>
-                        </View>
-                        <View style={styles.distanceContainer}>
-                          <MapPin size={14} color="#9CA3AF" />
-                          <Text style={styles.distance}>
-                            {distanceKm != null
-                              ? `${distanceKm.toFixed(1)} km away`
-                              : selectedNeighbourhood ?? "Nearby"}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                  </Animated.View>
-                );
-              })
+                      </TouchableOpacity>
+                    </Animated.View>
+                  );
+                })}
+              </View>
             )}
           </View>
         </Animated.ScrollView>
@@ -646,87 +645,77 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  providersGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  gridItem: { width: "48.5%", marginBottom: 16 },
   providerCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    marginBottom: 20,
+    borderRadius: 16,
     overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: { elevation: 4 },
-    }),
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
   },
-  providerImage: { width: "100%", height: 200, backgroundColor: "#F3F4F6" },
+  providerImage: { width: "100%", height: 120, backgroundColor: "#F3F4F6" },
   favoriteButton: {
     position: "absolute",
-    top: 16,
-    right: 16,
+    top: 10,
+    right: 10,
     backgroundColor: "rgba(0, 0, 0, 0.3)",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
   },
   nearYouBadge: {
     position: "absolute",
-    top: 16,
-    left: 16,
+    top: 10,
+    left: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 3,
     backgroundColor: "#10B981",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
   },
-  nearYouBadgeText: { fontSize: 12, fontWeight: "600" as const, color: "#FFFFFF" },
+  nearYouBadgeText: { fontSize: 10, fontWeight: "600" as const, color: "#FFFFFF" },
 
-  providerInfo: { padding: 16 },
-  providerHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  providerAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#F3F4F6",
-    marginRight: 12,
-  },
-  providerDetails: { flex: 1 },
+  providerInfo: { padding: 12 },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
+    gap: 4,
+    marginBottom: 2,
   },
-  providerName: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
+  providerName: { flex: 1, fontSize: 15, fontWeight: "700" as const, color: "#2C2C2C" },
   verifiedBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
   },
-  verifiedText: { fontSize: 12, fontWeight: "700" as const, color: "#FFFFFF" },
-  categoryLabel: { fontSize: 13, color: "#6B7280", marginBottom: 4 },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  rating: { fontSize: 14, fontWeight: "600" as const, color: "#2C2C2C" },
+  verifiedText: { fontSize: 10, fontWeight: "700" as const, color: "#FFFFFF" },
+  categoryLabel: { fontSize: 12, color: "#6B7280", marginBottom: 6 },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  rating: { fontSize: 13, fontWeight: "600" as const, color: "#2C2C2C" },
 
   providerFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 6,
   },
   priceContainer: { flexDirection: "row", alignItems: "baseline" },
-  price: { fontSize: 22, fontWeight: "700" as const, color: "#2C2C2C" },
-  priceLabel: { fontSize: 14, color: "#9CA3AF", marginLeft: 4 },
-  distanceContainer: { flexDirection: "row", alignItems: "center", gap: 4 },
-  distance: { fontSize: 14, color: "#9CA3AF" },
+  price: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
+  priceLabel: { fontSize: 12, color: "#9CA3AF", marginLeft: 3 },
+  distanceContainer: { flexDirection: "row", alignItems: "center", gap: 3 },
+  distance: { flex: 1, fontSize: 12, color: "#9CA3AF" },
 
   loadingContainer: { padding: 40, alignItems: "center" },
   loadingText: { marginTop: 12, fontSize: 16, color: "#6B7280" },

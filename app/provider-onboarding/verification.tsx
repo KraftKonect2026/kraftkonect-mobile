@@ -20,12 +20,33 @@ export default function VerificationScreen() {
 
   const handleUpload = async (type: 'id' | 'selfie') => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.5,
-      });
+      // The selfie must be captured live from the front camera so it can't be a
+      // gallery photo of someone else; the ID can come from the photo library.
+      let result;
+      if (type === 'selfie') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            "Camera access needed",
+            "Please allow camera access so you can take a verification selfie.",
+          );
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          cameraType: ImagePicker.CameraType.front,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.5,
+        });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.5,
+        });
+      }
 
       if (!result.canceled) {
         if (type === 'id') setUploadingId(true);

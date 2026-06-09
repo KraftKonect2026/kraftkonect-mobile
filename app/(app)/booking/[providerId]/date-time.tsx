@@ -7,6 +7,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY } from "@/lib/queries";
+import { formatPriceCents } from "@/utils/currency";
 import { ActivityIndicator } from "react-native";
 
 const timeSlots = [
@@ -128,8 +129,7 @@ export default function DateTimeScreen() {
               <Text style={styles.serviceMetaText}>{service.durationMinutes} min</Text>
               <Text style={styles.serviceDivider}>•</Text>
               <Text style={styles.serviceMetaText}>
-                {service.currency === "NGN" ? "₦" : "$"}
-                {service.priceCents ? (service.priceCents / 100).toFixed(0) : "0"}
+                {formatPriceCents(service.priceCents, service.currency)}
               </Text>
             </View>
           </View>

@@ -8,6 +8,8 @@ import { Image } from "expo-image";
 import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY } from "@/lib/queries";
+import { formatCurrency } from "@/utils/currency";
+import { formatBookingDate } from "@/utils/datetime";
 import { ActivityIndicator } from "react-native";
 
 export default function ConfirmationScreen() {
@@ -66,11 +68,9 @@ export default function ConfirmationScreen() {
     );
   }
 
-  const bookingDate = new Date(date);
   const basePrice = service.priceCents ? service.priceCents / 100 : 0;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
-  const currencySymbol = service.currency === "NGN" ? "₦" : "$";
 
   return (
     <View style={styles.wrapper}>
@@ -114,14 +114,7 @@ export default function ConfirmationScreen() {
             <View style={styles.detailRow}>
               <Calendar size={16} color="#9CA3AF" />
               <Text style={[styles.detailLabel, styles.iconLabel]}>Date</Text>
-              <Text style={styles.detailValue}>
-                {bookingDate.toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Text>
+              <Text style={styles.detailValue}>{formatBookingDate(date)}</Text>
             </View>
             <View style={styles.detailRow}>
               <Clock size={16} color="#9CA3AF" />
@@ -136,7 +129,7 @@ export default function ConfirmationScreen() {
             <View style={styles.separator} />
             <View style={styles.detailRow}>
               <Text style={styles.totalLabel}>Total Paid</Text>
-              <Text style={styles.totalValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(totalAmount, service.currency)}</Text>
             </View>
           </View>
 

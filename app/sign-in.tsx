@@ -60,7 +60,12 @@ export default function SignInScreen() {
           // Flip auth state first so the root layout mounts the (app) stack,
           // then navigate — otherwise the target route isn't registered yet.
           dispatch(setIsAuthenticated(true));
-          router.replace("/(app)" as any);
+          // Providers land on their own dashboard; everyone else on the customer home.
+          if (authPayload.user?.role === "provider") {
+            router.replace("/provider/(tabs)/today" as any);
+          } else {
+            router.replace("/(app)" as any);
+          }
         } else {
           router.replace("/sign-up/verify-email" as any);
         }

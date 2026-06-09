@@ -10,6 +10,8 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY } from "@/lib/queries";
 import { CREATE_BOOKING_MUTATION, VERIFY_PAYMENT_MUTATION } from "@/lib/mutations";
+import { formatCurrency } from "@/utils/currency";
+import { combineDateAndTime, formatBookingDate } from "@/utils/datetime";
 
 // The Paystack callback URL matches the app scheme so openAuthSessionAsync
 // can detect the redirect and close the browser automatically.
@@ -70,7 +72,6 @@ export default function PaymentScreen() {
   const basePrice = service.priceCents ? service.priceCents / 100 : 0;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
-  const currencySymbol = service.currency?.toUpperCase() === "NGN" ? "₦" : "$";
 
   const handlePay = async () => {
     if (step !== "idle" && step !== "failed") return;
@@ -86,7 +87,7 @@ export default function PaymentScreen() {
     let authorizationUrl: string;
 
     try {
-      const bookingDate = new Date(`${date}T${time}`).toISOString();
+      const bookingDate = combineDateAndTime(date, time);
       const { data: bookingData, errors } = await createBooking({
         variables: {
           input: {
@@ -178,7 +179,7 @@ export default function PaymentScreen() {
     : step === "checkout" ? "Waiting for payment…"
     : step === "verifying" ? "Confirming payment…"
     : step === "success" ? "Payment confirmed!"
-    : `Pay ${currencySymbol}${totalAmount.toFixed(2)}`;
+    : `Pay ${formatCurrency(totalAmount, service.currency)}`;
 
   return (
     <View style={styles.wrapper}>
@@ -220,7 +221,7 @@ export default function PaymentScreen() {
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Date</Text>
-              <Text style={styles.summaryValue}>{date}</Text>
+              <Text style={styles.summaryValue}>{formatBookingDate(date)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Time</Text>
@@ -228,16 +229,16 @@ export default function PaymentScreen() {
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Service price</Text>
-              <Text style={styles.summaryValue}>{currencySymbol}{basePrice.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(basePrice, service.currency)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Platform fee (10%)</Text>
-              <Text style={styles.summaryValue}>{currencySymbol}{serviceFee.toFixed(2)}</Text>
+              <Text style={styles.summaryLabel}>Service Fee (10%)</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(serviceFee, service.currency)}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(totalAmount, service.currency)}</Text>
             </View>
           </View>
 

@@ -8,6 +8,8 @@ import { Image } from "expo-image";
 import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY } from "@/lib/queries";
+import { formatCurrency } from "@/utils/currency";
+import { formatBookingDate } from "@/utils/datetime";
 import { ActivityIndicator } from "react-native";
 
 export default function SummaryScreen() {
@@ -54,11 +56,9 @@ export default function SummaryScreen() {
     );
   }
 
-  const bookingDate = new Date(date);
   const basePrice = service.priceCents ? service.priceCents / 100 : 0;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
-  const currencySymbol = service.currency === "NGN" ? "₦" : "$";
 
   const handleContinue = () => {
     router.push(
@@ -118,14 +118,7 @@ export default function SummaryScreen() {
               <Text style={styles.detailLabel}>Date</Text>
               <View style={styles.dateContainer}>
                 <Calendar size={14} color="#2C2C2C" />
-                <Text style={styles.detailValue}>
-                  {bookingDate.toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </Text>
+                <Text style={styles.detailValue}>{formatBookingDate(date)}</Text>
               </View>
             </View>
             <View style={styles.detailRow}>
@@ -138,16 +131,16 @@ export default function SummaryScreen() {
             <Text style={styles.cardTitle}>Price Breakdown</Text>
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>{service.title}</Text>
-              <Text style={styles.priceValue}>{currencySymbol}{basePrice.toFixed(2)}</Text>
+              <Text style={styles.priceValue}>{formatCurrency(basePrice, service.currency)}</Text>
             </View>
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>Service Fee (10%)</Text>
-              <Text style={styles.priceValue}>{currencySymbol}{serviceFee.toFixed(2)}</Text>
+              <Text style={styles.priceValue}>{formatCurrency(serviceFee, service.currency)}</Text>
             </View>
             <View style={styles.separator} />
             <View style={styles.priceRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(totalAmount, service.currency)}</Text>
             </View>
           </View>
 
@@ -162,7 +155,7 @@ export default function SummaryScreen() {
       <View style={styles.footer}>
         <View style={styles.totalContainer}>
           <Text style={styles.totalFooterLabel}>Total Amount</Text>
-          <Text style={styles.totalFooterValue}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
+          <Text style={styles.totalFooterValue}>{formatCurrency(totalAmount, service.currency)}</Text>
         </View>
         <TouchableOpacity
           style={styles.continueButton}

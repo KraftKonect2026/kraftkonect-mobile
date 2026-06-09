@@ -8,6 +8,7 @@ import { Image } from "expo-image";
 import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
 import { PROVIDER_QUERY } from "@/lib/queries";
+import { formatPriceCents } from "@/utils/currency";
 import { ActivityIndicator } from "react-native";
 
 export default function SelectServiceScreen() {
@@ -114,8 +115,7 @@ export default function SelectServiceScreen() {
                       <Text style={styles.durationText}>{service.durationMinutes} min</Text>
                     </View>
                     <Text style={styles.servicePrice}>
-                      {service.currency === "NGN" ? "₦" : "$"}
-                      {service.priceCents ? (service.priceCents / 100).toFixed(0) : "0"}
+                      {formatPriceCents(service.priceCents, service.currency)}
                     </Text>
                   </View>
                 </View>

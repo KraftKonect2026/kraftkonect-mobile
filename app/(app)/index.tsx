@@ -381,21 +381,19 @@ export default function HomeScreen() {
           )}
 
           {nearbyArtisans.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.nearbyScroll}
-            >
+            <View style={styles.nearbyGrid}>
               {nearbyArtisans.slice(0, 8).map((artisan: any, i: number) => {
                 const cardAnim = nearbyCardAnims.current[i] ?? new Animated.Value(1);
                 return (
                   <Animated.View
                     key={artisan.id}
                     style={{
+                      width: "48.5%",
+                      marginBottom: 12,
                       opacity: cardAnim,
                       transform: [
                         {
-                          translateX: cardAnim.interpolate({
+                          translateY: cardAnim.interpolate({
                             inputRange: [0, 1],
                             outputRange: [30, 0],
                           }),
@@ -449,7 +447,7 @@ export default function HomeScreen() {
                   </Animated.View>
                 );
               })}
-            </ScrollView>
+            </View>
           )}
         </Animated.View>
       </ScrollView>
@@ -569,20 +567,20 @@ const styles = StyleSheet.create({
   },
   locationDeniedTitle: { fontSize: 16, fontWeight: "600" as const, color: "#374151" },
   locationDeniedBody: { fontSize: 13, color: "#9CA3AF", textAlign: "center", lineHeight: 18 },
-  nearbyScroll: { gap: 12 },
+  nearbyGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
   artisanCard: {
-    width: 160,
+    width: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "#F3F4F6",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8 },
-      android: { elevation: 3 },
-    }),
   },
-  artisanAvatar: { width: "100%", height: 110, backgroundColor: "#F3F4F6" },
+  artisanAvatar: { width: "100%", height: 130, backgroundColor: "#F3F4F6" },
   nearBadge: {
     position: "absolute",
     top: 8,

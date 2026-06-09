@@ -20,6 +20,7 @@ import { PROVIDER_QUERY, GET_FAVOURITES_QUERY } from "@/lib/queries";
 import { ADD_TO_FAVOURITES_MUTATION, REMOVE_FROM_FAVOURITES_MUTATION } from "@/lib/mutations";
 import { ActivityIndicator } from "react-native";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
+import { formatPriceCents } from "@/utils/currency";
 
 
 const HEADER_MAX_HEIGHT = 280;
@@ -206,7 +207,7 @@ export default function ProviderProfileScreen() {
                 <View style={styles.serviceHeader}>
                   <Text style={styles.serviceTitle}>{service.title}</Text>
                   <Text style={styles.servicePrice}>
-                    ${service.priceCents ? (service.priceCents / 100).toFixed(2) : "0.00"}
+                    {formatPriceCents(service.priceCents, service.currency)}
                   </Text>
                 </View>
                 <Text style={styles.serviceDescription}>{service.description}</Text>
