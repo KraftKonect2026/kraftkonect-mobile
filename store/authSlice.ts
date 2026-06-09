@@ -7,9 +7,10 @@ export interface AuthState {
   refreshToken: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  // Last signed-in email — kept across sign-out so we can pre-fill the email
-  // field and only ask for the password when the session expires.
+  // Last signed-in email/name — kept across sign-out so we can greet the user
+  // by name and only ask for the password when the session expires.
   lastEmail: string | null;
+  lastName: string | null;
 }
 
 const initialState: AuthState = {
@@ -19,6 +20,7 @@ const initialState: AuthState = {
   isLoading: false,
   isAuthenticated: false,
   lastEmail: null,
+  lastName: null,
 };
 
 const authSlice = createSlice({
@@ -29,9 +31,14 @@ const authSlice = createSlice({
       state.user = action.payload;
       state.isLoading = false;
       if (action.payload?.email) state.lastEmail = action.payload.email;
+      if (action.payload?.name) state.lastName = action.payload.name;
     },
     setLastEmail: (state, action: PayloadAction<string>) => {
       state.lastEmail = action.payload;
+    },
+    forgetLastAccount: (state) => {
+      state.lastEmail = null;
+      state.lastName = null;
     },
     setIsAuthenticated: (state, action: PayloadAction<boolean>) => {
       state.isAuthenticated = action.payload;
@@ -61,7 +68,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, setTokens, updateUser, signOut, setLoading, setIsAuthenticated, setLastEmail } =
+export const { setUser, setTokens, updateUser, signOut, setLoading, setIsAuthenticated, setLastEmail, forgetLastAccount } =
   authSlice.actions;
 
 export default authSlice.reducer;

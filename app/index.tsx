@@ -38,20 +38,21 @@ export default function SplashScreen() {
     ]).start();
 
     const timer = setTimeout(() => {
-      if (!isLoading) {
-        // Check if user is authenticated and redirect accordingly
-        const isAuthenticated = store.getState().auth.accessToken !== null;
-        const isProvider = store.getState().auth.user?.role === "provider";
-        if (isAuthenticated && isProvider) {
-          router.replace("/provider/(tabs)/today");
-        } else if (isAuthenticated && !isProvider) {
-          router.replace("/(app)" as any);
-        } else {
-          router.replace("/get-started");
-        }
+      const auth = store.getState().auth;
+      const isAuthenticated = auth.accessToken !== null;
+      const isProvider = auth.user?.role === "provider";
+      // Returning user whose session expired: send them straight to sign-in
+      // (email is pre-filled there, so they only need their password).
+      const returningUser = !!auth.lastEmail;
+
+      if (isAuthenticated && isProvider) {
+        router.replace("/provider/(tabs)/today");
+      } else if (isAuthenticated && !isProvider) {
+        router.replace("/(app)" as any);
+      } else if (returningUser) {
+        router.replace("/sign-in" as any);
       } else {
-        const isAuthenticated = store.getState().auth.accessToken !== null;
-        router.replace((isAuthenticated ? "/(app)" : "/get-started") as any);
+        router.replace("/get-started");
       }
     }, 2000);
 

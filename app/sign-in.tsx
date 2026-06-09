@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
-import React from "react";
+import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,7 +9,7 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { setUser, setTokens, setIsAuthenticated } from "@/store/authSlice";
+import { setUser, setTokens, setIsAuthenticated, forgetLastAccount } from "@/store/authSlice";
 import { useMutation } from "@apollo/client";
 import { SIGN_IN_MUTATION } from "@/lib/mutations";
 import { AuthPayload } from "@/types";
@@ -127,6 +127,7 @@ export default function SignInScreen() {
                     onChangeText={handleChange("password")}
                     onBlur={handleBlur("password")}
                     secureTextEntry
+                    autoFocus={!!lastEmail}
                     touched={touched.password}
                     error={errors.password}
                   />
