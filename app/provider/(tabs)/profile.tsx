@@ -19,13 +19,36 @@ import {
   ChevronRight,
   Star,
 } from "lucide-react-native";
+import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
 import { useAppSelector } from "@/store";
+import { MY_PROVIDER_PROFILE_QUERY, BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
+
+function isWithinLast7Days(isoDate: string): boolean {
+  if (!isoDate) return false;
+  const d = new Date(isoDate).getTime();
+  return Date.now() - d <= 7 * 24 * 60 * 60 * 1000;
+}
 
 export default function ProviderProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { earnings } = useAppSelector((state) => state.provider);
+  const user = useAppSelector((state) => state.auth.user);
+
+  const { data: profileData } = useQuery(MY_PROVIDER_PROFILE_QUERY, {
+    fetchPolicy: "cache-and-network",
+  });
+  const { data: bookingsData } = useQuery(BOOKINGS_FOR_PROVIDER_QUERY, {
+    fetchPolicy: "cache-and-network",
+  });
+
+  const profile = profileData?.myProviderProfile;
+  const rating = profile?.rating != null ? Number(profile.rating).toFixed(1) : "—";
+  const reviewCount = profile?.reviewCount ?? 0;
+
+  const earningsThisWeek = (bookingsData?.bookingsForProvider ?? [])
+    .filter((b: any) => b.status === "completed" && isWithinLast7Days(b.createdAt))
+    .reduce((sum: number, b: any) => sum + (b.totalPriceCents ?? 0) / 100, 0);
 
   return (
     <View style={styles.container}>
@@ -45,17 +68,19 @@ export default function ProviderProfileScreen() {
           <View style={styles.avatar}>
             <User size={48} color={Colors.primary} strokeWidth={2} />
           </View>
-          <Text style={styles.name}>Provider Name</Text>
+          <Text style={styles.name}>{user?.name || "Provider"}</Text>
           <View style={styles.ratingContainer}>
             <Star size={16} color="#FCD34D" strokeWidth={2} fill="#FCD34D" />
-            <Text style={styles.rating}>4.9</Text>
-            <Text style={styles.ratingCount}>(127 reviews)</Text>
+            <Text style={styles.rating}>{rating}</Text>
+            <Text style={styles.ratingCount}>
+              ({reviewCount} review{reviewCount !== 1 ? "s" : ""})
+            </Text>
           </View>
         </View>
 
         <View style={styles.earningsCard}>
           <Text style={styles.earningsTitle}>Earnings This Week</Text>
-          <Text style={styles.earningsValue}>${earnings.thisWeek}</Text>
+          <Text style={styles.earningsValue}>₦{earningsThisWeek.toLocaleString()}</Text>
           <TouchableOpacity
             style={styles.earningsButton}
             activeOpacity={0.8}

@@ -30,6 +30,7 @@ import {
   MY_PROVIDER_PROFILE_QUERY,
   BOOKINGS_FOR_PROVIDER_QUERY,
   GET_DEMAND_FORECAST_QUERY,
+  GET_CONVERSATIONS_QUERY,
 } from "@/lib/queries";
 import { SET_AVAILABILITY_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
@@ -115,6 +116,16 @@ export default function TodayDashboardScreen() {
     { fetchPolicy: "cache-and-network" },
   );
 
+  // ── Unread messages ──────────────────────────────────────────────────────────
+  const { data: conversationsData, refetch: refetchConversations } = useQuery(
+    GET_CONVERSATIONS_QUERY,
+    { fetchPolicy: "cache-and-network" },
+  );
+  const unreadMessages = (conversationsData?.getConversations ?? []).reduce(
+    (sum: number, c: any) => sum + (c.unreadCount ?? 0),
+    0,
+  );
+
   // ── Demand insights ─────────────────────────────────────────────────────────
   const providerSkill: string | null =
     profileData?.myProviderProfile?.categories?.[0] ??
@@ -145,10 +156,11 @@ export default function TodayDashboardScreen() {
     await Promise.all([
       refetchProfile(),
       refetchBookings(),
+      refetchConversations(),
       providerSkill ? refetchForecast() : Promise.resolve(),
     ]);
     setRefreshing(false);
-  }, [refetchProfile, refetchBookings, refetchForecast, providerSkill]);
+  }, [refetchProfile, refetchBookings, refetchConversations, refetchForecast, providerSkill]);
 
   const allBookings: any[] = bookingsData?.bookingsForProvider ?? [];
 
@@ -290,8 +302,8 @@ export default function TodayDashboardScreen() {
             <View style={styles.summaryCardIconSecondary}>
               <MessageCircle size={24} color="#6B7280" strokeWidth={2} />
             </View>
-            <Text style={styles.summaryCardValueSecondary}>—</Text>
-            <Text style={styles.summaryCardLabelSecondary}>Messages</Text>
+            <Text style={styles.summaryCardValueSecondary}>{unreadMessages}</Text>
+            <Text style={styles.summaryCardLabelSecondary}>Unread Messages</Text>
           </TouchableOpacity>
         </View>
 

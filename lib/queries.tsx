@@ -36,6 +36,35 @@ export const MY_PROVIDER_PROFILE_QUERY = gql`
       gpsEnabled
       categories
       category
+      rating
+      reviewCount
+      avatar
+    }
+  }
+`
+
+export const MY_BLOCKED_DATES_QUERY = gql`
+  query MyBlockedDates {
+    myBlockedDates
+  }
+`
+
+export const MY_LISTINGS_QUERY = gql`
+  query MyListings {
+    myProviderProfile {
+      id
+      services {
+        id
+        title
+        description
+        priceCents
+        durationMinutes
+        currency
+        category
+        photos
+        active
+        createdAt
+      }
     }
   }
 `
@@ -321,6 +350,7 @@ export const PROVIDER_QUERY = gql`
             pricePerHour
             distance
             available
+            blockedDates
             reviews {
                 id
                 userId

@@ -207,6 +207,34 @@ export const CREATE_LISTING_MUTATION = gql`
   }
 `;
 
+export const SET_BLOCKED_DATES_MUTATION = gql`
+  mutation SetBlockedDates($dates: [String!]!) {
+    setBlockedDates(dates: $dates)
+  }
+`;
+
+export const UPDATE_LISTING_MUTATION = gql`
+  mutation UpdateListing($id: ID!, $input: UpdateListingInput!) {
+    updateListing(id: $id, input: $input) {
+      id
+      title
+      description
+      priceCents
+      durationMinutes
+      currency
+      category
+      photos
+      active
+    }
+  }
+`;
+
+export const DELETE_LISTING_MUTATION = gql`
+  mutation DeleteListing($id: ID!) {
+    deleteListing(id: $id)
+  }
+`;
+
 export const CREATE_BOOKING_MUTATION = gql`
   mutation CreateBooking($input: CreateBookingInput!) {
     createBooking(input: $input) {

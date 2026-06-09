@@ -187,7 +187,7 @@ export default function ProviderProfileScreen() {
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Rate</Text>
-                <Text style={styles.statValue}>${provider.pricePerHour}/hr</Text>
+                <Text style={styles.statValue}>₦{provider.pricePerHour}/hr</Text>
               </View>
             </View>
           </View>

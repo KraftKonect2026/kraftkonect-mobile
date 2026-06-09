@@ -87,9 +87,16 @@ export default function DateTimeScreen() {
     }
   };
 
+  const blockedDates: string[] = provider?.blockedDates ?? [];
+
   const isDateDisabled = (day: number) => {
     const date = new Date(currentYear, currentMonth, day);
-    return date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (date < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+      return true;
+    }
+    // Provider marked this day unavailable
+    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return blockedDates.includes(dateStr);
   };
 
   const isDateSelected = (day: number) => {

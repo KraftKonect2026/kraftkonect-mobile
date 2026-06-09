@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { useQuery, useMutation } from "@apollo/client";
 import {
   Plus,
   Edit3,
@@ -17,20 +19,63 @@ import {
   Eye,
   EyeOff,
   Clock,
-  DollarSign,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useAppSelector, useAppDispatch } from "@/store";
-import { updateListing as updateListingAction, deleteListing as deleteListingAction } from "@/store/providerSlice";
+import { MY_LISTINGS_QUERY } from "@/lib/queries";
+import { UPDATE_LISTING_MUTATION, DELETE_LISTING_MUTATION } from "@/lib/mutations";
+import { useToast } from "@/lib/toast";
 
 export default function ServicesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { listings } = useAppSelector((state) => state.provider);
+  const { showToast } = useToast();
 
-  const toggleVisibility = (id: string, currentVisibility: boolean) => {
-    dispatch(updateListingAction({ id, updates: { visible: !currentVisibility } }));
+  const { data, loading, refetch } = useQuery(MY_LISTINGS_QUERY, {
+    fetchPolicy: "cache-and-network",
+  });
+
+  const [updateListing] = useMutation(UPDATE_LISTING_MUTATION);
+  const [deleteListing] = useMutation(DELETE_LISTING_MUTATION);
+
+  // Refresh whenever the tab regains focus (e.g. after adding a listing).
+  useFocusEffect(
+    useCallback(() => {
+      refetch().catch(() => {});
+    }, [refetch]),
+  );
+
+  const listings: any[] = data?.myProviderProfile?.services ?? [];
+
+  const toggleVisibility = async (id: string, currentActive: boolean) => {
+    try {
+      await updateListing({ variables: { id, input: { active: !currentActive } } });
+      await refetch();
+    } catch {
+      showToast("error", "Couldn't update visibility. Please try again.");
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      "Delete Listing",
+      "Are you sure you want to delete this service listing?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteListing({ variables: { id } });
+              await refetch();
+              showToast("success", "Listing deleted.");
+            } catch {
+              showToast("error", "Couldn't delete the listing. Please try again.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -50,92 +95,86 @@ export default function ServicesScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {listings.length > 0 ? (
+        {loading && listings.length === 0 ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        ) : listings.length > 0 ? (
           <View style={styles.listingsList}>
-            {listings.map((listing) => (
-              <View key={listing.id} style={styles.listingCard}>
-                <View style={styles.listingHeader}>
-                  <View style={styles.listingHeaderLeft}>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryBadgeText}>
-                        {listing.category}
+            {listings.map((listing) => {
+              const pricePerHour = (listing.priceCents ?? 0) / 100;
+              const durationHrs = ((listing.durationMinutes ?? 0) / 60).toFixed(
+                listing.durationMinutes % 60 === 0 ? 0 : 1,
+              );
+              const currencySymbol = listing.currency?.toUpperCase() === "NGN" ? "₦" : "$";
+              return (
+                <View key={listing.id} style={styles.listingCard}>
+                  <View style={styles.listingHeader}>
+                    <View style={styles.listingHeaderLeft}>
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryBadgeText}>
+                          {listing.category}
+                        </Text>
+                      </View>
+                      <View style={styles.visibilityToggle}>
+                        {listing.active ? (
+                          <Eye size={16} color={Colors.primary} strokeWidth={2} />
+                        ) : (
+                          <EyeOff size={16} color="#9CA3AF" strokeWidth={2} />
+                        )}
+                        <Switch
+                          value={!!listing.active}
+                          onValueChange={() =>
+                            toggleVisibility(listing.id, !!listing.active)
+                          }
+                          trackColor={{ false: "#E5E7EB", true: Colors.primary }}
+                          thumbColor="#FFFFFF"
+                          ios_backgroundColor="#E5E7EB"
+                        />
+                      </View>
+                    </View>
+                  </View>
+
+                  <Text style={styles.listingTitle}>{listing.title}</Text>
+                  <Text style={styles.listingDescription} numberOfLines={2}>
+                    {listing.description}
+                  </Text>
+
+                  <View style={styles.listingDetails}>
+                    <View style={styles.listingDetail}>
+                      <Text style={styles.listingDetailText}>
+                        {currencySymbol}{pricePerHour.toLocaleString()}/hr
                       </Text>
                     </View>
-                    <View style={styles.visibilityToggle}>
-                      {listing.visible ? (
-                        <Eye size={16} color={Colors.primary} strokeWidth={2} />
-                      ) : (
-                        <EyeOff size={16} color="#9CA3AF" strokeWidth={2} />
-                      )}
-                      <Switch
-                        value={listing.visible}
-                        onValueChange={() =>
-                          toggleVisibility(listing.id, listing.visible)
-                        }
-                        trackColor={{
-                          false: "#E5E7EB",
-                          true: Colors.primary,
-                        }}
-                        thumbColor="#FFFFFF"
-                        ios_backgroundColor="#E5E7EB"
-                      />
+                    <View style={styles.listingDetail}>
+                      <Clock size={16} color="#6B7280" strokeWidth={2} />
+                      <Text style={styles.listingDetailText}>
+                        {durationHrs}h duration
+                      </Text>
                     </View>
                   </View>
-                </View>
 
-                <Text style={styles.listingTitle}>{listing.title}</Text>
-                <Text style={styles.listingDescription} numberOfLines={2}>
-                  {listing.description}
-                </Text>
-
-                <View style={styles.listingDetails}>
-                  <View style={styles.listingDetail}>
-                    <DollarSign size={16} color="#6B7280" strokeWidth={2} />
-                    <Text style={styles.listingDetailText}>
-                      ${listing.pricePerHour}/hr
-                    </Text>
+                  <View style={styles.listingActions}>
+                    <TouchableOpacity
+                      style={styles.actionButtonSecondary}
+                      activeOpacity={0.7}
+                      onPress={() => router.push(`/provider/edit-listing/${listing.id}` as any)}
+                    >
+                      <Edit3 size={16} color={Colors.primary} strokeWidth={2} />
+                      <Text style={styles.actionButtonSecondaryText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButtonDanger}
+                      activeOpacity={0.7}
+                      onPress={() => handleDelete(listing.id)}
+                    >
+                      <Trash2 size={16} color="#EF4444" strokeWidth={2} />
+                      <Text style={styles.actionButtonDangerText}>Delete</Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.listingDetail}>
-                    <Clock size={16} color="#6B7280" strokeWidth={2} />
-                    <Text style={styles.listingDetailText}>
-                      {listing.duration}h duration
-                    </Text>
-                  </View>
                 </View>
-
-                <View style={styles.listingActions}>
-                  <TouchableOpacity
-                    style={styles.actionButtonSecondary}
-                    activeOpacity={0.7}
-                    onPress={() => router.push(`/provider/edit-listing/${listing.id}` as any)}
-                  >
-                    <Edit3 size={16} color={Colors.primary} strokeWidth={2} />
-                    <Text style={styles.actionButtonSecondaryText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionButtonDanger}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      Alert.alert(
-                        "Delete Listing",
-                        "Are you sure you want to delete this service listing?",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Delete",
-                            style: "destructive",
-                            onPress: () => dispatch(deleteListingAction(listing.id)),
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Trash2 size={16} color="#EF4444" strokeWidth={2} />
-                    <Text style={styles.actionButtonDangerText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ) : (
           <View style={styles.emptyState}>

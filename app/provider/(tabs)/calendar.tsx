@@ -1,15 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery, useMutation } from "@apollo/client";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { MY_BLOCKED_DATES_QUERY } from "@/lib/queries";
+import { SET_BLOCKED_DATES_MUTATION } from "@/lib/mutations";
+import { useToast } from "@/lib/toast";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -29,8 +33,33 @@ const MONTHS = [
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+
+  const { data, loading } = useQuery(MY_BLOCKED_DATES_QUERY, {
+    fetchPolicy: "cache-and-network",
+  });
+  const [setBlockedDates, { loading: saving }] = useMutation(SET_BLOCKED_DATES_MUTATION);
+
+  // Seed the selection from the saved blocked dates once they load.
+  useEffect(() => {
+    if (data?.myBlockedDates) {
+      setSelectedDates(new Set<string>(data.myBlockedDates));
+    }
+  }, [data?.myBlockedDates]);
+
+  const handleSave = async () => {
+    try {
+      await setBlockedDates({ variables: { dates: Array.from(selectedDates) } });
+      showToast(
+        "success",
+        `${selectedDates.size} date${selectedDates.size !== 1 ? "s" : ""} marked unavailable.`,
+      );
+    } catch {
+      showToast("error", "Couldn't save availability. Please try again.");
+    }
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -166,18 +195,17 @@ export default function CalendarScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity 
-          style={styles.saveButton} 
+        <TouchableOpacity
+          style={[styles.saveButton, (saving || loading) && { opacity: 0.6 }]}
           activeOpacity={0.8}
-          onPress={() => {
-            Alert.alert(
-              "Availability Saved",
-              `${selectedDates.size} date(s) marked as unavailable.`,
-              [{ text: "OK" }]
-            );
-          }}
+          disabled={saving || loading}
+          onPress={handleSave}
         >
-          <Text style={styles.saveButtonText}>Save Availability</Text>
+          {saving ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Availability</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>

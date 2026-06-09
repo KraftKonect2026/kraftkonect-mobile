@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,43 +8,58 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
+import { useQuery, useMutation } from "@apollo/client";
 import { ArrowLeft, Check } from "lucide-react-native";
 import Colors from "@/constants/colors";
-import { useAppSelector, useAppDispatch } from "@/store";
-import { updateListing as updateListingAction } from "@/store/providerSlice";
-
-const categories = [
-  "Cleaning",
-  "Electrical",
-  "Plumbing",
-  "Painting",
-  "Handyman",
-  "Beauty",
-  "Carpentry",
-  "Gardening",
-];
+import { categories } from "@/constants/categories";
+import { MY_LISTINGS_QUERY } from "@/lib/queries";
+import { UPDATE_LISTING_MUTATION } from "@/lib/mutations";
+import { useToast } from "@/lib/toast";
 
 export default function EditListingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const dispatch = useAppDispatch();
-  const { listings } = useAppSelector((state) => state.provider);
-  const updateListing = (id: string, updates: any) => dispatch(updateListingAction({ id, updates }));
+  const { showToast } = useToast();
 
-  const listing = listings.find((l) => l.id === id);
+  const { data, loading: loadingListing } = useQuery(MY_LISTINGS_QUERY, {
+    fetchPolicy: "cache-and-network",
+  });
+  const [updateListing, { loading: saving }] = useMutation(UPDATE_LISTING_MUTATION);
 
-  const [title, setTitle] = useState(listing?.title || "");
-  const [description, setDescription] = useState(listing?.description || "");
-  const [category, setCategory] = useState(listing?.category || "");
-  const [pricePerHour, setPricePerHour] = useState(
-    listing?.pricePerHour.toString() || ""
+  const listing = (data?.myProviderProfile?.services ?? []).find(
+    (l: any) => l.id === id,
   );
-  const [duration, setDuration] = useState(listing?.duration.toString() || "");
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [pricePerHour, setPricePerHour] = useState("");
+  const [duration, setDuration] = useState("");
+
+  // Populate the form once the listing loads from the backend.
+  useEffect(() => {
+    if (listing) {
+      setTitle(listing.title ?? "");
+      setDescription(listing.description ?? "");
+      setCategory(listing.category ?? "");
+      setPricePerHour(((listing.priceCents ?? 0) / 100).toString());
+      setDuration(((listing.durationMinutes ?? 0) / 60).toString());
+    }
+  }, [listing?.id]);
+
+  if (loadingListing && !listing) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   if (!listing) {
     return (
@@ -75,23 +90,26 @@ export default function EditListingScreen() {
     pricePerHour.length > 0 &&
     duration.length > 0;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isValid) return;
-
-    updateListing(listing.id, {
-      title,
-      description,
-      category,
-      pricePerHour: parseFloat(pricePerHour),
-      duration: parseFloat(duration),
-    });
-
-    Alert.alert("Success", "Your service listing has been updated!", [
-      {
-        text: "OK",
-        onPress: () => router.back(),
-      },
-    ]);
+    try {
+      await updateListing({
+        variables: {
+          id: listing.id,
+          input: {
+            title,
+            description,
+            category,
+            priceCents: Math.round(parseFloat(pricePerHour) * 100),
+            durationMinutes: Math.round(parseFloat(duration) * 60),
+          },
+        },
+      });
+      showToast("success", "Listing updated.");
+      router.back();
+    } catch (e: any) {
+      showToast("error", e.message || "Couldn't update the listing. Please try again.");
+    }
   };
 
   return (
@@ -151,24 +169,24 @@ export default function EditListingScreen() {
             <View style={styles.categoriesGrid}>
               {categories.map((cat) => (
                 <TouchableOpacity
-                  key={cat}
+                  key={cat.id}
                   style={[
                     styles.categoryChip,
-                    category === cat && styles.categoryChipSelected,
+                    category === cat.id && styles.categoryChipSelected,
                   ]}
                   activeOpacity={0.7}
-                  onPress={() => setCategory(cat)}
+                  onPress={() => setCategory(cat.id)}
                 >
-                  {category === cat && (
+                  {category === cat.id && (
                     <Check size={16} color="#FFFFFF" strokeWidth={2.5} />
                   )}
                   <Text
                     style={[
                       styles.categoryChipText,
-                      category === cat && styles.categoryChipTextSelected,
+                      category === cat.id && styles.categoryChipTextSelected,
                     ]}
                   >
-                    {cat}
+                    {cat.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -179,7 +197,7 @@ export default function EditListingScreen() {
             <View style={[styles.inputGroup, styles.inputGroupHalf]}>
               <Text style={styles.label}>Price per Hour</Text>
               <View style={styles.inputWithPrefix}>
-                <Text style={styles.inputPrefix}>$</Text>
+                <Text style={styles.inputPrefix}>₦</Text>
                 <TextInput
                   style={[styles.input, styles.inputWithPrefixInput]}
                   placeholder="45"
@@ -208,12 +226,16 @@ export default function EditListingScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <TouchableOpacity
-          style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+          style={[styles.saveButton, (!isValid || saving) && styles.saveButtonDisabled]}
           activeOpacity={0.8}
-          disabled={!isValid}
+          disabled={!isValid || saving}
           onPress={handleSave}
         >
-          <Text style={styles.saveButtonText}>Save Changes</Text>
+          {saving ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
