@@ -307,3 +307,25 @@ export const REQUEST_PAYOUT_MUTATION = gql`
     }
   }
 `;
+
+export const EDIT_PROFILE_MUTATION = gql`
+  mutation EditProfile($name: String, $phone: String, $avatarUrl: String) {
+    editProfile(name: $name, phone: $phone, avatarUrl: $avatarUrl) {
+      id
+      name
+      phone
+      avatarUrl
+    }
+  }
+`;
+
+export const UPDATE_MY_PROVIDER_PROFILE_MUTATION = gql`
+  mutation UpdateMyProviderProfile($input: UpdateMyProviderProfileInput!) {
+    updateMyProviderProfile(input: $input) {
+      id
+      avatar
+      banner
+      bio
+    }
+  }
+`;

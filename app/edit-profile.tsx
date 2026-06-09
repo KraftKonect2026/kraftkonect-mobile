@@ -1,18 +1,22 @@
 import { ArrowLeft, User } from "lucide-react-native";
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput,  } from "react-native";
+import { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
 import * as Yup from "yup";
+import * as ImagePicker from "expo-image-picker";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { useMutation } from "@apollo/client";
 
 import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser as updateUserAction } from "@/store/authSlice";
 import Colors from "@/constants/colors";
 import { Image } from "expo-image";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { EDIT_PROFILE_MUTATION } from "@/lib/mutations";
 
 const editProfileSchema = Yup.object().shape({
   name: Yup.string()
@@ -32,9 +36,38 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [editProfile] = useMutation(EDIT_PROFILE_MUTATION);
+
+  const handleChangePhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Please allow photo library access to change your photo.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+    const uri = result.assets[0].uri;
+    setPhotoUploading(true);
+    try {
+      const url = await uploadImageToCloudinary(uri);
+      await editProfile({ variables: { avatarUrl: url } });
+      dispatch(updateUserAction({ avatarUrl: url }));
+    } catch (e: any) {
+      Alert.alert("Upload failed", e.message ?? "Could not upload photo");
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   const handleSave = async (values: { name: string; email: string; phone: string }) => {
-    await dispatch(updateUserAction({ name: values.name, email: values.email, phone: values.phone }));
+    await editProfile({ variables: { name: values.name, phone: values.phone } });
+    dispatch(updateUserAction({ name: values.name, phone: values.phone }));
     router.back();
   };
 
@@ -80,8 +113,17 @@ export default function EditProfileScreen() {
                     <User size={48} color={Colors.primary} strokeWidth={2} />
                   )}
                 </View>
-                <TouchableOpacity style={styles.changePhotoButton} activeOpacity={0.7}>
-                  <Text style={styles.changePhotoText}>Change Photo</Text>
+                <TouchableOpacity
+                  style={styles.changePhotoButton}
+                  activeOpacity={0.7}
+                  onPress={handleChangePhoto}
+                  disabled={photoUploading}
+                >
+                  {photoUploading ? (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  ) : (
+                    <Text style={styles.changePhotoText}>Change Photo</Text>
+                  )}
                 </TouchableOpacity>
               </View>
 
