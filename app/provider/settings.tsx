@@ -15,26 +15,76 @@ import {
 import * as Location from "expo-location";
 import { useQuery, useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
-import { MY_PROVIDER_PROFILE_QUERY } from "@/lib/queries";
-import { UPDATE_PROVIDER_LOCATION_MUTATION } from "@/lib/mutations";
+import {
+  MY_PROVIDER_PROFILE_QUERY,
+  MY_NOTIFICATION_PREFERENCES_QUERY,
+} from "@/lib/queries";
+import {
+  UPDATE_PROVIDER_LOCATION_MUTATION,
+  UPDATE_NOTIFICATION_PREFERENCES_MUTATION,
+} from "@/lib/mutations";
+import { LINKS, SUPPORT_EMAIL, SUPPORT_PHONE } from "@/constants/links";
+
+type NotificationPrefKey =
+  | "bookingUpdates"
+  | "newMessages"
+  | "promotions"
+  | "emailNotifications"
+  | "pushNotifications";
+
+const DEFAULT_PREFS: Record<NotificationPrefKey, boolean> = {
+  bookingUpdates: true,
+  newMessages: true,
+  promotions: false,
+  emailNotifications: true,
+  pushNotifications: true,
+};
 
 export default function ProviderSettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const [bookingUpdates, setBookingUpdates] = useState(true);
-  const [newMessages, setNewMessages] = useState(true);
-  const [promotions, setPromotions] = useState(false);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
+  const [prefs, setPrefs] = useState<Record<NotificationPrefKey, boolean>>(DEFAULT_PREFS);
   const [gpsBoost, setGpsBoost] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
   const locationSub = useRef<Location.LocationSubscription | null>(null);
 
   const { data: profileData } = useQuery(MY_PROVIDER_PROFILE_QUERY);
+  const { data: prefsData } = useQuery(MY_NOTIFICATION_PREFERENCES_QUERY, {
+    fetchPolicy: "cache-and-network",
+  });
 
   const [updateProviderLocation] = useMutation(UPDATE_PROVIDER_LOCATION_MUTATION);
+  const [updateNotificationPreferences] = useMutation(
+    UPDATE_NOTIFICATION_PREFERENCES_MUTATION,
+  );
+
+  // Load saved notification preferences from the server.
+  useEffect(() => {
+    const p = prefsData?.myNotificationPreferences;
+    if (p) {
+      setPrefs({
+        bookingUpdates: p.bookingUpdates,
+        newMessages: p.newMessages,
+        promotions: p.promotions,
+        emailNotifications: p.emailNotifications,
+        pushNotifications: p.pushNotifications,
+      });
+    }
+  }, [prefsData]);
+
+  // Optimistically flip a toggle, persist it, and revert on failure.
+  const togglePref = async (key: NotificationPrefKey) => {
+    const next = !prefs[key];
+    setPrefs((prev) => ({ ...prev, [key]: next }));
+    try {
+      await updateNotificationPreferences({ variables: { input: { [key]: next } } });
+    } catch {
+      setPrefs((prev) => ({ ...prev, [key]: !next }));
+      Alert.alert("Error", "Couldn't update notification settings. Please try again.");
+    }
+  };
 
   // Sync initial GPS state from server
   useEffect(() => {
@@ -201,8 +251,8 @@ export default function ProviderSettingsScreen() {
                 </View>
               </View>
               <Switch
-                value={bookingUpdates}
-                onValueChange={setBookingUpdates}
+                value={prefs.bookingUpdates}
+                onValueChange={() => togglePref("bookingUpdates")}
                 trackColor={{ false: "#E5E7EB", true: Colors.primary }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#E5E7EB"
@@ -224,8 +274,8 @@ export default function ProviderSettingsScreen() {
                 </View>
               </View>
               <Switch
-                value={newMessages}
-                onValueChange={setNewMessages}
+                value={prefs.newMessages}
+                onValueChange={() => togglePref("newMessages")}
                 trackColor={{ false: "#E5E7EB", true: Colors.primary }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#E5E7EB"
@@ -247,8 +297,8 @@ export default function ProviderSettingsScreen() {
                 </View>
               </View>
               <Switch
-                value={promotions}
-                onValueChange={setPromotions}
+                value={prefs.promotions}
+                onValueChange={() => togglePref("promotions")}
                 trackColor={{ false: "#E5E7EB", true: Colors.primary }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#E5E7EB"
@@ -265,8 +315,8 @@ export default function ProviderSettingsScreen() {
                 <Text style={styles.settingLabel}>Email Notifications</Text>
               </View>
               <Switch
-                value={emailNotifications}
-                onValueChange={setEmailNotifications}
+                value={prefs.emailNotifications}
+                onValueChange={() => togglePref("emailNotifications")}
                 trackColor={{ false: "#E5E7EB", true: Colors.primary }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#E5E7EB"
@@ -280,8 +330,8 @@ export default function ProviderSettingsScreen() {
                 <Text style={styles.settingLabel}>Push Notifications</Text>
               </View>
               <Switch
-                value={pushNotifications}
-                onValueChange={setPushNotifications}
+                value={prefs.pushNotifications}
+                onValueChange={() => togglePref("pushNotifications")}
                 trackColor={{ false: "#E5E7EB", true: Colors.primary }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#E5E7EB"
@@ -296,13 +346,7 @@ export default function ProviderSettingsScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               activeOpacity={0.7}
-              onPress={() => {
-                Alert.alert(
-                  "Payout Methods",
-                  "This feature allows you to manage your payout bank accounts and payment methods.",
-                  [{ text: "OK" }],
-                );
-              }}
+              onPress={() => router.push("/provider/payout-methods" as any)}
             >
               <View style={styles.iconContainer}>
                 <CreditCard size={20} color="#6B7280" strokeWidth={2} />
@@ -315,13 +359,7 @@ export default function ProviderSettingsScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               activeOpacity={0.7}
-              onPress={() => {
-                Alert.alert(
-                  "Payout History",
-                  "This feature shows all your past payouts and transaction history.",
-                  [{ text: "OK" }],
-                );
-              }}
+              onPress={() => router.push("/provider/payout-history" as any)}
             >
               <View style={styles.iconContainer}>
                 <FileText size={20} color="#6B7280" strokeWidth={2} />
@@ -338,7 +376,7 @@ export default function ProviderSettingsScreen() {
               style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
-                Linking.openURL("https://yourwebsite.com/privacy").catch(() => {
+                Linking.openURL(LINKS.privacy).catch(() => {
                   Alert.alert("Error", "Unable to open Privacy Policy");
                 });
               }}
@@ -355,7 +393,7 @@ export default function ProviderSettingsScreen() {
               style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
-                Linking.openURL("https://yourwebsite.com/terms").catch(() => {
+                Linking.openURL(LINKS.terms).catch(() => {
                   Alert.alert("Error", "Unable to open Terms of Service");
                 });
               }}
@@ -375,7 +413,7 @@ export default function ProviderSettingsScreen() {
               style={styles.menuItem}
               activeOpacity={0.7}
               onPress={() => {
-                Linking.openURL("https://yourwebsite.com/help").catch(() => {
+                Linking.openURL(LINKS.help).catch(() => {
                   Alert.alert("Error", "Unable to open Help Center");
                 });
               }}
@@ -394,13 +432,19 @@ export default function ProviderSettingsScreen() {
               onPress={() => {
                 Alert.alert(
                   "Contact Support",
-                  "Email: support@yourapp.com\nPhone: +1 (555) 123-4567",
+                  `Email: ${SUPPORT_EMAIL}\nPhone: ${SUPPORT_PHONE}`,
                   [
                     { text: "OK" },
                     {
+                      text: "Call",
+                      onPress: () => {
+                        Linking.openURL(`tel:${SUPPORT_PHONE.replace(/\s/g, "")}`);
+                      },
+                    },
+                    {
                       text: "Email",
                       onPress: () => {
-                        Linking.openURL("mailto:support@yourapp.com");
+                        Linking.openURL(`mailto:${SUPPORT_EMAIL}`);
                       },
                     },
                   ],

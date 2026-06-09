@@ -273,3 +273,26 @@ export const SEND_MESSAGE_MUTATION = gql`
     }
   }
 `;
+
+export const UPDATE_NOTIFICATION_PREFERENCES_MUTATION = gql`
+  mutation UpdateNotificationPreferences($input: NotificationPreferencesInput!) {
+    updateNotificationPreferences(input: $input) {
+      bookingUpdates
+      newMessages
+      promotions
+      emailNotifications
+      pushNotifications
+    }
+  }
+`;
+
+export const SAVE_PAYOUT_METHOD_MUTATION = gql`
+  mutation SavePayoutMethod($input: SavePayoutMethodInput!) {
+    savePayoutMethod(input: $input) {
+      bankName
+      bankCode
+      accountNumber
+      accountName
+    }
+  }
+`;

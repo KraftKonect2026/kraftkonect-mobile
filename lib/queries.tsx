@@ -365,3 +365,55 @@ export const PROVIDER_QUERY = gql`
         }
     }
 `
+
+export const MY_NOTIFICATION_PREFERENCES_QUERY = gql`
+  query MyNotificationPreferences {
+    myNotificationPreferences {
+      bookingUpdates
+      newMessages
+      promotions
+      emailNotifications
+      pushNotifications
+    }
+  }
+`
+
+export const MY_PAYOUT_METHOD_QUERY = gql`
+  query MyPayoutMethod {
+    myPayoutMethod {
+      bankName
+      bankCode
+      accountNumber
+      accountName
+    }
+  }
+`
+
+export const MY_PAYOUTS_QUERY = gql`
+  query MyPayouts {
+    myPayouts {
+      id
+      amountCents
+      status
+      createdAt
+    }
+  }
+`
+
+export const BANKS_QUERY = gql`
+  query Banks {
+    banks {
+      name
+      code
+    }
+  }
+`
+
+export const RESOLVE_BANK_ACCOUNT_QUERY = gql`
+  query ResolveBankAccount($accountNumber: String!, $bankCode: String!) {
+    resolveBankAccount(accountNumber: $accountNumber, bankCode: $bankCode) {
+      accountNumber
+      accountName
+    }
+  }
+`
