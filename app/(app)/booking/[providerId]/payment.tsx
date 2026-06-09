@@ -122,18 +122,14 @@ export default function PaymentScreen() {
     setStep("checkout");
 
     try {
-      const browserResult = await WebBrowser.openAuthSessionAsync(
+      await WebBrowser.openAuthSessionAsync(
         authorizationUrl,
         PAYSTACK_CALLBACK,
         { showInRecents: false },
       );
-
-      // User dismissed the browser without completing payment
-      if (browserResult.type === "cancel" || browserResult.type === "dismiss") {
-        setStep("failed");
-        setErrorMessage("Payment was not completed. You can retry when ready.");
-        return;
-      }
+      // Regardless of how the browser closes (user closes it after paying,
+      // or the Paystack page redirects), always proceed to verify.
+      // The verification call is authoritative — not the browser result type.
     } catch {
       // Browser error — proceed to verify anyway in case payment went through
     }
@@ -164,7 +160,7 @@ export default function PaymentScreen() {
       } else {
         setStep("failed");
         setErrorMessage(
-          "Payment could not be confirmed. If your bank was charged, please contact support.",
+          "Payment not completed. If you closed the browser before paying, tap Retry to try again. If you were charged, please contact support.",
         );
       }
     } catch (err: any) {
