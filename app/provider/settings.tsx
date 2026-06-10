@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Switch, Linking, Alert,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Switch, Linking, Alert, Modal,  } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
@@ -11,10 +11,12 @@ import {
   FileText,
   CreditCard,
   Navigation,
+  LogOut,
 } from "lucide-react-native";
 import * as Location from "expo-location";
 import { useQuery, useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { useAppDispatch } from "@/store";
 import {
   MY_PROVIDER_PROFILE_QUERY,
   MY_NOTIFICATION_PREFERENCES_QUERY,
@@ -23,6 +25,7 @@ import {
   UPDATE_PROVIDER_LOCATION_MUTATION,
   UPDATE_NOTIFICATION_PREFERENCES_MUTATION,
 } from "@/lib/mutations";
+import { Button } from "@/components/Button";
 import { LINKS, SUPPORT_EMAIL, SUPPORT_PHONE } from "@/constants/links";
 
 type NotificationPrefKey =
@@ -43,10 +46,12 @@ const DEFAULT_PREFS: Record<NotificationPrefKey, boolean> = {
 export default function ProviderSettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
   const [prefs, setPrefs] = useState<Record<NotificationPrefKey, boolean>>(DEFAULT_PREFS);
   const [gpsBoost, setGpsBoost] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [signOutModalVisible, setSignOutModalVisible] = useState(false);
 
   const locationSub = useRef<Location.LocationSubscription | null>(null);
 
@@ -458,7 +463,58 @@ export default function ProviderSettingsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ACCOUNT</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => setSignOutModalVisible(true)}
+            >
+              <View style={[styles.iconContainer, styles.dangerIconContainer]}>
+                <LogOut size={20} color="#EF4444" strokeWidth={2} />
+              </View>
+              <Text style={[styles.menuItemText, styles.dangerLabel]}>Sign out</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
+
+      {/* Sign Out Modal */}
+      <Modal
+        visible={signOutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSignOutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Sign out?</Text>
+            <Text style={styles.modalDescription}>
+              Are you sure you want to sign out of your account?
+            </Text>
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                textStyle={{ color: "#6B7280" }}
+                onPress={() => setSignOutModalVisible(false)}
+              />
+              <Button
+                title="Sign out"
+                onPress={() => {
+                  dispatch({ type: "auth/signOut" });
+                  router.replace("/get-started");
+                  setSignOutModalVisible(false);
+                }}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -540,6 +596,43 @@ const styles = StyleSheet.create({
   },
   iconContainerActive: {
     backgroundColor: "#D1FAE5",
+  },
+  dangerIconContainer: {
+    backgroundColor: "#FEF2F2",
+  },
+  dangerLabel: {
+    color: "#EF4444",
+    fontWeight: "600" as const,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700" as const,
+    color: "#2C2C2C",
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: "#6B7280",
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
   },
   settingText: {
     flex: 1,

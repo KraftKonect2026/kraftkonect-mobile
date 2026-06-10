@@ -40,30 +40,77 @@ const WEIGHT_TO_FAMILY: Record<string, string> = {
   bold: "Inter_700Bold",
 };
 
+// Default OS font families that React Navigation's theme (`fonts.regular`,
+// `.medium`, `.bold`, `.heavy`) bakes into chrome like tab bar labels. These
+// aren't an intentional app choice, so treat them as "unset" and let Inter
+// take over. `sans-serif-medium` encodes its weight in the family name itself
+// (Android's "medium" theme font uses `fontWeight: 'normal'`), so it needs an
+// explicit mapping rather than the fontWeight-based lookup below.
+const SYSTEM_FONT_FAMILIES = new Set([
+  "System",
+  "sans-serif",
+  "sans-serif-medium",
+  'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
+]);
+
+const SYSTEM_FONT_OVERRIDES: Record<string, string> = {
+  "sans-serif-medium": "Inter_500Medium",
+};
+
 // Resolve a style into one that uses the correct Inter family and drops the
 // now-redundant fontWeight (prevents Android from synthesising fake bold on top
 // of an already-bold font file).
 function withInter(style: any) {
   const flat = StyleSheet.flatten(style) || {};
   const weight = flat.fontWeight != null ? String(flat.fontWeight) : "400";
-  const family = WEIGHT_TO_FAMILY[weight] ?? "Inter_400Regular";
-  const { fontWeight, ...rest } = flat;
-  return { ...rest, fontFamily: rest.fontFamily ?? family };
+  const weightFamily = WEIGHT_TO_FAMILY[weight] ?? "Inter_400Regular";
+  const { fontWeight, fontFamily, ...rest } = flat;
+
+  let resolvedFamily = fontFamily;
+  if (!fontFamily || SYSTEM_FONT_FAMILIES.has(fontFamily)) {
+    resolvedFamily = SYSTEM_FONT_OVERRIDES[fontFamily as string] ?? weightFamily;
+  }
+
+  return { ...rest, fontFamily: resolvedFamily };
 }
 
 let patched = false;
 
-// Patch the base Text and TextInput render so every text node in the app uses
-// Inter without touching each individual screen's styles. Call once at startup.
+// React Native's Text/TextInput are plain function components in the current
+// React 19 / new-architecture setup (no .render to patch), so instead we patch
+// the JSX element factories. Every <Text>/<TextInput> in the app — including
+// ones rendered by third-party libraries — compiles down to a call to one of
+// these factories, so intercepting them here applies Inter globally without
+// touching individual screens.
 export function applyGlobalInterFont(): void {
   if (patched) return;
   patched = true;
 
-  for (const Component of [Text, TextInput] as any[]) {
-    const original = Component.render;
-    if (typeof original !== "function") continue;
-    Component.render = function render(props: any, ref: any) {
-      return original.call(this, { ...props, style: withInter(props.style) }, ref);
+  const targets = new Set<unknown>([Text, TextInput]);
+
+  const wrap = (fn: any) => {
+    if (typeof fn !== "function") return fn;
+    return function patchedJsx(type: any, config: any, ...rest: any[]) {
+      if (targets.has(type) && config) {
+        config = { ...config, style: withInter(config.style) };
+      }
+      return fn(type, config, ...rest);
     };
-  }
+  };
+
+  try {
+    const jsxRuntime = require("react/jsx-runtime");
+    jsxRuntime.jsx = wrap(jsxRuntime.jsx);
+    jsxRuntime.jsxs = wrap(jsxRuntime.jsxs);
+  } catch {}
+
+  try {
+    const jsxDevRuntime = require("react/jsx-dev-runtime");
+    jsxDevRuntime.jsxDEV = wrap(jsxDevRuntime.jsxDEV);
+  } catch {}
+
+  try {
+    const React = require("react");
+    React.createElement = wrap(React.createElement);
+  } catch {}
 }

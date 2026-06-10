@@ -143,7 +143,7 @@ export default function CalendarScreen() {
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
-          { paddingBottom: insets.bottom + 20 },
+          { paddingBottom: insets.bottom + 100 },
         ]}
         showsVerticalScrollIndicator={false}
       >

@@ -40,6 +40,7 @@ export const MY_PROVIDER_PROFILE_QUERY = gql`
       rating
       reviewCount
       avatar
+      banner
     }
   }
 `

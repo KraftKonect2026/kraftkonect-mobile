@@ -181,7 +181,7 @@ export default function ServicesScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.fab, { bottom: insets.bottom + 20 }]}>
+      <View style={[styles.fab, { bottom: insets.bottom + 96 }]}>
         <TouchableOpacity
           style={styles.fabButton}
           activeOpacity={0.9}
