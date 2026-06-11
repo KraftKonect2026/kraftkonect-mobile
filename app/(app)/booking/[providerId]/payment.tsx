@@ -291,6 +291,16 @@ export default function PaymentScreen() {
           onCancel={handlePaymentCancel}
         />
       )}
+
+      {/* Full-screen loader while booking is created / payment is verified */}
+      {isProcessing && (
+        <View style={styles.processingOverlay}>
+          <View style={styles.processingCard}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.processingText}>{stepLabel}</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -419,4 +429,29 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 15, color: "#EF4444", textAlign: "center" },
   retryButton: { backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   retryButtonText: { color: "#FFFFFF", fontWeight: "700" as const, fontSize: 15 },
+
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  processingCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    gap: 12,
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 4 },
+    }),
+  },
+  processingText: {
+    fontSize: 15,
+    fontWeight: "600" as const,
+    color: "#374151",
+  },
 });

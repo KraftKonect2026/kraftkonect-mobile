@@ -10,8 +10,19 @@ import {
 import { WebView, type WebViewNavigation } from "react-native-webview";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { X } from "lucide-react-native";
+import { X, AlertCircle } from "lucide-react-native";
 import Colors from "@/constants/colors";
+
+// A standard mobile-browser UA. Paystack's hosted checkout — and the bank's
+// 3-D Secure/OTP page it loads inside itself — can render a blank page when it
+// detects the default RN WebView UA (which advertises itself as an embedded
+// "wv" browser), so we present as regular mobile Safari/Chrome instead.
+const USER_AGENT = Platform.select({
+  ios: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  android:
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Mobile Safari/537.36",
+  default: undefined,
+});
 
 // The URL Paystack redirects to after hosted checkout completes.
 // Must match the PAYSTACK_CALLBACK_URL on the backend.
@@ -59,14 +70,23 @@ export default function PaystackWebViewModal({
 }: Props) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const doneRef = useRef(false);
+  const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
     if (visible) {
       doneRef.current = false;
       setLoading(true);
+      setHasError(false);
     }
   }, [visible]);
+
+  function handleRetry() {
+    setHasError(false);
+    setLoading(true);
+    webViewRef.current?.reload();
+  }
 
   function fire(success: boolean) {
     if (doneRef.current) return;
@@ -132,20 +152,50 @@ export default function PaystackWebViewModal({
         {Platform.OS !== "web" && (
           <>
             <WebView
+              ref={webViewRef}
               source={{ uri: authorizationUrl }}
               style={styles.webview}
               onLoadStart={() => setLoading(true)}
               onLoadEnd={() => setLoading(false)}
+              onError={() => {
+                setLoading(false);
+                setHasError(true);
+              }}
+              onHttpError={() => {
+                setLoading(false);
+                setHasError(true);
+              }}
               onNavigationStateChange={handleNavChange}
               onMessage={handleMessage}
               injectedJavaScript={PAYSTACK_BRIDGE_JS}
               javaScriptEnabled
               domStorageEnabled
+              userAgent={USER_AGENT}
+              originWhitelist={["*"]}
+              sharedCookiesEnabled
+              thirdPartyCookiesEnabled
+              javaScriptCanOpenWindowsAutomatically
+              setSupportMultipleWindows={false}
             />
-            {loading && (
+            {loading && !hasError && (
               <View style={styles.loader}>
                 <ActivityIndicator size="large" color={Colors.primary} />
                 <Text style={styles.loaderText}>Loading secure payment…</Text>
+              </View>
+            )}
+            {hasError && (
+              <View style={styles.loader}>
+                <AlertCircle size={32} color="#DC2626" strokeWidth={2} />
+                <Text style={styles.loaderText}>
+                  Couldn't load the payment page. Check your connection and try again.
+                </Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={handleRetry}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
               </View>
             )}
           </>
@@ -197,10 +247,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 12,
     top: 52,
+    paddingHorizontal: 32,
   },
   loaderText: {
     fontSize: 14,
     color: "#6B7280",
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 8,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700" as const,
+    fontSize: 15,
   },
   webFallback: {
     flex: 1,
