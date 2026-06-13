@@ -55,7 +55,7 @@ export const MY_LISTINGS_QUERY = gql`
   query MyListings {
     myProviderProfile {
       id
-      services {
+      listings {
         id
         title
         description

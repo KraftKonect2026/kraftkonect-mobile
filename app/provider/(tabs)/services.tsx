@@ -36,7 +36,7 @@ export default function ServicesScreen() {
     }, [refetch]),
   );
 
-  const listings: any[] = data?.myProviderProfile?.services ?? [];
+  const listings: any[] = data?.myProviderProfile?.listings ?? [];
 
   const toggleVisibility = async (id: string, currentActive: boolean) => {
     try {

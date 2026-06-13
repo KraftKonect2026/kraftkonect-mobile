@@ -2,7 +2,6 @@ import {
   User,
   ChevronRight,
   Edit3,
-  CreditCard,
   Settings as SettingsIcon,
   HelpCircle,
   ArrowRight,
@@ -76,11 +75,6 @@ export default function ProfileScreen() {
           icon: Edit3,
           label: "Edit Profile",
           route: "/edit-profile",
-        },
-        {
-          icon: CreditCard,
-          label: "Payment Methods",
-          route: "/payment-methods",
         },
         {
           icon: SettingsIcon,

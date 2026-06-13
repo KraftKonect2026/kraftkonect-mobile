@@ -38,6 +38,7 @@ export default function ProviderProfileScreen() {
   const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
     variables: { providerId: `${id}` },
     skip: !id,
+    fetchPolicy: "network-only",
     notifyOnNetworkStatusChange: true,
   });
 

@@ -18,6 +18,7 @@ export default function SelectServiceScreen() {
   const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
     variables: { providerId: `${providerId}` },
     skip: !providerId,
+    fetchPolicy: "network-only",
     notifyOnNetworkStatusChange: true,
   });
 

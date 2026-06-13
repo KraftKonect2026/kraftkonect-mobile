@@ -15,7 +15,7 @@ import {
   Layers,
 } from "lucide-react-native";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Linking, Platform, Animated,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Linking, Platform, Animated, RefreshControl } from "react-native";
 import { Input } from "@/components/Input";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
@@ -157,7 +157,9 @@ export default function HomeScreen() {
 
   // ── Near you now ──────────────────────────────────────────────────────────
 
-  const { data: nearbyData, loading: nearbyLoading } = useQuery(NEARBY_ARTISANS_QUERY, {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { data: nearbyData, loading: nearbyLoading, refetch: refetchNearby } = useQuery(NEARBY_ARTISANS_QUERY, {
     variables: {
       lat: coords?.lat ?? null,
       lon: coords?.lon ?? null,
@@ -166,6 +168,17 @@ export default function HomeScreen() {
     skip: !token || locationState === "requesting",
     fetchPolicy: "cache-and-network",
   });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetchNearby();
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchNearby]);
 
   const nearbyArtisans: any[] = nearbyData?.nearbyArtisans ?? [];
 
@@ -271,6 +284,14 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         {/* Header */}
         <Animated.View style={[styles.header, { paddingTop: insets.top + 20 }, makeSectionStyle(0)]}>
