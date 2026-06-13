@@ -13,9 +13,22 @@ import {
   Grid,
   Wrench,
   Layers,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react-native";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Linking, Platform, Animated, RefreshControl } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Animated,
+  RefreshControl,
+  Dimensions,
+} from "react-native";
 import { Input } from "@/components/Input";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
@@ -29,17 +42,19 @@ import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
 import { PARSE_JOB_DESCRIPTION_QUERY, NEARBY_ARTISANS_QUERY } from "@/lib/queries";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
 // ── Category tile data ────────────────────────────────────────────────────────
 
 const CATEGORY_TILES = [
-  { skill: "plumbing",   label: "Plumber",     Icon: Droplet   },
-  { skill: "electrical", label: "Electrician", Icon: Zap       },
-  { skill: "carpentry",  label: "Carpenter",   Icon: Hammer    },
-  { skill: "painting",   label: "Painter",     Icon: Paintbrush},
-  { skill: "tiling",     label: "Tiler",       Icon: Layers    },
-  { skill: "aircon",     label: "AC Repair",   Icon: Wind      },
-  { skill: "security",   label: "Locksmith",   Icon: Lock      },
-  { skill: null,         label: "More",        Icon: Grid      },
+  { skill: "plumbing",   label: "Plumber",     Icon: Droplet,    gradient: ["#3B82F6", "#1D4ED8"] },
+  { skill: "electrical", label: "Electrician", Icon: Zap,        gradient: ["#F59E0B", "#D97706"] },
+  { skill: "carpentry",  label: "Carpenter",   Icon: Hammer,     gradient: ["#8B5CF6", "#6D28D9"] },
+  { skill: "painting",   label: "Painter",     Icon: Paintbrush, gradient: ["#EC4899", "#BE185D"] },
+  { skill: "tiling",     label: "Tiler",       Icon: Layers,     gradient: ["#10B981", "#047857"] },
+  { skill: "aircon",     label: "AC Repair",   Icon: Wind,       gradient: ["#06B6D4", "#0E7490"] },
+  { skill: "security",   label: "Locksmith",   Icon: Lock,       gradient: ["#EF4444", "#B91C1C"] },
+  { skill: null,         label: "More",        Icon: Grid,       gradient: ["#6B7280", "#374151"] },
 ] as const;
 
 const SKILL_LABEL: Record<string, string> = {
@@ -70,12 +85,12 @@ export default function HomeScreen() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locationState, setLocationState] = useState<"requesting" | "granted" | "denied">("requesting");
+  const [refreshing, setRefreshing] = useState(false);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Animations ────────────────────────────────────────────────────────────
 
-  // Staggered section entrance: header, search, categories, nearby
   const mountAnims = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
@@ -83,20 +98,15 @@ export default function HomeScreen() {
     new Animated.Value(0),
   ]).current;
 
-  // Per-tile scale values
   const tileScales = useRef(CATEGORY_TILES.map(() => new Animated.Value(1))).current;
-
-  // Search bar border pulse during AI loading
   const pulseAnim = useRef(new Animated.Value(0)).current;
-
-  // Nearby cards slide-in
   const nearbyCardAnims = useRef<Animated.Value[]>([]);
 
   useEffect(() => {
     Animated.stagger(
-      90,
+      80,
       mountAnims.map((anim) =>
-        Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 9 })
+        Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 55, friction: 9 })
       )
     ).start();
 
@@ -130,7 +140,7 @@ export default function HomeScreen() {
       {
         translateY: mountAnims[index].interpolate({
           inputRange: [0, 1],
-          outputRange: [28, 0],
+          outputRange: [32, 0],
         }),
       },
     ],
@@ -157,8 +167,6 @@ export default function HomeScreen() {
 
   // ── Near you now ──────────────────────────────────────────────────────────
 
-  const [refreshing, setRefreshing] = useState(false);
-
   const { data: nearbyData, loading: nearbyLoading, refetch: refetchNearby } = useQuery(NEARBY_ARTISANS_QUERY, {
     variables: {
       lat: coords?.lat ?? null,
@@ -182,12 +190,11 @@ export default function HomeScreen() {
 
   const nearbyArtisans: any[] = nearbyData?.nearbyArtisans ?? [];
 
-  // Animate nearby cards when they arrive
   useEffect(() => {
     if (nearbyArtisans.length === 0) return;
     nearbyCardAnims.current = nearbyArtisans.map(() => new Animated.Value(0));
     Animated.stagger(
-      55,
+      50,
       nearbyCardAnims.current.map((anim) =>
         Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 70, friction: 10 })
       )
@@ -196,9 +203,7 @@ export default function HomeScreen() {
 
   // ── AI search ─────────────────────────────────────────────────────────────
 
-  const [parseJob] = useLazyQuery(PARSE_JOB_DESCRIPTION_QUERY, {
-    fetchPolicy: "no-cache",
-  });
+  const [parseJob] = useLazyQuery(PARSE_JOB_DESCRIPTION_QUERY, { fetchPolicy: "no-cache" });
 
   const navigateToResults = useCallback(
     (skill: string | null, skillLabel: string) => {
@@ -256,7 +261,7 @@ export default function HomeScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const scale = tileScales[index];
       Animated.sequence([
-        Animated.timing(scale, { toValue: 0.88, duration: 70, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 0.85, duration: 65, useNativeDriver: true }),
         Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 7 }),
       ]).start(() => {
         if (!skill) {
@@ -281,62 +286,86 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.primary}
+            tintColor={"#FFFFFF"}
             colors={[Colors.primary]}
           />
         }
       >
-        {/* Header */}
-        <Animated.View style={[styles.header, { paddingTop: insets.top + 20 }, makeSectionStyle(0)]}>
-          <View>
-            <Text style={styles.greeting}>{greeting}, {firstName} 👋</Text>
-            <Text style={styles.subGreeting}>What do you need fixed today?</Text>
-          </View>
-          {locationState === "granted" && coords && (
-            <View style={styles.locationBadge}>
-              <MapPin size={12} color={Colors.primary} strokeWidth={2.5} />
-              <Text style={styles.locationBadgeText}>Near you</Text>
+        {/* ── Hero Header ───────────────────────────────────────────────── */}
+        <View style={[styles.hero, { paddingTop: insets.top + 24 }]}>
+          {/* Decorative circles */}
+          <View style={styles.heroBubble1} />
+          <View style={styles.heroBubble2} />
+
+          <Animated.View style={[styles.heroContent, makeSectionStyle(0)]}>
+            <View style={styles.greetingRow}>
+              <View>
+                <Text style={styles.greeting}>{greeting},</Text>
+                <Text style={styles.greetingName}>{firstName} 👋</Text>
+              </View>
+              {locationState === "granted" && coords && (
+                <View style={styles.locationPill}>
+                  <Navigation size={12} color="#FFFFFF" strokeWidth={2.5} />
+                  <Text style={styles.locationPillText}>Near you</Text>
+                </View>
+              )}
             </View>
-          )}
-        </Animated.View>
+            <Text style={styles.heroSubtitle}>What do you need fixed today?</Text>
+          </Animated.View>
 
-        {/* AI Search bar */}
-        <Animated.View style={[styles.searchWrapper, makeSectionStyle(1)]}>
-          <Input
-            placeholder="Describe your problem or search..."
-            value={query}
-            onChangeText={(t) => { setQuery(t); setAiError(null); }}
-            onSubmitEditing={handleAiSearch}
-            returnKeyType="search"
-            editable={!aiLoading}
-            blurOnSubmit={false}
-            icon={<Search size={20} color={aiLoading ? "#D1D5DB" : "#9CA3AF"} strokeWidth={2} />}
-            style={{ borderColor: searchBorderColor, opacity: aiLoading ? 0.7 : 1 }}
-          />
-
-          {aiLoading && (
-            <Text style={styles.aiLoadingText}>Finding the right artisan for you…</Text>
-          )}
-          {aiError && !aiLoading && (
-            <View style={styles.aiErrorBanner}>
-              <AlertCircle size={14} color="#92400E" strokeWidth={2} />
-              <Text style={styles.aiErrorText}>{aiError}</Text>
+          {/* ── AI Search ──────────────────────────────────────────────── */}
+          <Animated.View style={[styles.searchWrapper, makeSectionStyle(1)]}>
+            <View style={styles.searchContainer}>
+              <Sparkles size={18} color={Colors.primary} strokeWidth={2} style={styles.searchSparkle} />
+              <Input
+                placeholder="Describe your problem or search..."
+                value={query}
+                onChangeText={(t) => { setQuery(t); setAiError(null); }}
+                onSubmitEditing={handleAiSearch}
+                returnKeyType="search"
+                editable={!aiLoading}
+                blurOnSubmit={false}
+                icon={<Search size={18} color={aiLoading ? "#D1D5DB" : "#9CA3AF"} strokeWidth={2} />}
+                style={{ borderColor: searchBorderColor, borderWidth: 1.5, backgroundColor: "#FFFFFF" }}
+              />
             </View>
-          )}
-        </Animated.View>
+            {aiLoading && (
+              <View style={styles.aiLoadingRow}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.aiLoadingText}>Finding the right artisan for you…</Text>
+              </View>
+            )}
+            {aiError && !aiLoading && (
+              <View style={styles.aiErrorBanner}>
+                <AlertCircle size={14} color="#92400E" strokeWidth={2} />
+                <Text style={styles.aiErrorText}>{aiError}</Text>
+              </View>
+            )}
+          </Animated.View>
+        </View>
 
-        {/* Category tiles */}
+        {/* ── Category tiles ───────────────────────────────────────────── */}
         <Animated.View style={[styles.section, makeSectionStyle(2)]}>
-          <Text style={styles.sectionTitle}>Browse by category</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Browse by category</Text>
+            <TouchableOpacity
+              style={styles.seeAllBtn}
+              activeOpacity={0.7}
+              onPress={() => router.push("/(app)/explore" as any)}
+            >
+              <Text style={styles.seeAllText}>See all</Text>
+              <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.tilesGrid}>
-            {CATEGORY_TILES.map(({ skill, label, Icon }, index) => (
+            {CATEGORY_TILES.map(({ skill, label, Icon, gradient }, index) => (
               <Animated.View
                 key={label}
                 style={{ transform: [{ scale: tileScales[index] }], width: "22%" }}
@@ -346,8 +375,8 @@ export default function HomeScreen() {
                   activeOpacity={0.85}
                   onPress={() => handleCategoryTap(index, skill as string | null, label)}
                 >
-                  <View style={styles.tileIcon}>
-                    <Icon size={22} color={Colors.primary} strokeWidth={1.8} />
+                  <View style={[styles.tileIcon, { backgroundColor: gradient[0] + "22" }]}>
+                    <Icon size={22} color={gradient[0]} strokeWidth={2} />
                   </View>
                   <Text style={styles.tileLabel}>{label}</Text>
                 </TouchableOpacity>
@@ -356,21 +385,22 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Near you now */}
+        {/* ── Near you now ─────────────────────────────────────────────── */}
         <Animated.View style={[styles.section, makeSectionStyle(3)]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Near you now</Text>
             {nearbyArtisans.length > 0 && (
               <View style={styles.countBadge}>
+                <View style={styles.countDot} />
                 <Text style={styles.countBadgeText}>{nearbyArtisans.length} available</Text>
               </View>
             )}
           </View>
 
           {locationState === "requesting" && (
-            <View style={styles.nearbyPlaceholder}>
+            <View style={styles.placeholderCard}>
               <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.nearbyPlaceholderText}>Getting your location…</Text>
+              <Text style={styles.placeholderText}>Getting your location…</Text>
             </View>
           )}
 
@@ -380,24 +410,27 @@ export default function HomeScreen() {
               activeOpacity={0.8}
               onPress={() => Linking.openSettings()}
             >
-              <MapPin size={24} color="#9CA3AF" strokeWidth={1.5} />
-              <Text style={styles.locationDeniedTitle}>Enable location</Text>
-              <Text style={styles.locationDeniedBody}>
-                Tap to allow location access and see artisans near you
-              </Text>
+              <View style={styles.locationDeniedIcon}>
+                <MapPin size={22} color={Colors.primary} strokeWidth={2} />
+              </View>
+              <View style={styles.locationDeniedText}>
+                <Text style={styles.locationDeniedTitle}>Enable location</Text>
+                <Text style={styles.locationDeniedBody}>Tap to allow access and see artisans near you</Text>
+              </View>
+              <ChevronRight size={18} color="#9CA3AF" strokeWidth={2} />
             </TouchableOpacity>
           )}
 
           {locationState === "granted" && nearbyLoading && !nearbyData && (
-            <View style={styles.nearbyPlaceholder}>
+            <View style={styles.placeholderCard}>
               <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.nearbyPlaceholderText}>Finding artisans near you…</Text>
+              <Text style={styles.placeholderText}>Finding artisans near you…</Text>
             </View>
           )}
 
           {locationState === "granted" && !nearbyLoading && nearbyArtisans.length === 0 && (
-            <View style={styles.nearbyPlaceholder}>
-              <Text style={styles.nearbyPlaceholderText}>No artisans found nearby. Try searching above.</Text>
+            <View style={styles.placeholderCard}>
+              <Text style={styles.placeholderText}>No artisans found nearby. Try searching above.</Text>
             </View>
           )}
 
@@ -409,58 +442,66 @@ export default function HomeScreen() {
                   <Animated.View
                     key={artisan.id}
                     style={{
-                      width: "48.5%",
-                      marginBottom: 12,
+                      width: "48%",
+                      marginBottom: 14,
                       opacity: cardAnim,
                       transform: [
-                        {
-                          translateY: cardAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [30, 0],
-                          }),
-                        },
-                        { scale: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) },
+                        { translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) },
+                        { scale: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1] }) },
                       ],
                     }}
                   >
                     <TouchableOpacity
                       style={styles.artisanCard}
-                      activeOpacity={0.85}
+                      activeOpacity={0.88}
                       onPress={() => router.push(`/(app)/provider/${artisan.id}` as any)}
                     >
-                      <Image
-                        source={{ uri: artisan.avatar }}
-                        style={styles.artisanAvatar}
-                        contentFit="cover"
-                      />
-                      {artisan.gpsEnabled && (
-                        <View style={styles.nearBadge}>
-                          <Navigation size={10} color="#fff" strokeWidth={2.5} />
-                          <Text style={styles.nearBadgeText}>Near</Text>
-                        </View>
-                      )}
+                      {/* Banner image */}
+                      <View style={styles.artisanImageWrap}>
+                        <Image
+                          source={{ uri: artisan.avatar }}
+                          style={styles.artisanAvatar}
+                          contentFit="cover"
+                        />
+                        {/* Gradient overlay */}
+                        <View style={styles.artisanImageOverlay} />
+                        {artisan.gpsEnabled && (
+                          <View style={styles.nearBadge}>
+                            <Navigation size={9} color="#fff" strokeWidth={2.5} />
+                            <Text style={styles.nearBadgeText}>Near</Text>
+                          </View>
+                        )}
+                        {artisan.verified && (
+                          <View style={styles.verifiedBadge}>
+                            <Text style={styles.verifiedBadgeText}>✓</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Info */}
                       <View style={styles.artisanInfo}>
                         <Text style={styles.artisanName} numberOfLines={1}>{artisan.name}</Text>
                         <Text style={styles.artisanSkill} numberOfLines={1}>
                           {artisan.categories?.[0] ?? artisan.category ?? ""}
                         </Text>
                         <View style={styles.artisanMeta}>
-                          <Star size={12} color="#F59E0B" fill="#F59E0B" />
+                          <Star size={11} color="#F59E0B" fill="#F59E0B" />
                           <Text style={styles.artisanRating}>
                             {(artisan.rating || 0).toFixed(1)}
                           </Text>
-                          {artisan.experience && (
-                            <Text style={styles.artisanExp}> · {artisan.experience}</Text>
+                          {typeof artisan.distanceMeters === "number" && (
+                            <>
+                              <View style={styles.metaDot} />
+                              <Text style={styles.artisanDist}>
+                                {(artisan.distanceMeters / 1000).toFixed(1)} km
+                              </Text>
+                            </>
                           )}
                         </View>
-                        {artisan.verified && (
-                          <View style={styles.verifiedChip}>
-                            <Text style={styles.verifiedChipText}>✓ Verified</Text>
-                          </View>
-                        )}
-                        {typeof artisan.distanceMeters === "number" && (
-                          <Text style={styles.artisanDistance}>
-                            {(artisan.distanceMeters / 1000).toFixed(1)} km away
+                        {artisan.pricePerHour && (
+                          <Text style={styles.artisanPrice}>
+                            ₦{Number(artisan.pricePerHour).toLocaleString("en-NG")}
+                            <Text style={styles.artisanPriceUnit}>/hr</Text>
                           </Text>
                         )}
                       </View>
@@ -476,132 +517,230 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20 },
+// ── Styles ────────────────────────────────────────────────────────────────────
 
-  // Header
-  header: {
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F4F6FB" },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 0 },
+
+  // ── Hero ────────────────────────────────────────────────────────────────────
+  hero: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 22,
+    paddingBottom: 36,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: { shadowColor: Colors.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 20 },
+      android: { elevation: 12 },
+    }),
+  },
+  heroBubble1: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    top: -60,
+    right: -50,
+  },
+  heroBubble2: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    bottom: -40,
+    left: -20,
+  },
+  heroContent: { marginBottom: 20 },
+  greetingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: 6,
   },
-  greeting: { fontSize: 22, fontWeight: "700" as const, color: "#111827", marginBottom: 2 },
-  subGreeting: { fontSize: 14, color: "#6B7280" },
-  locationBadge: {
+  greeting: {
+    fontSize: 17,
+    color: "rgba(255,255,255,0.75)",
+    fontWeight: "500",
+  },
+  greetingName: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.5,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.70)",
+    fontWeight: "400",
+  },
+  locationPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: `${Colors.primary}12`,
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.18)",
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
-  locationBadgeText: { fontSize: 12, color: Colors.primary, fontWeight: "600" as const },
+  locationPillText: { fontSize: 11, color: "#FFFFFF", fontWeight: "600" },
 
-  // Search
-  searchWrapper: { marginBottom: 28 },
-  searchBar: {
+  // ── Search ────────────────────────────────────────────────────────────────
+  searchWrapper: {},
+  searchContainer: { position: "relative" },
+  searchSparkle: { display: "none" }, // reserved
+  aiLoadingRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === "ios" ? 14 : 10,
-    gap: 10,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
-      android: { elevation: 2 },
-    }),
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 4,
   },
-  searchBarDisabled: { opacity: 0.7 },
-  searchInput: { flex: 1, fontSize: 15, color: "#111827" },
-  aiLoadingText: { marginTop: 8, fontSize: 13, color: Colors.primary, textAlign: "center" },
+  aiLoadingText: { fontSize: 13, color: "rgba(255,255,255,0.85)" },
   aiErrorBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 6,
-    marginTop: 8,
+    marginTop: 10,
     backgroundColor: "#FFFBEB",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 10,
     borderWidth: 1,
     borderColor: "#FDE68A",
   },
   aiErrorText: { flex: 1, fontSize: 13, color: "#92400E", lineHeight: 18 },
 
-  // Section
-  section: { marginBottom: 28 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
-  sectionTitle: { fontSize: 18, fontWeight: "700" as const, color: "#111827" },
+  // ── Sections ──────────────────────────────────────────────────────────────
+  section: { marginTop: 28, paddingHorizontal: 20 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#111827",
+    letterSpacing: -0.3,
+  },
+  seeAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  seeAllText: { fontSize: 13, color: Colors.primary, fontWeight: "600" },
   countBadge: {
-    backgroundColor: `${Colors.primary}12`,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#ECFDF5",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
   },
-  countBadgeText: { fontSize: 12, fontWeight: "600" as const, color: Colors.primary },
+  countDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+  },
+  countBadgeText: { fontSize: 12, fontWeight: "600", color: "#065F46" },
 
-  // Category tiles
-  tilesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  // ── Category tiles ────────────────────────────────────────────────────────
+  tilesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tile: {
     width: "100%",
-    aspectRatio: 0.9,
+    aspectRatio: 0.88,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     borderWidth: 1,
     borderColor: "#F3F4F6",
     ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
-      android: { elevation: 1 },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
+      android: { elevation: 2 },
     }),
   },
   tileIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: `${Colors.primary}10`,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  tileLabel: { fontSize: 11, fontWeight: "600" as const, color: "#374151", textAlign: "center" },
+  tileLabel: { fontSize: 11, fontWeight: "700", color: "#374151", textAlign: "center", letterSpacing: 0.1 },
 
-  // Near you now
-  nearbyPlaceholder: { alignItems: "center", gap: 8, paddingVertical: 24 },
-  nearbyPlaceholderText: { fontSize: 14, color: "#9CA3AF", textAlign: "center" },
-  locationDeniedCard: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderStyle: "dashed" as const,
-  },
-  locationDeniedTitle: { fontSize: 16, fontWeight: "600" as const, color: "#374151" },
-  locationDeniedBody: { fontSize: 13, color: "#9CA3AF", textAlign: "center", lineHeight: 18 },
-  nearbyGrid: {
+  // ── Nearby artisans ───────────────────────────────────────────────────────
+  placeholderCard: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  artisanCard: {
-    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 28,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "#F3F4F6",
   },
+  placeholderText: { fontSize: 14, color: "#9CA3AF", textAlign: "center" },
+  locationDeniedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 },
+      android: { elevation: 2 },
+    }),
+  },
+  locationDeniedIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${Colors.primary}12`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationDeniedText: { flex: 1 },
+  locationDeniedTitle: { fontSize: 15, fontWeight: "700", color: "#111827", marginBottom: 2 },
+  locationDeniedBody: { fontSize: 13, color: "#6B7280", lineHeight: 18 },
+  nearbyGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+
+  // Artisan card
+  artisanCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
+      android: { elevation: 3 },
+    }),
+  },
+  artisanImageWrap: { position: "relative" },
   artisanAvatar: { width: "100%", height: 130, backgroundColor: "#F3F4F6" },
+  artisanImageOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 50,
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
   nearBadge: {
     position: "absolute",
     top: 8,
@@ -610,25 +749,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 3,
     backgroundColor: "#10B981",
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  nearBadgeText: { fontSize: 10, fontWeight: "700" as const, color: "#fff" },
-  artisanInfo: { padding: 10, gap: 3 },
-  artisanName: { fontSize: 14, fontWeight: "700" as const, color: "#111827" },
-  artisanSkill: { fontSize: 12, color: "#6B7280", textTransform: "capitalize" as const },
-  artisanMeta: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
-  artisanRating: { fontSize: 12, fontWeight: "600" as const, color: "#111827" },
-  artisanExp: { fontSize: 12, color: "#9CA3AF" },
-  verifiedChip: {
-    alignSelf: "flex-start",
-    backgroundColor: "#D1FAE5",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 4,
+  nearBadgeText: { fontSize: 9, fontWeight: "700", color: "#fff", letterSpacing: 0.3 },
+  verifiedBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
   },
-  verifiedChipText: { fontSize: 10, fontWeight: "600" as const, color: "#065F46" },
-  artisanDistance: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
+  verifiedBadgeText: { fontSize: 10, fontWeight: "800", color: "#FFFFFF" },
+  artisanInfo: { padding: 11, gap: 3 },
+  artisanName: { fontSize: 14, fontWeight: "700", color: "#111827", letterSpacing: -0.2 },
+  artisanSkill: { fontSize: 11, color: "#6B7280", textTransform: "capitalize" },
+  artisanMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
+  artisanRating: { fontSize: 12, fontWeight: "700", color: "#111827" },
+  metaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#D1D5DB" },
+  artisanDist: { fontSize: 11, color: "#9CA3AF" },
+  artisanPrice: { fontSize: 15, fontWeight: "800", color: Colors.primary, marginTop: 4 },
+  artisanPriceUnit: { fontSize: 11, fontWeight: "500", color: "#9CA3AF" },
 });
