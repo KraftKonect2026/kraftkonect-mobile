@@ -86,7 +86,7 @@ export default function SearchResultsScreen() {
     ).start();
   }, [artisans.length]);
 
-  const heading = skillLabel ? `${skillLabel} near you` : "Artisans near you";
+  const heading = skillLabel ? (skillLabel.toLowerCase().includes("near you") ? skillLabel : `${skillLabel} near you`) : "Artisans near you";
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ export default function SearchResultsScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -189,118 +189,104 @@ export default function SearchResultsScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          artisans.map((artisan: any, index: number) => {
-            const cardAnim = cardAnims.current[index] ?? new Animated.Value(1);
-            const heartScale = getHeartScale(artisan.id);
-            const isFav = favorites.has(artisan.id);
-            const distanceKm =
-              typeof artisan.distanceMeters === "number"
-                ? artisan.distanceMeters / 1000
-                : null;
+          <View style={styles.resultsGrid}>
+            {artisans.map((artisan: any, index: number) => {
+              const cardAnim = cardAnims.current[index] ?? new Animated.Value(1);
+              const heartScale = getHeartScale(artisan.id);
+              const isFav = favorites.has(artisan.id);
+              const distanceKm =
+                typeof artisan.distanceMeters === "number"
+                  ? artisan.distanceMeters / 1000
+                  : null;
 
-            return (
-              <Animated.View
-                key={artisan.id}
-                style={{
-                  opacity: cardAnim,
-                  transform: [
-                    {
-                      translateY: cardAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [40, 0],
-                      }),
-                    },
-                    {
-                      scale: cardAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.94, 1],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.9}
-                  onPress={() => router.push(`/(app)/provider/${artisan.id}` as any)}
+              return (
+                <Animated.View
+                  key={artisan.id}
+                  style={{
+                    width: "48%",
+                    marginBottom: 14,
+                    opacity: cardAnim,
+                    transform: [
+                      { translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) },
+                      { scale: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1] }) },
+                    ],
+                  }}
                 >
-                  <Image
-                    source={{ uri: artisan.banner }}
-                    style={styles.cardBanner}
-                    contentFit="cover"
-                  />
-
                   <TouchableOpacity
-                    style={styles.favoriteButton}
-                    activeOpacity={0.7}
-                    onPress={() => toggleFavorite(artisan.id)}
+                    style={styles.artisanCard}
+                    activeOpacity={0.88}
+                    onPress={() => router.push(`/(app)/provider/${artisan.id}` as any)}
                   >
-                    <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                      <Heart
-                        size={20}
-                        color={isFav ? "#EF4444" : "#F3F4F6"}
-                        fill={isFav ? "#EF4444" : "transparent"}
-                        strokeWidth={2}
-                      />
-                    </Animated.View>
-                  </TouchableOpacity>
-
-                  {artisan.gpsEnabled && (
-                    <View style={styles.nearBadge}>
-                      <Navigation size={12} color="#fff" strokeWidth={2.5} />
-                      <Text style={styles.nearBadgeText}>Near you now</Text>
-                    </View>
-                  )}
-
-                  <View style={styles.cardBody}>
-                    <View style={styles.cardHeader}>
+                    {/* Banner image */}
+                    <View style={styles.artisanImageWrap}>
                       <Image
                         source={{ uri: artisan.avatar }}
-                        style={styles.avatar}
+                        style={styles.artisanAvatar}
                         contentFit="cover"
                       />
-                      <View style={styles.cardDetails}>
-                        <View style={styles.nameRow}>
-                          <Text style={styles.artisanName} numberOfLines={1}>
-                            {artisan.name}
-                          </Text>
-                          {artisan.verified && (
-                            <View style={styles.verifiedBadge}>
-                              <Text style={styles.verifiedText}>✓</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.artisanCategory} numberOfLines={1}>
-                          {artisan.categories?.[0] ?? artisan.category ?? ""}
-                        </Text>
-                        <View style={styles.ratingRow}>
-                          <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                          <Text style={styles.ratingText}>
-                            {(artisan.rating || 0).toFixed(1)} ({artisan.reviewCount || 0})
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.cardFooter}>
-                      {artisan.pricePerHour != null && (
-                        <View style={styles.priceRow}>
-                          <Text style={styles.price}>₦{artisan.pricePerHour}</Text>
-                          <Text style={styles.priceLabel}>/hr</Text>
+                      {/* Gradient overlay */}
+                      <View style={styles.artisanImageOverlay} />
+                      {artisan.gpsEnabled && (
+                        <View style={styles.nearBadge}>
+                          <Navigation size={9} color="#fff" strokeWidth={2.5} />
+                          <Text style={styles.nearBadgeText}>Near</Text>
                         </View>
                       )}
-                      <View style={styles.distanceRow}>
-                        <MapPin size={13} color="#9CA3AF" />
-                        <Text style={styles.distanceText}>
-                          {distanceKm != null ? `${distanceKm.toFixed(1)} km away` : "Nearby"}
-                        </Text>
-                      </View>
+                      {artisan.verified && (
+                        <View style={styles.verifiedBadge}>
+                          <Text style={styles.verifiedBadgeText}>✓</Text>
+                        </View>
+                      )}
+                      
+                      {/* Favorite Button */}
+                      <TouchableOpacity
+                        style={styles.favoriteButton}
+                        activeOpacity={0.7}
+                        onPress={() => toggleFavorite(artisan.id)}
+                      >
+                        <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                          <Heart
+                            size={16}
+                            color={isFav ? "#EF4444" : "#F3F4F6"}
+                            fill={isFav ? "#EF4444" : "transparent"}
+                            strokeWidth={2}
+                          />
+                        </Animated.View>
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            );
-          })
+
+                    {/* Info */}
+                    <View style={styles.artisanInfo}>
+                      <Text style={styles.artisanName} numberOfLines={1}>{artisan.name}</Text>
+                      <Text style={styles.artisanSkill} numberOfLines={1}>
+                        {artisan.categories?.[0] ?? artisan.category ?? ""}
+                      </Text>
+                      <View style={styles.artisanMeta}>
+                        <Star size={11} color="#F59E0B" fill="#F59E0B" />
+                        <Text style={styles.artisanRating}>
+                          {(artisan.rating || 0).toFixed(1)}
+                        </Text>
+                        {distanceKm != null && (
+                          <>
+                            <View style={styles.metaDot} />
+                            <Text style={styles.artisanDist}>
+                              {distanceKm.toFixed(1)} km
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                      {artisan.pricePerHour != null && (
+                        <Text style={styles.artisanPrice}>
+                          ₦{Number(artisan.pricePerHour).toLocaleString("en-NG")}
+                          <Text style={styles.artisanPriceUnit}>/hr</Text>
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -359,70 +345,74 @@ const styles = StyleSheet.create({
   },
   browseButtonText: { color: "#FFFFFF", fontWeight: "600" as const, fontSize: 15 },
 
-  card: {
+  resultsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  
+  artisanCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 18,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
     ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
-      android: { elevation: 4 },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
+      android: { elevation: 3 },
     }),
   },
-  cardBanner: { width: "100%", height: 180, backgroundColor: "#F3F4F6" },
-  favoriteButton: {
+  artisanImageWrap: { position: "relative" },
+  artisanAvatar: { width: "100%", height: 130, backgroundColor: "#F3F4F6" },
+  artisanImageOverlay: {
     position: "absolute",
-    top: 14,
-    right: 14,
-    backgroundColor: "rgba(0,0,0,0.28)",
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: "center",
-    alignItems: "center",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 50,
+    backgroundColor: "rgba(0,0,0,0.15)",
   },
   nearBadge: {
     position: "absolute",
-    top: 14,
-    left: 14,
+    top: 8,
+    left: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 3,
     backgroundColor: "#10B981",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
-  nearBadgeText: { fontSize: 12, fontWeight: "600" as const, color: "#fff" },
-
-  cardBody: { padding: 14 },
-  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#F3F4F6",
-    marginRight: 12,
-  },
-  cardDetails: { flex: 1 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 },
-  artisanName: { fontSize: 17, fontWeight: "700" as const, color: "#111827" },
+  nearBadgeText: { fontSize: 9, fontWeight: "700" as const, color: "#fff", letterSpacing: 0.3 },
   verifiedBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+  },
+  verifiedBadgeText: { fontSize: 10, fontWeight: "800" as const, color: "#FFFFFF" },
+  favoriteButton: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.28)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
   },
-  verifiedText: { fontSize: 11, fontWeight: "700" as const, color: "#fff" },
-  artisanCategory: { fontSize: 13, color: "#6B7280", marginBottom: 3, textTransform: "capitalize" as const },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  ratingText: { fontSize: 13, fontWeight: "600" as const, color: "#111827" },
-
-  cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  priceRow: { flexDirection: "row", alignItems: "baseline", gap: 2 },
-  price: { fontSize: 20, fontWeight: "700" as const, color: "#111827" },
-  priceLabel: { fontSize: 13, color: "#9CA3AF" },
-  distanceRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  distanceText: { fontSize: 13, color: "#9CA3AF" },
+  artisanInfo: { padding: 11, gap: 3 },
+  artisanName: { fontSize: 14, fontWeight: "700" as const, color: "#111827", letterSpacing: -0.2 },
+  artisanSkill: { fontSize: 11, color: "#6B7280", textTransform: "capitalize" as const },
+  artisanMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
+  artisanRating: { fontSize: 12, fontWeight: "700" as const, color: "#111827" },
+  metaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#D1D5DB" },
+  artisanDist: { fontSize: 11, color: "#9CA3AF" },
+  artisanPrice: { fontSize: 15, fontWeight: "800" as const, color: Colors.primary, marginTop: 4 },
+  artisanPriceUnit: { fontSize: 11, fontWeight: "500" as const, color: "#9CA3AF" },
 });

@@ -231,7 +231,8 @@ export default function HomeScreen() {
     timeoutRef.current = setTimeout(() => {
       timedOut.value = true;
       setAiLoading(false);
-      setAiError("Taking too long — browse by category below or try again.");
+      // Timeout: just navigate to all artisans with the typed text as label
+      navigateToResults(null, text);
     }, AI_TIMEOUT_MS);
 
     try {
@@ -239,18 +240,16 @@ export default function HomeScreen() {
       if (timedOut.value) return;
       clearTimeout(timeoutRef.current!);
 
-      if (error || !data?.parseJobDescription) {
-        setAiError("Couldn't understand that. Try a different description or pick a category.");
-        return;
-      }
-
-      const { skill, suggestedTitle } = data.parseJobDescription;
-      const label = SKILL_LABEL[skill] ?? suggestedTitle ?? "Artisans";
+      // If AI succeeded and returned a skill, use it. Otherwise fall back to all artisans.
+      const skill = data?.parseJobDescription?.skill ?? null;
+      const suggestedTitle = data?.parseJobDescription?.suggestedTitle;
+      const label = skill ? (SKILL_LABEL[skill] ?? suggestedTitle ?? "Artisans") : suggestedTitle ?? "Artisans near you";
       navigateToResults(skill, label);
     } catch {
       if (timedOut.value) return;
       clearTimeout(timeoutRef.current!);
-      setAiError("Couldn't reach the server. Check your connection and try again.");
+      // AI failed (e.g. no credits) — still navigate to show all nearby artisans
+      navigateToResults(null, "Artisans near you");
     } finally {
       if (!timedOut.value) setAiLoading(false);
     }
