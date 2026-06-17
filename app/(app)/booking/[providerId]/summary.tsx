@@ -484,16 +484,13 @@ const styles = StyleSheet.create({
     color: "#2C2C2C",
   },
   continueButton: {
-    flexDirection: "row",
-    backgroundColor: Colors.primary,
-    borderRadius: 28,
-    paddingVertical: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
+    borderRadius: Radius.pill,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   continueButtonDisabled: {
     backgroundColor: "#D1D5DB",
+    ...Shadows.soft,
   },
   continueButtonText: {
     fontSize: 18,
@@ -502,11 +499,11 @@ const styles = StyleSheet.create({
   },
   continueButtonGradient: {
     flexDirection: "row",
+    paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     width: "100%",
-    borderRadius: 28,
   },
   errorContainer: {
     flex: 1,

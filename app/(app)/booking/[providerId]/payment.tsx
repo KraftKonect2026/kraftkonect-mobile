@@ -133,7 +133,7 @@ export default function PaymentScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setTimeout(() => {
           router.replace(
-            `/(app)/booking/${providerId}/confirmation?serviceId=${serviceId}&date=${date}&time=${time}&bookingId=${pendingBookingId}` as any,
+            `/(app)/booking/${providerId}/confirmation?serviceId=${serviceId}&date=${date}&time=${time}&bookingId=${pendingBookingId}&bidAmount=${bidAmount}` as any,
           );
         }, 800);
       } else {

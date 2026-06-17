@@ -16,12 +16,13 @@ import { useOpenChat } from "@/lib/useOpenChat";
 export default function ConfirmationScreen() {
   const router = useRouter();
   const openChat = useOpenChat();
-  const { providerId, serviceId, date, time, bookingId } = useLocalSearchParams<{
+  const { providerId, serviceId, date, time, bookingId, bidAmount } = useLocalSearchParams<{
     providerId: string;
     serviceId: string;
     date: string;
     time: string;
     bookingId: string;
+    bidAmount?: string;
   }>();
 
   const scaleAnim = new Animated.Value(0);
@@ -70,7 +71,7 @@ export default function ConfirmationScreen() {
     );
   }
 
-  const basePrice = service.priceCents ? service.priceCents / 100 : 0;
+  const basePrice = bidAmount ? parseFloat(bidAmount) : (service.minPriceCents != null ? service.minPriceCents / 100 : (service.priceCents ? service.priceCents / 100 : 0));
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
 
