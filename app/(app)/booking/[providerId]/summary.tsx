@@ -1,12 +1,15 @@
 import { ArrowLeft, Clock, Calendar, MapPin, ChevronRight, AlertCircle } from "lucide-react-native";
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Platform,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Platform } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { PROVIDER_QUERY } from "@/lib/queries";
 import { formatCurrency } from "@/utils/currency";
 import { formatBookingDate } from "@/utils/datetime";
@@ -14,6 +17,7 @@ import { ActivityIndicator } from "react-native";
 
 export default function SummaryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { providerId, serviceId, date, time } = useLocalSearchParams<{
     providerId: string;
     serviceId: string;
@@ -32,18 +36,18 @@ export default function SummaryScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenBackground>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Generating summary...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenBackground>
     );
   }
 
   if (error || !provider || !service || !date || !time) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenBackground>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>
             {error ? "Failed to load booking summary" : "Booking information not found"}
@@ -52,7 +56,7 @@ export default function SummaryScreen() {
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ScreenBackground>
     );
   }
 
@@ -68,24 +72,28 @@ export default function SummaryScreen() {
   };
 
   return (
-    <View style={styles.wrapper}>
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Booking Summary</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 14 }]}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
         >
+          <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Booking Summary</Text>
+        <View style={styles.placeholder} />
+      </LinearGradient>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
           <View style={styles.providerCard}>
             <Image
               source={{ uri: provider.avatar }}
@@ -159,10 +167,9 @@ export default function SummaryScreen() {
               By continuing, you agree to book this service. You can cancel free of charge up to 24 hours before the scheduled time.
             </Text>
           </View>
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.totalContainer}>
           <Text style={styles.totalFooterLabel}>Total Amount</Text>
           <Text style={styles.totalFooterValue}>{formatCurrency(totalAmount, service.currency)}</Text>
@@ -173,18 +180,31 @@ export default function SummaryScreen() {
           onPress={handleContinue}
           disabled={!hasValidPrice}
         >
-          <Text style={styles.continueButtonText}>Proceed to Payment</Text>
-          <ChevronRight size={20} color="#FFFFFF" strokeWidth={2} />
+          {hasValidPrice ? (
+            <LinearGradient
+              colors={Gradients.brand}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.continueButtonGradient}
+            >
+              <Text style={styles.continueButtonText}>Proceed to Payment</Text>
+              <ChevronRight size={20} color="#FFFFFF" strokeWidth={2} />
+            </LinearGradient>
+          ) : (
+            <View style={styles.continueButtonGradient}>
+              <Text style={styles.continueButtonText}>Proceed to Payment</Text>
+              <ChevronRight size={20} color="#FFFFFF" strokeWidth={2} />
+            </View>
+          )}
         </TouchableOpacity>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   container: {
     flex: 1,
@@ -194,20 +214,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 20,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
     justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "700" as const,
-    color: "#2C2C2C",
+    color: "#FFFFFF",
   },
   placeholder: {
     width: 40,
@@ -419,6 +443,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700" as const,
     color: "#FFFFFF",
+  },
+  continueButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: "100%",
+    borderRadius: 28,
   },
   errorContainer: {
     flex: 1,

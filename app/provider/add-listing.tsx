@@ -6,12 +6,15 @@ import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpac
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
-import { ArrowLeft, Check, ImagePlus, X } from "lucide-react-native";
+import { Check, ImagePlus, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GradientHeader } from "@/components/GradientHeader";
 import { useAppDispatch } from "@/store";
 import { addListing as addListingAction } from "@/store/providerSlice";
 import { categories } from "@/constants/categories";
@@ -117,11 +120,12 @@ export default function AddListingScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <ScreenBackground>
       <Stack.Screen options={{ headerShown: false }} />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <Formik
         initialValues={{ title: "", description: "", category: "", pricePerHour: 0, duration: 0 }}
         validationSchema={addListingSchema}
@@ -129,17 +133,7 @@ export default function AddListingScreen() {
       >
         {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, isValid }) => (
           <>
-            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-                activeOpacity={0.7}
-              >
-                <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Add Service</Text>
-              <View style={styles.placeholder} />
-            </View>
+            <GradientHeader title="Add Service" showBack />
 
             <ScrollView
               style={styles.content}
@@ -292,37 +286,14 @@ export default function AddListingScreen() {
           </>
         )}
       </Formik>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-  },
-  placeholder: {
-    width: 40,
   },
   content: {
     flex: 1,
@@ -398,13 +369,13 @@ const styles = StyleSheet.create({
   addPhotoButton: {
     width: 80,
     height: 80,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1.5,
     borderColor: Colors.primary,
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
   },
   photoHint: { fontSize: 12, color: "#9CA3AF", marginTop: 4 },
   categoryChip: {
@@ -412,10 +383,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
+    ...glassSurface,
+    borderRadius: Radius.md,
     gap: 6,
   },
   categoryChipSelected: {
@@ -457,9 +426,12 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     padding: 20,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 16,
+    backgroundColor: "rgba(219,234,254,0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(37,99,235,0.18)",
+    borderRadius: Radius.md,
     marginTop: 8,
+    ...Shadows.soft,
   },
   infoTitle: {
     fontSize: 15,
@@ -479,9 +451,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 20,
     paddingTop: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "rgba(17,24,39,0.06)",
   },
   saveButton: {
     paddingVertical: 16,

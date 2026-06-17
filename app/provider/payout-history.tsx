@@ -13,9 +13,13 @@ import {
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
-import { ArrowLeft, Banknote, X } from "lucide-react-native";
+import { Banknote, X } from "lucide-react-native";
 import { useQuery, useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GradientHeader } from "@/components/GradientHeader";
+import { LinearGradient } from "expo-linear-gradient";
 import { Button } from "@/components/Button";
 import { useToast } from "@/lib/toast";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
@@ -91,19 +95,9 @@ export default function PayoutHistoryScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payout History</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <GradientHeader title="Payout History" showBack />
 
       <ScrollView
         contentContainerStyle={[
@@ -113,7 +107,12 @@ export default function PayoutHistoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Available balance card */}
-        <View style={styles.balanceCard}>
+        <LinearGradient
+          colors={Gradients.brandDiagonal}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.balanceCard}
+        >
           <Text style={styles.balanceLabel}>Available Balance</Text>
           {balanceLoading ? (
             <ActivityIndicator color="#FFFFFF" style={{ marginVertical: 4 }} />
@@ -143,7 +142,7 @@ export default function PayoutHistoryScreen() {
               <Text style={styles.setupButtonText}>Set up payout method first →</Text>
             </TouchableOpacity>
           )}
-        </View>
+        </LinearGradient>
 
         {/* Payout list */}
         {loading && payouts.length === 0 ? (
@@ -252,32 +251,20 @@ export default function PayoutHistoryScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  backButton: { width: 40, height: 40, justifyContent: "center" },
-  headerTitle: { fontSize: 18, fontWeight: "600" as const, color: "#2C2C2C" },
-  placeholder: { width: 40 },
+  container: { flex: 1 },
   content: { padding: 16, flexGrow: 1 },
 
   balanceCard: {
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
+    borderRadius: Radius.lg,
     padding: 20,
     marginBottom: 20,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   balanceLabel: { fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: "500" as const, marginBottom: 4 },
   balanceAmount: { fontSize: 32, fontWeight: "700" as const, color: "#FFFFFF", marginBottom: 4 },
@@ -311,7 +298,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(255,255,255,0.6)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
@@ -330,18 +317,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
     gap: 12,
+    ...Shadows.soft,
   },
   rowIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     alignItems: "center",
     justifyContent: "center",
   },

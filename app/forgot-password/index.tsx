@@ -9,6 +9,9 @@ import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { Shadows } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GlassCard } from "@/components/GlassCard";
 
 const forgotPasswordSchema = Yup.object().shape({
   email: Yup.string()
@@ -31,7 +34,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <View style={styles.wrapper}>
+    <ScreenBackground>
       <SafeAreaView style={styles.container} edges={["top"]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -69,47 +72,45 @@ export default function ForgotPasswordScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.form}>
-                  <Input
-                    label="Email Address"
-                    placeholder="john@example.com"
-                    value={values.email}
-                    onChangeText={handleChange("email")}
-                    onBlur={handleBlur("email")}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    touched={touched.email}
-                    error={errors.email}
-                  />
+                <GlassCard padding={20} elevation="medium" style={styles.formCard}>
+                  <View style={styles.form}>
+                    <Input
+                      label="Email Address"
+                      placeholder="john@example.com"
+                      value={values.email}
+                      onChangeText={handleChange("email")}
+                      onBlur={handleBlur("email")}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      touched={touched.email}
+                      error={errors.email}
+                    />
 
-                  <Button
-                    title={isSubmitting ? "Sending..." : "Send Recovery Link"}
-                    onPress={handleSubmit}
-                    loading={isSubmitting}
-                  />
+                    <Button
+                      title={isSubmitting ? "Sending..." : "Send Recovery Link"}
+                      onPress={handleSubmit}
+                      loading={isSubmitting}
+                    />
 
-                  <TouchableOpacity
-                    style={styles.backToSignInButton}
-                    onPress={() => router.back()}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.backToSignInText}>Back to Sign In</Text>
-                  </TouchableOpacity>
-                </View>
+                    <TouchableOpacity
+                      style={styles.backToSignInButton}
+                      onPress={() => router.back()}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.backToSignInText}>Back to Sign In</Text>
+                    </TouchableOpacity>
+                  </View>
+                </GlassCard>
               </ScrollView>
             )}
           </Formik>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   container: {
     flex: 1,
   },
@@ -122,8 +123,17 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
+    ...Shadows.soft,
+  },
+  formCard: {
+    marginBottom: 8,
   },
   iconContainer: {
     alignItems: "center",

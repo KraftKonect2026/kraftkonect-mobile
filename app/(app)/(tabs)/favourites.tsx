@@ -9,6 +9,9 @@ import * as Haptics from "expo-haptics";
 import { useQuery, useMutation } from "@apollo/client";
 
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { GET_FAVOURITES_QUERY } from "@/lib/queries";
 import { REMOVE_FROM_FAVOURITES_MUTATION } from "@/lib/mutations";
 
@@ -78,9 +81,14 @@ export default function FavouritesScreen() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
         <Text style={styles.headerTitle}>Favourites</Text>
         {!loading && favourites.length > 0 && (
           <Text style={styles.subtitle}>{favourites.length} saved artisan{favourites.length !== 1 ? "s" : ""}</Text>
@@ -88,7 +96,7 @@ export default function FavouritesScreen() {
         {loading && !data && (
           <Text style={styles.subtitle}>Loading…</Text>
         )}
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -225,22 +233,23 @@ export default function FavouritesScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
 
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 22,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
-  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#6B7280" },
+  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#FFFFFF", marginBottom: 4 },
+  subtitle: { fontSize: 14, color: "rgba(255,255,255,0.8)" },
 
   content: { flex: 1 },
   contentContainer: { padding: 16 },
@@ -297,13 +306,10 @@ const styles = StyleSheet.create({
   cardWrapper: { width: "47.5%" },
 
   providerCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     overflow: "hidden",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8 },
-      android: { elevation: 3 },
-    }),
+    ...Shadows.medium,
   },
   imageContainer: { position: "relative", width: "100%", height: 150 },
   providerImage: { width: "100%", height: "100%", backgroundColor: "#F3F4F6" },

@@ -9,6 +9,9 @@ import { useQuery } from "@apollo/client";
 
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { GET_CONVERSATIONS_QUERY } from "@/lib/queries";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -117,10 +120,15 @@ export default function MessagesScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
         <Text style={styles.headerTitle}>Messages</Text>
-      </View>
+      </LinearGradient>
 
       {loading && !data ? (
         <View style={styles.centeredState}>
@@ -153,22 +161,29 @@ export default function MessagesScreen() {
           )}
         </ScrollView>
       )}
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 22,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
-  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#2C2C2C" },
+  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#FFFFFF" },
   content: { flex: 1 },
-  conversationsList: { backgroundColor: "#FFFFFF" },
+  conversationsList: {
+    ...glassSurface,
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+    margin: 16,
+    ...Shadows.soft,
+  },
 
   // Loading / error
   centeredState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40, gap: 12 },
@@ -194,7 +209,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "rgba(17,24,39,0.06)",
   },
   avatar: {
     width: 56,

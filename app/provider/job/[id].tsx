@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { useQuery, useMutation } from "@apollo/client";
 import {
-  ArrowLeft,
   User,
   Phone,
   MessageCircle,
@@ -17,6 +16,9 @@ import {
   XCircle,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GradientHeader } from "@/components/GradientHeader";
 import { BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
 import { UPDATE_BOOKING_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
@@ -135,28 +137,24 @@ export default function JobDetailScreen() {
   // ── Loading / not found ─────────────────────────────────────────────────────
   if (loading && !booking) {
     return (
-      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
+      <ScreenBackground>
+        <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+          <Stack.Screen options={{ headerShown: false }} />
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </ScreenBackground>
     );
   }
 
   if (!booking) {
     return (
-      <View style={styles.container}>
+      <ScreenBackground>
         <Stack.Screen options={{ headerShown: false }} />
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
-            <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Job Details</Text>
-          <View style={styles.placeholder} />
-        </View>
+        <GradientHeader title="Job Details" showBack />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Job not found</Text>
         </View>
-      </View>
+      </ScreenBackground>
     );
   }
 
@@ -167,15 +165,9 @@ export default function JobDetailScreen() {
   const category: string = booking.listing?.category ?? booking.aiParsedSkill ?? "General";
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
-          <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Job Details</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <GradientHeader title="Job Details" showBack />
 
       <ScrollView
         style={styles.content}
@@ -347,54 +339,46 @@ export default function JobDetailScreen() {
           </>
         )}
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingBottom: 16, backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
-  },
-  backButton: { width: 40, height: 40, justifyContent: "center" },
-  headerTitle: { fontSize: 18, fontWeight: "600" as const, color: "#2C2C2C" },
-  placeholder: { width: 40 },
+  container: { flex: 1 },
   content: { flex: 1 },
   contentContainer: { padding: 16 },
-  statusBanner: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, alignItems: "center", marginBottom: 24 },
+  statusBanner: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: Radius.md, alignItems: "center", marginBottom: 24 },
   statusText: { fontSize: 14, fontWeight: "700" as const, textTransform: "uppercase", letterSpacing: 0.5 },
   section: { marginBottom: 24 },
   sectionTitle: { fontSize: 16, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 12 },
-  card: { padding: 20, backgroundColor: "#FFFFFF", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6" },
-  customerCard: { padding: 20, backgroundColor: "#FFFFFF", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6" },
+  card: { padding: 20, ...glassSurface, borderRadius: Radius.lg, ...Shadows.soft },
+  customerCard: { padding: 20, ...glassSurface, borderRadius: Radius.lg, ...Shadows.soft },
   customerInfo: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  customerAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center", marginRight: 16 },
+  customerAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(219,234,254,0.7)", justifyContent: "center", alignItems: "center", marginRight: 16 },
   customerDetails: { flex: 1 },
   customerName: { fontSize: 20, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
   customerCategory: { fontSize: 14, color: "#6B7280" },
   customerActions: { flexDirection: "row", gap: 12 },
-  iconButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" },
+  iconButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(219,234,254,0.7)", justifyContent: "center", alignItems: "center" },
   serviceTitle: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 20 },
   detailsList: { gap: 16 },
   detailRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   detailLabel: { fontSize: 14, color: "#6B7280", flex: 1 },
   detailValue: { fontSize: 14, fontWeight: "600" as const, color: "#2C2C2C", textAlign: "right", flex: 2 },
-  priceRow: { paddingTop: 16, borderTopWidth: 1, borderTopColor: "#F3F4F6" },
+  priceRow: { paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(17,24,39,0.06)" },
   priceValue: { fontSize: 20, fontWeight: "700" as const, color: Colors.primary, textAlign: "right", flex: 2 },
   progressSteps: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   progressStep: { alignItems: "center", flex: 1 },
   progressStepCompleted: { opacity: 1 },
-  progressStepCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F3F4F6", justifyContent: "center", alignItems: "center", marginBottom: 8 },
+  progressStepCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.6)", justifyContent: "center", alignItems: "center", marginBottom: 8 },
   progressStepDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#9CA3AF" },
   progressStepText: { fontSize: 12, color: "#6B7280", textAlign: "center" },
-  progressLine: { flex: 1, height: 2, backgroundColor: "#E5E7EB", marginHorizontal: -20 },
+  progressLine: { flex: 1, height: 2, backgroundColor: "rgba(17,24,39,0.06)", marginHorizontal: -20 },
   progressLineCompleted: { backgroundColor: Colors.primary },
   footer: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20, paddingTop: 20, backgroundColor: "#FFFFFF",
-    borderTopWidth: 1, borderTopColor: "#F3F4F6",
+    paddingHorizontal: 20, paddingTop: 20, backgroundColor: "rgba(255,255,255,0.72)",
+    borderTopWidth: 1, borderTopColor: "rgba(17,24,39,0.06)",
   },
   buttonRow: { flexDirection: "row", gap: 12 },
   actionButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 16, gap: 8 },

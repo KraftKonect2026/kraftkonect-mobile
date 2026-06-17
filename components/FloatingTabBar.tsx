@@ -10,7 +10,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
+import { Gradients } from "@/constants/theme";
 
 // A floating, rounded bottom tab bar with a spring/bounce animation on the
 // pressed icon. Only routes that declare a `tabBarIcon` are rendered, so any
@@ -39,7 +42,12 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
       style={[styles.wrap, { paddingBottom: insets.bottom > 0 ? insets.bottom : 16 }]}
       pointerEvents="box-none"
     >
-      <View style={styles.bar}>
+      <BlurView
+        intensity={50}
+        tint="light"
+        experimentalBlurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
+        style={styles.bar}
+      >
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
           const isFocused = state.routes[state.index].key === route.key;
@@ -82,6 +90,14 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
                     { transform: [{ scale }] },
                   ]}
                 >
+                  {isFocused && (
+                    <LinearGradient
+                      colors={Gradients.brand}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.iconWrapGradient}
+                    />
+                  )}
                   {icon}
                 </Animated.View>
                 {isFocused && (
@@ -93,7 +109,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
             </TouchableWithoutFeedback>
           );
         })}
-      </View>
+      </BlurView>
     </View>
   );
 }
@@ -111,20 +127,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderRadius: 30,
     paddingVertical: 10,
     paddingHorizontal: 8,
     width: "100%",
     maxWidth: 480,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: "rgba(255,255,255,0.6)",
+    overflow: "hidden",
     ...Platform.select({
       ios: {
-        shadowColor: "#1E40AF",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.18,
-        shadowRadius: 24,
+        shadowColor: "#1E1B4B",
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.22,
+        shadowRadius: 28,
       },
       android: { elevation: 16 },
     }),
@@ -141,18 +158,22 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   iconWrapActive: {
-    backgroundColor: Colors.primary,
     ...Platform.select({
       ios: {
-        shadowColor: Colors.primary,
+        shadowColor: Colors.indigo,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 8,
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
       },
       android: { elevation: 4 },
     }),
+  },
+  iconWrapGradient: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 23,
   },
   label: {
     fontSize: 10,

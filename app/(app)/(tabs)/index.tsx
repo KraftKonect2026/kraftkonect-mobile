@@ -24,7 +24,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
-  Platform,
   Animated,
   RefreshControl,
   Dimensions,
@@ -40,6 +39,9 @@ import { useLazyQuery, useQuery } from "@apollo/client";
 
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { PARSE_JOB_DESCRIPTION_QUERY, NEARBY_ARTISANS_QUERY } from "@/lib/queries";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -47,14 +49,14 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // ── Category tile data ────────────────────────────────────────────────────────
 
 const CATEGORY_TILES = [
-  { skill: "plumbing",   label: "Plumber",     Icon: Droplet,    gradient: ["#3B82F6", "#1D4ED8"] },
-  { skill: "electrical", label: "Electrician", Icon: Zap,        gradient: ["#F59E0B", "#D97706"] },
-  { skill: "carpentry",  label: "Carpenter",   Icon: Hammer,     gradient: ["#8B5CF6", "#6D28D9"] },
-  { skill: "painting",   label: "Painter",     Icon: Paintbrush, gradient: ["#EC4899", "#BE185D"] },
-  { skill: "tiling",     label: "Tiler",       Icon: Layers,     gradient: ["#10B981", "#047857"] },
-  { skill: "aircon",     label: "AC Repair",   Icon: Wind,       gradient: ["#06B6D4", "#0E7490"] },
-  { skill: "security",   label: "Locksmith",   Icon: Lock,       gradient: ["#EF4444", "#B91C1C"] },
-  { skill: null,         label: "More",        Icon: Grid,       gradient: ["#6B7280", "#374151"] },
+  { skill: "plumbing",   label: "Plumber",     image: require("@/assets/images/categories/uber_plumber_1781628659473.png") },
+  { skill: "electrical", label: "Electrician", image: require("@/assets/images/categories/uber_electrician_1781628670944.png") },
+  { skill: "carpentry",  label: "Carpenter",   image: require("@/assets/images/categories/uber_carpenter_1781628686657.png") },
+  { skill: "painting",   label: "Painter",     image: require("@/assets/images/categories/uber_painter_1781628699760.png") },
+  { skill: "tiling",     label: "Tiler",       image: require("@/assets/images/categories/uber_tiler_1781628786498.png") },
+  { skill: "aircon",     label: "AC Repair",   image: require("@/assets/images/categories/uber_aircon_1781628725161.png") },
+  { skill: "security",   label: "Locksmith",   image: require("@/assets/images/categories/uber_locksmith_1781628736111.png") },
+  { skill: null,         label: "More",        image: require("@/assets/images/categories/uber_more_1781628813979.png") },
 ] as const;
 
 const SKILL_LABEL: Record<string, string> = {
@@ -86,6 +88,7 @@ export default function HomeScreen() {
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locationState, setLocationState] = useState<"requesting" | "granted" | "denied">("requesting");
   const [refreshing, setRefreshing] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -282,28 +285,25 @@ export default function HomeScreen() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={"#FFFFFF"}
-            colors={[Colors.primary]}
-          />
-        }
-      >
-        {/* ── Hero Header ───────────────────────────────────────────────── */}
-        <View style={[styles.hero, { paddingTop: insets.top + 24 }]}>
+    <ScreenBackground>
+      {/* ── Hero Header ───────────────────────────────────────────────── */}
+      <Animated.View style={{
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+        transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 90], outputRange: [0, -90], extrapolate: "clamp" }) }]
+      }}>
+        <LinearGradient
+          colors={Gradients.brandDiagonal}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.hero, { paddingTop: insets.top + 24 }]}
+        >
           {/* Decorative circles */}
-          <View style={styles.heroBubble1} />
-          <View style={styles.heroBubble2} />
+          <Animated.View style={[styles.heroBubble1, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 150], outputRange: [0, 45], extrapolate: "clamp" }) }] }]} pointerEvents="none" />
+          <Animated.View style={[styles.heroBubble2, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 150], outputRange: [0, -25], extrapolate: "clamp" }) }] }]} pointerEvents="none" />
 
-          <Animated.View style={[styles.heroContent, makeSectionStyle(0)]}>
+          <Animated.View style={[styles.heroContent, makeSectionStyle(0), {
+            opacity: scrollY.interpolate({ inputRange: [0, 60], outputRange: [1, 0], extrapolate: "clamp" })
+          }]}>
             <View style={styles.greetingRow}>
               <View>
                 <Text style={styles.greeting}>{greeting},</Text>
@@ -348,7 +348,26 @@ export default function HomeScreen() {
               </View>
             )}
           </Animated.View>
-        </View>
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
+      >
+        <View style={{ height: insets.top + 190 }} />
 
         {/* ── Category tiles ───────────────────────────────────────────── */}
         <Animated.View style={[styles.section, makeSectionStyle(2)]}>
@@ -364,20 +383,20 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.tilesGrid}>
-            {CATEGORY_TILES.map(({ skill, label, Icon, gradient }, index) => (
+            {CATEGORY_TILES.map((cat, index) => (
               <Animated.View
-                key={label}
+                key={cat.label}
                 style={{ transform: [{ scale: tileScales[index] }], width: "22%" }}
               >
                 <TouchableOpacity
                   style={styles.tile}
                   activeOpacity={0.85}
-                  onPress={() => handleCategoryTap(index, skill as string | null, label)}
+                  onPress={() => handleCategoryTap(index, cat.skill as string | null, cat.label)}
                 >
-                  <View style={[styles.tileIcon, { backgroundColor: gradient[0] + "22" }]}>
-                    <Icon size={22} color={gradient[0]} strokeWidth={2} />
+                  <View style={[styles.tileIconContainer, { backgroundColor: "#FFFFFF", overflow: "hidden", ...Shadows.soft }]}>
+                    <Image source={cat.image} style={{ width: 64, height: 64 }} contentFit="cover" />
                   </View>
-                  <Text style={styles.tileLabel}>{label}</Text>
+                  <Text style={styles.tileLabel}>{cat.label}</Text>
                 </TouchableOpacity>
               </Animated.View>
             ))}
@@ -511,30 +530,26 @@ export default function HomeScreen() {
             </View>
           )}
         </Animated.View>
-      </ScrollView>
-    </View>
+      </Animated.ScrollView>
+    </ScreenBackground>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4F6FB" },
+  container: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 0 },
 
   // ── Hero ────────────────────────────────────────────────────────────────────
   hero: {
-    backgroundColor: Colors.primary,
     paddingHorizontal: 22,
     paddingBottom: 36,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     overflow: "hidden",
-    ...Platform.select({
-      ios: { shadowColor: Colors.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 20 },
-      android: { elevation: 12 },
-    }),
+    ...Shadows.glow,
   },
   heroBubble1: {
     position: "absolute",
@@ -657,22 +672,17 @@ const styles = StyleSheet.create({
   tile: {
     width: "100%",
     aspectRatio: 0.88,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    ...glassSurface,
+    borderRadius: Radius.lg,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
-      android: { elevation: 2 },
-    }),
+    ...Shadows.soft,
   },
-  tileIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+  tileIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -685,25 +695,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     paddingVertical: 28,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    ...glassSurface,
+    borderRadius: Radius.lg,
+    ...Shadows.soft,
   },
   placeholderText: { fontSize: 14, color: "#9CA3AF", textAlign: "center" },
   locationDeniedCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    ...glassSurface,
+    borderRadius: Radius.lg,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6 },
-      android: { elevation: 2 },
-    }),
+    ...Shadows.soft,
   },
   locationDeniedIcon: {
     width: 44,
@@ -720,15 +724,10 @@ const styles = StyleSheet.create({
 
   // Artisan card
   artisanCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    ...glassSurface,
+    borderRadius: Radius.lg,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
-      android: { elevation: 3 },
-    }),
+    ...Shadows.medium,
   },
   artisanImageWrap: { position: "relative" },
   artisanAvatar: { width: "100%", height: 130, backgroundColor: "#F3F4F6" },

@@ -1,11 +1,21 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, ViewStyle, TextStyle, ActivityIndicator } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  ViewStyle,
+  TextStyle,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
+import { Gradients, Glass, Radius, Shadows } from "@/constants/theme";
 
 export interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "outline";
+  variant?: "primary" | "secondary" | "outline" | "glass";
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
@@ -26,23 +36,12 @@ export const Button: React.FC<ButtonProps> = ({
   const isPrimary = variant === "primary";
   const isSecondary = variant === "secondary";
   const isOutline = variant === "outline";
+  const isGlass = variant === "glass";
 
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.button,
-        isPrimary && styles.primary,
-        isSecondary && styles.secondary,
-        isOutline && styles.outline,
-        (disabled || loading) && styles.disabled,
-        pressed && styles.pressed,
-        style,
-      ]}
-    >
+  const content = (
+    <>
       {loading ? (
-        <ActivityIndicator color={isOutline ? Colors.primary : "#FFFFFF"} size="small" />
+        <ActivityIndicator color={isPrimary ? "#FFFFFF" : Colors.primary} size="small" />
       ) : (
         <>
           {icon}
@@ -52,6 +51,7 @@ export const Button: React.FC<ButtonProps> = ({
               isPrimary && styles.primaryText,
               isSecondary && styles.secondaryText,
               isOutline && styles.outlineText,
+              isGlass && styles.glassText,
               textStyle,
             ]}
           >
@@ -59,47 +59,105 @@ export const Button: React.FC<ButtonProps> = ({
           </Text>
         </>
       )}
+    </>
+  );
+
+  // Primary buttons use a brand gradient fill with a coloured glow.
+  if (isPrimary) {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={({ pressed }) => [
+          styles.shell,
+          Shadows.glow,
+          (disabled || loading) && styles.disabled,
+          pressed && styles.pressed,
+          style,
+        ]}
+      >
+        <LinearGradient
+          colors={Gradients.brand}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientFill}
+        >
+          {content}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={({ pressed }) => [
+        styles.button,
+        isSecondary && styles.secondary,
+        isOutline && styles.outline,
+        isGlass && styles.glass,
+        (disabled || loading) && styles.disabled,
+        pressed && styles.pressed,
+        style,
+      ]}
+    >
+      {content}
     </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  button: {
+  shell: {
     height: 54,
-    borderRadius: 27, // Highly rounded / capsule shape
+    borderRadius: Radius.pill,
+    overflow: "hidden",
+  },
+  gradientFill: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
     gap: 8,
   },
-  primary: {
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+  button: {
+    height: 54,
+    borderRadius: Radius.pill,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    gap: 8,
   },
   secondary: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "rgba(255,255,255,0.7)",
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: "rgba(17,24,39,0.08)",
+    ...Shadows.soft,
   },
   outline: {
     backgroundColor: "transparent",
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Colors.primary,
+  },
+  glass: {
+    backgroundColor: Glass.overlay,
+    borderWidth: 1,
+    borderColor: Glass.border,
+    ...Shadows.soft,
   },
   disabled: {
     opacity: 0.5,
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
   },
   text: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    ...Platform.select({ default: {} }),
   },
   primaryText: {
     color: "#FFFFFF",
@@ -108,6 +166,9 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   outlineText: {
+    color: Colors.primary,
+  },
+  glassText: {
     color: Colors.primary,
   },
 });

@@ -17,6 +17,9 @@ import { useQuery, useMutation } from "@apollo/client";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser as updateUserAction } from "@/store/authSlice";
 import { MY_PROVIDER_PROFILE_QUERY, BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
@@ -95,10 +98,17 @@ export default function ProviderProfileScreen() {
     }, setBannerUploading);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.headerBubble1} pointerEvents="none" />
+        <View style={styles.headerBubble2} pointerEvents="none" />
         <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -246,34 +256,58 @@ export default function ProviderProfileScreen() {
 
       <View style={[styles.fab, { bottom: insets.bottom + 96 }]}>
         <TouchableOpacity
-          style={styles.fabButton}
           activeOpacity={0.9}
           onPress={() => router.replace("/(app)/profile" as any)}
         >
-          <ArrowLeft size={20} color="#FFFFFF" strokeWidth={2.5} />
-          <Text style={styles.fabButtonText}>Switch to Customer</Text>
+          <LinearGradient
+            colors={Gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fabButton}
+          >
+            <ArrowLeft size={20} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={styles.fabButtonText}>Switch to Customer</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
+  },
+  headerBubble1: {
+    position: "absolute",
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    top: -70,
+    right: -40,
+  },
+  headerBubble2: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    bottom: -50,
+    left: -10,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700" as const,
-    color: "#2C2C2C",
+    color: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -285,7 +319,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingBottom: 32,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.62)",
     marginBottom: 24,
   },
   bannerContainer: {
@@ -324,7 +358,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
@@ -365,12 +399,11 @@ const styles = StyleSheet.create({
   },
   earningsCard: {
     padding: 24,
-    backgroundColor: "#FFFFFF",
+    ...glassSurface,
     marginBottom: 24,
     marginHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderRadius: Radius.lg,
+    ...Shadows.soft,
   },
   earningsTitle: {
     fontSize: 14,
@@ -388,8 +421,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 12,
+    backgroundColor: "rgba(219,234,254,0.7)",
+    borderRadius: Radius.sm,
     gap: 6,
   },
   earningsButtonText: {
@@ -411,11 +444,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.lg,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    ...Shadows.soft,
   },
   menuItem: {
     flexDirection: "row",
@@ -433,7 +465,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "rgba(255,255,255,0.6)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -445,7 +477,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(17,24,39,0.06)",
     marginLeft: 68,
   },
   fab: {
@@ -458,14 +490,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
     gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    ...Shadows.glow,
   },
   fabButtonText: {
     fontSize: 16,

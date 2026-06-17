@@ -7,6 +7,9 @@ import { ArrowLeft, ArrowRight, User, Mail, Phone } from "lucide-react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { useProviderOnboarding } from "./context";
 import { useAppSelector } from "@/store";
 import { Button } from "@/components/Button";
@@ -39,6 +42,7 @@ export default function BasicInfoScreen() {
   };
 
   return (
+    <ScreenBackground>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -54,13 +58,18 @@ export default function BasicInfoScreen() {
       >
         {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isValid }) => (
           <>
-            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+            <LinearGradient
+              colors={Gradients.brandDiagonal}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.header, { paddingTop: insets.top + 16 }]}
+            >
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => router.back()}
                 activeOpacity={0.7}
               >
-                <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
+                <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
               </TouchableOpacity>
               <View style={styles.progressContainer}>
                 <View style={[styles.progressDot, styles.progressDotActive]} />
@@ -70,7 +79,7 @@ export default function BasicInfoScreen() {
                 <View style={styles.progressDot} />
               </View>
               <View style={styles.placeholder} />
-            </View>
+            </LinearGradient>
 
             <ScrollView
               style={styles.content}
@@ -140,13 +149,13 @@ export default function BasicInfoScreen() {
         )}
       </Formik>
     </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
@@ -154,9 +163,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   backButton: {
     width: 40,
@@ -172,10 +182,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "rgba(255,255,255,0.3)",
   },
   progressDotActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: "#FFFFFF",
     width: 24,
   },
   placeholder: {
@@ -249,9 +259,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 24,
     paddingTop: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "rgba(255,255,255,0.65)",
   },
   continueButton: {
     flexDirection: "row",

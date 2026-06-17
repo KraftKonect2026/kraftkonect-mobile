@@ -6,6 +6,9 @@ import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpac
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/Button";
+import { Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GlassCard } from "@/components/GlassCard";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
 import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
 import { AuthPayload } from "@/types";
@@ -133,7 +136,7 @@ export default function VerifyEmailScreen() {
   }, [user?.email]);
 
   return (
-    <View style={styles.wrapper}>
+    <ScreenBackground>
       <SafeAreaView style={styles.container} edges={['top']}>
         <KeyboardAvoidingView
           style={styles.keyboardView}
@@ -152,65 +155,65 @@ export default function VerifyEmailScreen() {
               <ArrowLeft size={24} color={Colors.textPrimary} />
             </TouchableOpacity>
 
-            <View style={styles.iconContainer}>
-              <View style={styles.icon}>
-                <Mail size={48} color={Colors.primary} strokeWidth={1.5} />
+            <View style={styles.header}>
+              <View style={styles.iconContainer}>
+                <View style={styles.icon}>
+                  <Mail size={48} color={Colors.primary} strokeWidth={1.5} />
+                </View>
+              </View>
+
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>Verify Your Email</Text>
+                <Text style={styles.message}>
+                  We&apos;ve sent a 6-digit verification code to your email address. Please enter it below.
+                </Text>
               </View>
             </View>
 
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>Verify Your Email</Text>
-              <Text style={styles.message}>
-                We&apos;ve sent a 6-digit verification code to your email address. Please enter it below.
-              </Text>
-            </View>
+            <GlassCard padding={20} elevation="medium" style={styles.formCard}>
+              <View style={styles.otpContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => { inputRefs.current[index] = ref; }}
+                    style={[styles.otpInput, digit && styles.otpInputFilled]}
+                    value={digit}
+                    onChangeText={(text) => handleOtpChange(text, index)}
+                    onKeyPress={(e) => handleKeyPress(e, index)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    selectTextOnFocus
+                    autoFocus={index === 0}
+                  />
+                ))}
+              </View>
 
-            <View style={styles.otpContainer}>
-              {otp.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={(ref) => { inputRefs.current[index] = ref; }}
-                  style={[styles.otpInput, digit && styles.otpInputFilled]}
-                  value={digit}
-                  onChangeText={(text) => handleOtpChange(text, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  selectTextOnFocus
-                  autoFocus={index === 0}
+              <View style={styles.buttonContainer}>
+                <Button
+                  title="Verify"
+                  onPress={handleVerifyEmail.bind(null, { email: user?.email || '', otp: otp.join('') })}
+                  loading={isVerifyEmailLoading}
+                  style={{ marginBottom: 12 }}
                 />
-              ))}
-            </View>
 
-            <View style={styles.buttonContainer}>
-              <Button
-                title="Verify"
-                onPress={handleVerifyEmail.bind(null, { email: user?.email || '', otp: otp.join('') })}
-                loading={isVerifyEmailLoading}
-                style={{ marginBottom: 12 }}
-              />
-
-              <Button
-                title={isActive ? `Resend Code in ${formattedTime}` : "Resend Code"}
-                variant="outline"
-                style={{ borderWidth: 0, height: 48 }}
-                textStyle={{ color: Colors.primary, fontWeight: "600", fontSize: 16 }}
-                onPress={handleResend}
-                disabled={isResendOtpLoading || isActive}
-              />
-            </View>
+                <Button
+                  title={isActive ? `Resend Code in ${formattedTime}` : "Resend Code"}
+                  variant="outline"
+                  style={{ borderWidth: 0, height: 48 }}
+                  textStyle={{ color: Colors.primary, fontWeight: "600", fontSize: 16 }}
+                  onPress={handleResend}
+                  disabled={isResendOtpLoading || isActive}
+                />
+              </View>
+            </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   container: {
     flex: 1,
   },
@@ -224,7 +227,20 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    alignItems: "center",
     justifyContent: "center",
+    marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
+    ...Shadows.soft,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  formCard: {
+    marginBottom: 8,
   },
   iconContainer: {
     alignItems: "center",
@@ -254,18 +270,16 @@ const styles = StyleSheet.create({
   otpInput: {
     width: 50,
     height: 56,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     textAlign: "center",
     fontSize: 24,
     fontWeight: "600" as const,
     color: Colors.textPrimary,
-    backgroundColor: "#F9FAFB",
+    ...(glassSurface as any),
+    ...Shadows.soft,
   },
   otpInputFilled: {
     borderColor: Colors.primary,
-    backgroundColor: "#EFF6FF",
   },
   title: {
     fontSize: 28,

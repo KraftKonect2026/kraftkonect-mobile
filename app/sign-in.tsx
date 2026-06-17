@@ -17,6 +17,9 @@ import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
 import { useToast } from "@/lib/toast";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { Shadows } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GlassCard } from "@/components/GlassCard";
 
 const signInSchema = Yup.object().shape({
   email: Yup.string()
@@ -80,7 +83,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <View style={styles.wrapper}>
+    <ScreenBackground>
       <SafeAreaView style={styles.container} edges={["top"]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -112,6 +115,7 @@ export default function SignInScreen() {
                   </Text>
                 </View>
 
+                <GlassCard padding={20} elevation="medium" style={styles.formCard}>
                 <View style={styles.form}>
                   <Input
                     label="Email"
@@ -188,20 +192,17 @@ export default function SignInScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
+                </GlassCard>
               </ScrollView>
             )}
           </Formik>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   container: {
     flex: 1,
   },
@@ -214,8 +215,17 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
+    ...Shadows.soft,
+  },
+  formCard: {
+    marginBottom: 8,
   },
   header: {
     marginBottom: 32,
@@ -294,7 +304,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: "rgba(17,24,39,0.1)",
   },
   dividerText: {
     marginHorizontal: 16,

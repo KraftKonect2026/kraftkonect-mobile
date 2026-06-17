@@ -7,7 +7,7 @@ import {
   Clock,
 } from "lucide-react-native";
 import React, { useRef, useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Animated, Platform,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Animated,  } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -16,6 +16,9 @@ import { useQuery, useMutation } from "@apollo/client";
 import * as Haptics from "expo-haptics";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { PROVIDER_QUERY, GET_FAVOURITES_QUERY } from "@/lib/queries";
 import { useOpenChat } from "@/lib/useOpenChat";
 import { ADD_TO_FAVOURITES_MUTATION, REMOVE_FROM_FAVOURITES_MUTATION } from "@/lib/mutations";
@@ -121,7 +124,7 @@ export default function ProviderProfileScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       <Animated.View style={[styles.header, { height: headerHeight }]}>
         <Animated.View style={{ opacity: imageOpacity }}>
           <Image
@@ -299,18 +302,24 @@ export default function ProviderProfileScreen() {
           activeOpacity={0.8}
           onPress={() => router.push(`/(app)/booking/${provider.id}/select-service` as any)}
         >
-          <Calendar size={20} color="#FFFFFF" strokeWidth={2} />
-          <Text style={styles.bookButtonText}>Book Now</Text>
+          <LinearGradient
+            colors={Gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.bookButtonGradient}
+          >
+            <Calendar size={20} color="#FFFFFF" strokeWidth={2} />
+            <Text style={styles.bookButtonText}>Book Now</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   errorContainer: {
     flex: 1,
@@ -412,9 +421,9 @@ const styles = StyleSheet.create({
     zIndex: -1
   },
   content: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
     paddingTop: 60,
     zIndex: -1
   },
@@ -461,9 +470,10 @@ const styles = StyleSheet.create({
   },
   statItem: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    ...glassSurface,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: Radius.md,
+    ...Shadows.soft,
   },
   statLabel: {
     fontSize: 14,
@@ -483,7 +493,7 @@ const styles = StyleSheet.create({
   expertiseChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.primary + "30",
@@ -494,12 +504,11 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   serviceCard: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    ...Shadows.soft,
   },
   serviceHeader: {
     flexDirection: "row",
@@ -545,7 +554,7 @@ const styles = StyleSheet.create({
   reviewCard: {
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "rgba(17,24,39,0.06)",
   },
   reviewHeader: {
     flexDirection: "row",
@@ -595,27 +604,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 20,
     paddingTop: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "rgba(255,255,255,0.65)",
     gap: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    ...Shadows.medium,
   },
   chatButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1.5,
@@ -623,10 +622,14 @@ const styles = StyleSheet.create({
   },
   bookButton: {
     flex: 1,
-    flexDirection: "row",
     height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
+    overflow: "hidden",
+    ...Shadows.glow,
+  },
+  bookButtonGradient: {
+    flex: 1,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,

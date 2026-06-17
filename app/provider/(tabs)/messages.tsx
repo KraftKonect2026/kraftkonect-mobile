@@ -9,6 +9,9 @@ import { useQuery } from "@apollo/client";
 
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { GET_CONVERSATIONS_QUERY } from "@/lib/queries";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -108,15 +111,22 @@ export default function ProviderMessagesScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.headerBubble1} pointerEvents="none" />
+        <View style={styles.headerBubble2} pointerEvents="none" />
         <Text style={styles.headerTitle}>Messages</Text>
         {!loading && (
           <Text style={styles.headerSubtitle}>
             {unreadTotal} unread
           </Text>
         )}
-      </View>
+      </LinearGradient>
 
       {loading && !data ? (
         <View style={styles.centeredState}>
@@ -126,9 +136,16 @@ export default function ProviderMessagesScreen() {
       ) : error && !data ? (
         <View style={styles.centeredState}>
           <Text style={styles.errorTitle}>Couldn&apos;t load messages</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-            <RefreshCw size={16} color="#FFFFFF" strokeWidth={2} />
-            <Text style={styles.retryText}>Retry</Text>
+          <TouchableOpacity onPress={() => refetch()}>
+            <LinearGradient
+              colors={Gradients.brand}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.retryButton}
+            >
+              <RefreshCw size={16} color="#FFFFFF" strokeWidth={2} />
+              <Text style={styles.retryText}>Retry</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       ) : (
@@ -150,21 +167,40 @@ export default function ProviderMessagesScreen() {
           )}
         </ScrollView>
       )}
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
-  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
-  headerSubtitle: { fontSize: 15, color: "#6B7280" },
+  headerBubble1: {
+    position: "absolute",
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    top: -70,
+    right: -40,
+  },
+  headerBubble2: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    bottom: -50,
+    left: -10,
+  },
+  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#FFFFFF", marginBottom: 4 },
+  headerSubtitle: { fontSize: 15, color: "rgba(255,255,255,0.8)" },
   content: { flex: 1 },
   contentContainer: { padding: 16 },
 
@@ -176,10 +212,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: Radius.pill,
+    ...Shadows.glow,
   },
   retryText: { fontSize: 15, fontWeight: "600" as const, color: "#FFFFFF" },
 
@@ -187,10 +223,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    ...glassSurface,
+    borderRadius: Radius.lg,
+    ...Shadows.soft,
     marginBottom: 12,
     gap: 12,
   },
@@ -199,7 +234,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
   },

@@ -10,6 +10,9 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { useAppDispatch } from "@/store";
 import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
+import { Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GlassCard } from "@/components/GlassCard";
 import { useToast } from "@/lib/toast";
 import { useCountdown } from "@/lib/hooks/useCountdown";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
@@ -133,7 +136,7 @@ export default function VerifyPhoneScreen() {
   // ── Phase 1: phone entry ──────────────────────────────────────────────────
   if (!codeSent) {
     return (
-      <View style={styles.wrapper}>
+      <ScreenBackground>
         <SafeAreaView style={styles.container} edges={["top"]}>
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -165,47 +168,49 @@ export default function VerifyPhoneScreen() {
                 </Text>
               </View>
 
-              <View style={styles.form}>
-                <Input
-                  label="Phone Number"
-                  placeholder="+2348012345678"
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  autoFocus
-                />
+              <GlassCard padding={20} elevation="medium" style={styles.formCard}>
+                <View style={styles.form}>
+                  <Input
+                    label="Phone Number"
+                    placeholder="+2348012345678"
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    autoFocus
+                  />
 
-                <Button
-                  title="Send Code"
-                  onPress={() => {
-                    if (!phone || phone.length < 10) {
-                      toast.error("Please enter a valid phone number");
-                      return;
-                    }
-                    sendOtp(phone);
-                  }}
-                  loading={sendingOtp}
-                  style={{ marginTop: 8, marginBottom: 8 }}
-                />
+                  <Button
+                    title="Send Code"
+                    onPress={() => {
+                      if (!phone || phone.length < 10) {
+                        toast.error("Please enter a valid phone number");
+                        return;
+                      }
+                      sendOtp(phone);
+                    }}
+                    loading={sendingOtp}
+                    style={{ marginTop: 8, marginBottom: 8 }}
+                  />
 
-                <Button
-                  title="Do it later"
-                  variant="outline"
-                  style={{ borderWidth: 0, height: 48 }}
-                  textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
-                  onPress={() => router.replace("/provider-onboarding/welcome" as any)}
-                />
-              </View>
+                  <Button
+                    title="Do it later"
+                    variant="outline"
+                    style={{ borderWidth: 0, height: 48 }}
+                    textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
+                    onPress={() => router.replace("/provider-onboarding/welcome" as any)}
+                  />
+                </View>
+              </GlassCard>
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-      </View>
+      </ScreenBackground>
     );
   }
 
   // ── Phase 2: OTP entry ────────────────────────────────────────────────────
   return (
-    <View style={styles.wrapper}>
+    <ScreenBackground>
       <SafeAreaView style={styles.container} edges={["top"]}>
         <KeyboardAvoidingView
           style={styles.keyboardView}
@@ -241,63 +246,81 @@ export default function VerifyPhoneScreen() {
               </Text>
             </View>
 
-            <View style={styles.otpContainer}>
-              {otp.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={(ref) => {
-                    inputRefs.current[index] = ref;
-                  }}
-                  style={[styles.otpInput, digit && styles.otpInputFilled]}
-                  value={digit}
-                  onChangeText={(text) => handleOtpChange(text, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  selectTextOnFocus
-                  autoFocus={index === 0}
+            <GlassCard padding={20} elevation="medium" style={styles.formCard}>
+              <View style={styles.otpContainer}>
+                {otp.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => {
+                      inputRefs.current[index] = ref;
+                    }}
+                    style={[styles.otpInput, digit && styles.otpInputFilled]}
+                    value={digit}
+                    onChangeText={(text) => handleOtpChange(text, index)}
+                    onKeyPress={(e) => handleKeyPress(e, index)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    selectTextOnFocus
+                    autoFocus={index === 0}
+                  />
+                ))}
+              </View>
+
+              <View style={styles.buttonContainer}>
+                <Button
+                  title="Verify"
+                  onPress={handleVerify}
+                  loading={verifying}
+                  style={{ marginBottom: 12 }}
                 />
-              ))}
-            </View>
 
-            <View style={styles.buttonContainer}>
-              <Button
-                title="Verify"
-                onPress={handleVerify}
-                loading={verifying}
-                style={{ marginBottom: 12 }}
-              />
+                <Button
+                  title={cooldownActive ? `Resend in ${formattedTime}` : sendingOtp ? "Sending…" : "Resend Code"}
+                  variant="outline"
+                  style={{ borderWidth: 0, height: 48, marginBottom: 12 }}
+                  textStyle={{ color: Colors.primary, fontWeight: "600", fontSize: 16 }}
+                  onPress={handleResend}
+                  disabled={cooldownActive || sendingOtp}
+                />
 
-              <Button
-                title={cooldownActive ? `Resend in ${formattedTime}` : sendingOtp ? "Sending…" : "Resend Code"}
-                variant="outline"
-                style={{ borderWidth: 0, height: 48, marginBottom: 12 }}
-                textStyle={{ color: Colors.primary, fontWeight: "600", fontSize: 16 }}
-                onPress={handleResend}
-                disabled={cooldownActive || sendingOtp}
-              />
-
-              <Button
-                title="Do it later"
-                variant="outline"
-                style={{ borderWidth: 0, height: 48 }}
-                textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
-                onPress={() => router.replace("/provider-onboarding/welcome" as any)}
-              />
-            </View>
+                <Button
+                  title="Do it later"
+                  variant="outline"
+                  style={{ borderWidth: 0, height: 48 }}
+                  textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
+                  onPress={() => router.replace("/provider-onboarding/welcome" as any)}
+                />
+              </View>
+            </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: Colors.background },
   container: { flex: 1 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: 24 },
-  backButton: { width: 40, height: 40, justifyContent: "center", marginBottom: 4 },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
+    ...Shadows.soft,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  formCard: {
+    marginBottom: 8,
+  },
   iconContainer: { alignItems: "center", marginTop: 16, marginBottom: 24 },
   icon: {
     width: 100,
@@ -340,16 +363,15 @@ const styles = StyleSheet.create({
   otpInput: {
     width: 48,
     height: 56,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     textAlign: "center",
     fontSize: 24,
     fontWeight: "600" as const,
     color: Colors.textPrimary,
-    backgroundColor: "#F9FAFB",
+    ...(glassSurface as any),
+    ...Shadows.soft,
   },
-  otpInputFilled: { borderColor: Colors.primary, backgroundColor: "#EFF6FF" },
+  otpInputFilled: { borderColor: Colors.primary },
   buttonContainer: { gap: 12, marginTop: 8 },
   primaryButton: {
     backgroundColor: Colors.primary,

@@ -14,6 +14,9 @@ import {
   CheckCircle,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { BOOKINGS_FOR_PROVIDER_QUERY } from "@/lib/queries";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -115,15 +118,22 @@ export default function EarningsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.headerBubble1} pointerEvents="none" />
+        <View style={styles.headerBubble2} pointerEvents="none" />
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
-          <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
+          <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Earnings</Text>
         <View style={styles.placeholder} />
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -131,9 +141,14 @@ export default function EarningsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Balance card */}
-        <View style={styles.balanceCard}>
+        <LinearGradient
+          colors={Gradients.brand}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.balanceCard}
+        >
           <View style={styles.balanceHeader}>
-            <DollarSign size={32} color={Colors.primary} strokeWidth={2} />
+            <DollarSign size={32} color="#FFFFFF" strokeWidth={2} />
           </View>
           <Text style={styles.balanceLabel}>This Week&apos;s Earnings</Text>
           {loading && completed.length === 0 ? (
@@ -145,7 +160,7 @@ export default function EarningsScreen() {
             <ArrowDownCircle size={20} color={Colors.primary} strokeWidth={2} />
             <Text style={styles.withdrawButtonText}>Withdraw</Text>
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
 
         {/* Stats grid */}
         <View style={styles.statsGrid}>
@@ -242,7 +257,7 @@ export default function EarningsScreen() {
           </Text>
         </View>
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }
 
@@ -256,6 +271,8 @@ const styles = StyleSheet.create({
   backButton: { width: 40, height: 40, justifyContent: "center" },
   headerTitle: { fontSize: 18, fontWeight: "600" as const, color: "#2C2C2C" },
   placeholder: { width: 40 },
+  headerBubble1: { position: "absolute", width: 100, height: 100, borderRadius: 50, backgroundColor: "rgba(255,255,255,0.1)", top: -20, right: -20 },
+  headerBubble2: { position: "absolute", width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(255,255,255,0.1)", top: 40, right: 60 },
   content: { flex: 1 },
   contentContainer: { padding: 16 },
   balanceCard: { padding: 24, backgroundColor: Colors.primary, borderRadius: 20, marginBottom: 24 },

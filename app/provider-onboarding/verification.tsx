@@ -6,6 +6,9 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { ArrowLeft, ArrowRight, Camera, Shield, Upload, Loader2 } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { useProviderOnboarding } from "./context";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { Button } from "@/components/Button";
@@ -72,14 +75,19 @@ export default function VerificationScreen() {
   const checkmarkContainerStyle = styles.checkmarkContainer;
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
+          <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
         </TouchableOpacity>
         <View style={styles.progressContainer}>
           <View style={[styles.progressDot, styles.progressDotActive]} />
@@ -89,7 +97,7 @@ export default function VerificationScreen() {
           <View style={styles.progressDot} />
         </View>
         <View style={styles.placeholder} />
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -203,14 +211,13 @@ export default function VerificationScreen() {
           icon={<ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />}
         />
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
@@ -218,9 +225,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   backButton: {
     width: 40,
@@ -236,10 +244,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "rgba(255,255,255,0.3)",
   },
   progressDotActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: "#FFFFFF",
     width: 24,
   },
   placeholder: {
@@ -278,8 +286,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 12,
+    backgroundColor: "rgba(219,234,254,0.7)",
+    borderRadius: Radius.sm,
     gap: 12,
   },
   securityText: {
@@ -292,15 +300,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#F9FAFB",
+    ...glassSurface,
     borderWidth: 2,
-    borderColor: "#E5E7EB",
-    borderRadius: 16,
+    borderColor: "rgba(17,24,39,0.12)",
+    borderRadius: Radius.md,
     borderStyle: "dashed",
     gap: 16,
+    ...Shadows.soft,
   },
   uploadCardComplete: {
-    backgroundColor: "#F0FDF4",
+    backgroundColor: "rgba(220,252,231,0.7)",
     borderColor: "#86EFAC",
     borderStyle: "solid",
   },
@@ -308,7 +317,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.85)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -345,9 +354,10 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     padding: 20,
-    backgroundColor: "#FFFBEB",
-    borderRadius: 16,
+    backgroundColor: "rgba(254,243,199,0.55)",
+    borderRadius: Radius.md,
     marginTop: 16,
+    ...Shadows.soft,
   },
   infoTitle: {
     fontSize: 16,
@@ -367,9 +377,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 24,
     paddingTop: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "rgba(255,255,255,0.65)",
   },
   continueButton: {
     flexDirection: "row",

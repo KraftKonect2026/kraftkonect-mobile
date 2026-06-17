@@ -6,8 +6,11 @@ import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { useQuery, useMutation } from "@apollo/client";
-import { ArrowLeft, Check } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Radius, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GradientHeader } from "@/components/GradientHeader";
 import { categories } from "@/constants/categories";
 import { MY_LISTINGS_QUERY } from "@/lib/queries";
 import { UPDATE_LISTING_MUTATION } from "@/lib/mutations";
@@ -47,32 +50,24 @@ export default function EditListingScreen() {
 
   if (loadingListing && !listing) {
     return (
-      <View style={[styles.container, styles.errorContainer]}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
+      <ScreenBackground>
+        <View style={[styles.container, styles.errorContainer]}>
+          <Stack.Screen options={{ headerShown: false }} />
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </ScreenBackground>
     );
   }
 
   if (!listing) {
     return (
-      <View style={styles.container}>
+      <ScreenBackground>
         <Stack.Screen options={{ headerShown: false }} />
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Service</Text>
-          <View style={styles.placeholder} />
-        </View>
+        <GradientHeader title="Edit Service" showBack />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Listing not found</Text>
         </View>
-      </View>
+      </ScreenBackground>
     );
   }
 
@@ -106,22 +101,13 @@ export default function EditListingScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <ScreenBackground>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Service</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+      <GradientHeader title="Edit Service" showBack />
 
       <ScrollView
         style={styles.content}
@@ -212,37 +198,14 @@ export default function EditListingScreen() {
           disabled={!isValid}
         />
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600" as const,
-    color: "#2C2C2C",
-  },
-  placeholder: {
-    width: 40,
   },
   content: {
     flex: 1,
@@ -288,10 +251,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
+    ...glassSurface,
+    borderRadius: Radius.md,
     gap: 6,
   },
   categoryChipSelected: {
@@ -338,9 +299,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 20,
     paddingTop: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "rgba(17,24,39,0.06)",
   },
   saveButton: {
     paddingVertical: 16,

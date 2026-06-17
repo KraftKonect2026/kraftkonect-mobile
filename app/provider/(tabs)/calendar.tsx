@@ -5,6 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation } from "@apollo/client";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { MY_BLOCKED_DATES_QUERY } from "@/lib/queries";
 import { SET_BLOCKED_DATES_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
@@ -133,11 +136,18 @@ export default function CalendarScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.headerBubble1} pointerEvents="none" />
+        <View style={styles.headerBubble2} pointerEvents="none" />
         <Text style={styles.headerTitle}>Calendar</Text>
         <Text style={styles.headerSubtitle}>Manage your availability</Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -190,43 +200,68 @@ export default function CalendarScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.saveButton, (saving || loading) && { opacity: 0.6 }]}
+          style={(saving || loading) && { opacity: 0.6 }}
           activeOpacity={0.8}
           disabled={saving || loading}
           onPress={handleSave}
         >
-          {saving ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Availability</Text>
-          )}
+          <LinearGradient
+            colors={Gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.saveButton}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Availability</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
+  },
+  headerBubble1: {
+    position: "absolute",
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    top: -70,
+    right: -40,
+  },
+  headerBubble2: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    bottom: -50,
+    left: -10,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700" as const,
-    color: "#2C2C2C",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    color: "rgba(255,255,255,0.8)",
   },
   content: {
     flex: 1,
@@ -236,10 +271,9 @@ const styles = StyleSheet.create({
   },
   calendarCard: {
     padding: 20,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    ...glassSurface,
+    borderRadius: Radius.lg,
+    ...Shadows.soft,
     marginBottom: 24,
   },
   calendarHeader: {
@@ -254,7 +288,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 20,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "rgba(255,255,255,0.6)",
   },
   monthText: {
     fontSize: 18,
@@ -309,8 +343,11 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     padding: 20,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 16,
+    backgroundColor: "rgba(219,234,254,0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
+    borderRadius: Radius.lg,
+    ...Shadows.soft,
     marginBottom: 24,
   },
   infoTitle: {
@@ -326,9 +363,9 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     paddingVertical: 16,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
     alignItems: "center",
+    ...Shadows.glow,
   },
   saveButtonText: {
     fontSize: 16,

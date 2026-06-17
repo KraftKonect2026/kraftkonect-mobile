@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle, TextStyle, Platform, StyleProp, Animated, TouchableOpacity } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Glass, Radius, Shadows } from "@/constants/theme";
 
 export interface InputProps extends Omit<TextInputProps, "style"> {
   label?: string;
@@ -72,15 +73,17 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Glass.overlayStrong,
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 27, // Highly rounded / capsule shape
+    borderColor: Glass.border,
+    borderRadius: Radius.pill, // Highly rounded / capsule shape
     paddingHorizontal: 20,
     height: 54,
+    ...Shadows.soft,
   },
   inputContainerError: {
     borderColor: Colors.error,
+    backgroundColor: "rgba(254,242,242,0.85)",
   },
   iconContainer: {
     marginRight: 10,

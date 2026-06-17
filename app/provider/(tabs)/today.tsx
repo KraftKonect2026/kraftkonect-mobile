@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl,  } from "react-native";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl, Animated } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -18,6 +18,9 @@ import {
   Sparkles,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   MY_PROVIDER_PROFILE_QUERY,
   BOOKINGS_FOR_PROVIDER_QUERY,
@@ -63,6 +66,38 @@ export default function TodayDashboardScreen() {
   const toast = useToast();
 
   const [refreshing, setRefreshing] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Stagger entry animations
+  const mountAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
+  useEffect(() => {
+    Animated.stagger(
+      90,
+      mountAnims.map((anim) =>
+        Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 })
+      )
+    ).start();
+  }, []);
+
+  const makeSectionStyle = (index: number) => ({
+    opacity: mountAnims[index],
+    transform: [
+      {
+        translateY: mountAnims[index].interpolate({
+          inputRange: [0, 1],
+          outputRange: [30, 0],
+        }),
+      },
+    ],
+  });
 
   // ── Availability toggle ─────────────────────────────────────────────────────
   const [optimisticAvailable, setOptimisticAvailable] = useState<boolean | null>(null);
@@ -167,9 +202,17 @@ export default function TodayDashboardScreen() {
   const earningsToday = todayEarnings(allBookings);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <View>
+    <ScreenBackground>
+      <Animated.View style={{ zIndex: 1, transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 100], outputRange: [0, -15], extrapolate: "clamp" }) }] }}>
+        <LinearGradient
+          colors={Gradients.brandDiagonal}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.header, { paddingTop: insets.top + 16 }]}
+        >
+          <Animated.View style={[styles.headerBubble1, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 150], outputRange: [0, 40], extrapolate: "clamp" }) }] }]} pointerEvents="none" />
+          <Animated.View style={[styles.headerBubble2, { transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 150], outputRange: [0, -20], extrapolate: "clamp" }) }] }]} pointerEvents="none" />
+          <View>
           <Text style={styles.headerTitle}>Today</Text>
           <Text style={styles.headerSubtitle}>
             {new Date().toLocaleDateString("en-US", {
@@ -179,15 +222,18 @@ export default function TodayDashboardScreen() {
             })}
           </Text>
         </View>
-      </View>
+      </LinearGradient>
+      </Animated.View>
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
           { paddingBottom: insets.bottom + 100 },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -197,12 +243,13 @@ export default function TodayDashboardScreen() {
         }
       >
         {/* ── Availability toggle ──────────────────────────────────────────── */}
-        <View
+        <Animated.View
           style={[
             styles.availabilityCard,
             displayAvailable
               ? styles.availabilityCardOnline
               : styles.availabilityCardOffline,
+            makeSectionStyle(0),
           ]}
         >
           <View style={styles.availabilityLeft}>
@@ -229,7 +276,7 @@ export default function TodayDashboardScreen() {
                     : styles.availabilityLabelOffline,
                 ]}
               >
-                {displayAvailable ? "I dey available" : "I no dey available"}
+                {displayAvailable ? "I'm available" : "I'm not available"}
               </Text>
               <Text style={styles.availabilitySubLabel}>
                 {displayAvailable
@@ -254,10 +301,10 @@ export default function TodayDashboardScreen() {
               ios_backgroundColor="#D1D5DB"
             />
           )}
-        </View>
+        </Animated.View>
 
         {/* ── Summary cards ────────────────────────────────────────────────── */}
-        <View style={styles.summaryCards}>
+        <Animated.View style={[styles.summaryCards, makeSectionStyle(1)]}>
           <TouchableOpacity
             style={[styles.summaryCard, styles.summaryCardPrimary]}
             activeOpacity={0.8}
@@ -297,10 +344,10 @@ export default function TodayDashboardScreen() {
             <Text style={styles.summaryCardValueSecondary}>{unreadMessages}</Text>
             <Text style={styles.summaryCardLabelSecondary}>Unread Messages</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* ── AI Demand Insights ───────────────────────────────────────────── */}
-        <View style={styles.section}>
+        <Animated.View style={[styles.section, makeSectionStyle(2)]}>
           <View style={styles.sectionHeader}>
             <View style={styles.insightsTitleRow}>
               <Sparkles size={16} color={Colors.primary} strokeWidth={2} />
@@ -355,10 +402,10 @@ export default function TodayDashboardScreen() {
               ))}
             </View>
           )}
-        </View>
+        </Animated.View>
 
         {/* ── Today's schedule ─────────────────────────────────────────────── */}
-        <View style={styles.section}>
+        <Animated.View style={[styles.section, makeSectionStyle(3)]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
           </View>
@@ -467,10 +514,10 @@ export default function TodayDashboardScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </Animated.View>
 
         {/* ── Upcoming jobs ─────────────────────────────────────────────────── */}
-        <View style={styles.section}>
+        <Animated.View style={[styles.section, makeSectionStyle(4)]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Jobs</Text>
             <TouchableOpacity
@@ -528,10 +575,10 @@ export default function TodayDashboardScreen() {
               ))}
             </View>
           )}
-        </View>
+        </Animated.View>
 
         {/* ── Quick actions ─────────────────────────────────────────────────── */}
-        <View style={styles.section}>
+        <Animated.View style={[styles.section, makeSectionStyle(5)]}>
           <View style={styles.quickActionsCard}>
             <Text style={styles.quickActionsTitle}>Quick Actions</Text>
             <View style={styles.quickActionButtons}>
@@ -555,23 +602,42 @@ export default function TodayDashboardScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </Animated.View>
+      </Animated.ScrollView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 22,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
-  headerTitle: { fontSize: 28, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
-  headerSubtitle: { fontSize: 15, color: "#6B7280" },
+  headerBubble1: {
+    position: "absolute",
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    top: -70,
+    right: -40,
+  },
+  headerBubble2: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    bottom: -50,
+    left: -10,
+  },
+  headerTitle: { fontSize: 28, fontWeight: "800" as const, color: "#FFFFFF", marginBottom: 4, letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 15, color: "rgba(255,255,255,0.8)", fontWeight: "500" as const },
   content: { flex: 1 },
   contentContainer: { padding: 16 },
 
@@ -580,12 +646,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
     marginBottom: 16,
+    ...Shadows.soft,
   },
-  availabilityCardOnline: { backgroundColor: "#F0FDF4", borderColor: "#86EFAC" },
-  availabilityCardOffline: { backgroundColor: "#F9FAFB", borderColor: "#E5E7EB" },
+  availabilityCardOnline: { backgroundColor: "rgba(220,252,231,0.7)", borderColor: "rgba(134,239,172,0.8)" },
+  availabilityCardOffline: { backgroundColor: "rgba(255,255,255,0.62)", borderColor: "rgba(255,255,255,0.65)" },
   availabilityLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   availabilityIconWrap: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
   availabilityIconOnline: { backgroundColor: "#DCFCE7" },
@@ -598,16 +665,16 @@ const styles = StyleSheet.create({
 
   summaryCards: { flexDirection: "row", gap: 12, marginBottom: 24 },
   summaryCard: {
-    flex: 1, padding: 16, backgroundColor: "#FFFFFF",
-    borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
+    flex: 1, padding: 16, ...glassSurface,
+    borderRadius: Radius.lg, ...Shadows.soft,
   },
-  summaryCardPrimary: { backgroundColor: "#EFF6FF", borderColor: Colors.primary },
+  summaryCardPrimary: { backgroundColor: "rgba(219,234,254,0.7)", borderColor: "rgba(37,99,235,0.35)" },
   summaryCardIcon: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFFFFF",
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.85)",
     justifyContent: "center", alignItems: "center", marginBottom: 12,
   },
   summaryCardIconSecondary: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#F9FAFB",
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.6)",
     justifyContent: "center", alignItems: "center", marginBottom: 12,
   },
   summaryCardValue: { fontSize: 20, fontWeight: "700" as const, color: Colors.primary, marginBottom: 4 },
@@ -622,13 +689,13 @@ const styles = StyleSheet.create({
 
   jobsList: { gap: 12 },
   jobCard: {
-    padding: 16, backgroundColor: "#FFFFFF",
-    borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
+    padding: 16, ...glassSurface,
+    borderRadius: Radius.lg, ...Shadows.soft,
   },
   jobCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
   customerInfo: { flexDirection: "row", alignItems: "center", flex: 1 },
   customerAvatar: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFF6FF",
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(219,234,254,0.8)",
     justifyContent: "center", alignItems: "center", marginRight: 12,
   },
   customerDetails: { flex: 1 },
@@ -644,12 +711,12 @@ const styles = StyleSheet.create({
   jobDetails: { gap: 8, marginBottom: 12 },
   jobDetailRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   jobDetailText: { fontSize: 14, color: "#6B7280", flex: 1 },
-  jobCardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F3F4F6" },
+  jobCardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(17,24,39,0.06)" },
   jobPrice: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C" },
 
   emptyState: {
     alignItems: "center", paddingVertical: 48, paddingHorizontal: 24,
-    backgroundColor: "#FFFFFF", borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
+    ...glassSurface, borderRadius: Radius.lg, ...Shadows.soft,
   },
   emptyStateTitle: { fontSize: 16, fontWeight: "600" as const, color: "#2C2C2C", marginTop: 16, marginBottom: 8 },
   emptyStateDescription: { fontSize: 14, color: "#6B7280", textAlign: "center" },
@@ -657,7 +724,7 @@ const styles = StyleSheet.create({
   upcomingJobsList: { gap: 12 },
   upcomingJobCard: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    padding: 16, backgroundColor: "#FFFFFF", borderRadius: 12, borderWidth: 1, borderColor: "#F3F4F6",
+    padding: 16, ...glassSurface, borderRadius: Radius.md, ...Shadows.soft,
   },
   upcomingJobInfo: { flex: 1 },
   upcomingJobDate: { fontSize: 12, fontWeight: "600" as const, color: Colors.primary, marginBottom: 4 },
@@ -667,15 +734,15 @@ const styles = StyleSheet.create({
   upcomingJobPrice: { fontSize: 16, fontWeight: "700" as const, color: "#2C2C2C" },
 
   quickActionsCard: {
-    padding: 20, backgroundColor: "#FFFFFF",
-    borderRadius: 16, borderWidth: 1, borderColor: "#F3F4F6",
+    padding: 20, ...glassSurface,
+    borderRadius: Radius.lg, ...Shadows.soft,
   },
   quickActionsTitle: { fontSize: 16, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 16 },
   quickActionButtons: { flexDirection: "row", gap: 12 },
   quickActionButton: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingVertical: 12, paddingHorizontal: 16, backgroundColor: "#EFF6FF",
-    borderRadius: 12, gap: 8,
+    paddingVertical: 12, paddingHorizontal: 16, backgroundColor: "rgba(219,234,254,0.7)",
+    borderRadius: Radius.md, gap: 8, borderWidth: 1, borderColor: "rgba(37,99,235,0.18)",
   },
   quickActionButtonText: { fontSize: 14, fontWeight: "600" as const, color: Colors.primary },
 
@@ -690,13 +757,12 @@ const styles = StyleSheet.create({
   weekBadgeText: { fontSize: 11, fontWeight: "600" as const, color: Colors.primary },
 
   insightsCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.lg,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
     alignItems: "flex-start",
     gap: 4,
+    ...Shadows.soft,
   },
   insightsLoadingCard: {
     flexDirection: "row",
@@ -715,7 +781,7 @@ const styles = StyleSheet.create({
   insightsEmptyText: { fontSize: 13, color: "#9CA3AF", lineHeight: 18, textAlign: "center" },
 
   insightRow: { width: "100%", paddingVertical: 10, gap: 6 },
-  insightRowBorder: { borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  insightRowBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(17,24,39,0.06)" },
   areaChip: {
     flexDirection: "row",
     alignItems: "center",

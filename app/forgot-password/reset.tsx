@@ -9,6 +9,9 @@ import * as Yup from "yup";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { Shadows } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GlassCard } from "@/components/GlassCard";
 
 const resetPasswordSchema = Yup.object().shape({
   newPassword: Yup.string()
@@ -38,7 +41,7 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <View style={styles.wrapper}>
+    <ScreenBackground>
       <SafeAreaView style={styles.container} edges={["top"]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -75,49 +78,47 @@ export default function ResetPasswordScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.form}>
-                  <Input
-                    label="New Password"
-                    placeholder="Enter new password"
-                    value={values.newPassword}
-                    onChangeText={handleChange("newPassword")}
-                    onBlur={handleBlur("newPassword")}
-                    secureTextEntry
-                    touched={touched.newPassword}
-                    error={errors.newPassword}
-                  />
+                <GlassCard padding={20} elevation="medium" style={styles.formCard}>
+                  <View style={styles.form}>
+                    <Input
+                      label="New Password"
+                      placeholder="Enter new password"
+                      value={values.newPassword}
+                      onChangeText={handleChange("newPassword")}
+                      onBlur={handleBlur("newPassword")}
+                      secureTextEntry
+                      touched={touched.newPassword}
+                      error={errors.newPassword}
+                    />
 
-                  <Input
-                    label="Confirm Password"
-                    placeholder="Re-enter new password"
-                    value={values.confirmPassword}
-                    onChangeText={handleChange("confirmPassword")}
-                    onBlur={handleBlur("confirmPassword")}
-                    secureTextEntry
-                    touched={touched.confirmPassword}
-                    error={errors.confirmPassword}
-                  />
+                    <Input
+                      label="Confirm Password"
+                      placeholder="Re-enter new password"
+                      value={values.confirmPassword}
+                      onChangeText={handleChange("confirmPassword")}
+                      onBlur={handleBlur("confirmPassword")}
+                      secureTextEntry
+                      touched={touched.confirmPassword}
+                      error={errors.confirmPassword}
+                    />
 
-                  <Button
-                    title={isSubmitting ? "Resetting..." : "Reset Password"}
-                    onPress={handleSubmit}
-                    loading={isSubmitting}
-                  />
-                </View>
+                    <Button
+                      title={isSubmitting ? "Resetting..." : "Reset Password"}
+                      onPress={handleSubmit}
+                      loading={isSubmitting}
+                    />
+                  </View>
+                </GlassCard>
               </ScrollView>
             )}
           </Formik>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   container: {
     flex: 1,
   },
@@ -130,8 +131,17 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.65)",
+    ...Shadows.soft,
+  },
+  formCard: {
+    marginBottom: 8,
   },
   iconContainer: {
     alignItems: "center",

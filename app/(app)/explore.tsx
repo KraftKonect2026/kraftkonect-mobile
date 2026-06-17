@@ -20,7 +20,7 @@ import {
   Power,
 } from "lucide-react-native";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Animated, RefreshControl, Platform, ActivityIndicator, Linking,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Animated, RefreshControl, ActivityIndicator, Linking,  } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -30,8 +30,13 @@ import * as Haptics from "expo-haptics";
 import { useQuery } from "@apollo/client";
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { categories as categoriesData } from "@/constants/categories";
 import { NEARBY_ARTISANS_QUERY } from "@/lib/queries";
+
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 const LAGOS_LGAS = [
   "Agege",
@@ -187,10 +192,13 @@ export default function ExploreScreen() {
     : "Nearby Artisans";
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       <View style={styles.safeArea}>
         {/* Header */}
-        <Animated.View
+        <AnimatedLinearGradient
+          colors={Gradients.brandDiagonal}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[styles.header, { paddingTop: insets.top + 12, opacity: headerOpacity }]}
         >
           <TouchableOpacity
@@ -208,7 +216,7 @@ export default function ExploreScreen() {
           >
             <SlidersHorizontal size={20} color="#FFFFFF" strokeWidth={2} />
           </TouchableOpacity>
-        </Animated.View>
+        </AnimatedLinearGradient>
 
         <Animated.ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -489,47 +497,44 @@ export default function ExploreScreen() {
           </View>
         </Animated.ScrollView>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4F6FB" },
+  container: { flex: 1 },
   safeArea: { flex: 1 },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F5",
+    paddingBottom: 16,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
     gap: 10,
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
-      android: { elevation: 3 },
-    }),
+    ...Shadows.glow,
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F4F6FB",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.md,
     paddingHorizontal: 16,
     paddingVertical: 13,
     gap: 10,
-    borderWidth: 1.5,
-    borderColor: "#E8EAF0",
   },
   filterIcon: {
     width: 46,
     height: 46,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
+    borderRadius: Radius.md,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
   searchPlaceholder: { flex: 1, fontSize: 15, color: "#9CA3AF", fontWeight: "500" },
 
@@ -543,10 +548,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
+    ...glassSurface,
+    borderRadius: Radius.sm,
+    ...Shadows.soft,
   },
-  locationBannerGranted: { backgroundColor: "#D1FAE5" },
+  locationBannerGranted: { backgroundColor: "rgba(209,250,229,0.7)" },
   locationBannerText: { fontSize: 13, color: "#6B7280", flex: 1 },
   locationBannerTextGranted: { color: "#065F46" },
 
@@ -556,11 +562,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     padding: 14,
-    backgroundColor: "#FFFBEB",
-    borderRadius: 16,
+    backgroundColor: "rgba(255,251,235,0.85)",
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: "#FDE68A",
     gap: 8,
+    ...Shadows.soft,
   },
   locationDeniedHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   locationDeniedTitle: { fontSize: 14, fontWeight: "600" as const, color: "#92400E" },
@@ -573,8 +580,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Colors.primary,
     marginTop: 4,
@@ -596,9 +603,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(255,255,255,0.6)",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "rgba(255,255,255,0.65)",
   },
   lgaChipActive: {
     backgroundColor: Colors.primary,
@@ -620,14 +627,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#E8EAF0",
+    ...glassSurface,
     gap: 7,
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
-      android: { elevation: 1 },
-    }),
+    ...Shadows.soft,
   },
   categoryChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   categoryText: { fontSize: 13, fontWeight: "600" as const, color: "#374151" },
@@ -650,13 +652,10 @@ const styles = StyleSheet.create({
   },
   gridItem: { width: "48.5%", marginBottom: 16 },
   providerCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    ...glassSurface,
+    borderRadius: Radius.lg,
     overflow: "hidden",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.09, shadowRadius: 12 },
-      android: { elevation: 3 },
-    }),
+    ...Shadows.medium,
   },
   providerImage: { width: "100%", height: 140, backgroundColor: "#F3F4F6" },
   favoriteButton: {

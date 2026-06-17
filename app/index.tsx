@@ -4,6 +4,7 @@ import { Animated, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { useAppSelector, useAppDispatch, store } from "@/store";
 import { signOut } from "@/store/authSlice";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -67,25 +68,27 @@ export default function SplashScreen() {
   });
 
   return (
-    <View style={styles.container}>
-      <Animated.View
-        style={[
-          styles.logoContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
-      >
-        <Animated.View style={{ opacity: logoOpacity }}>
-          <Image
-            source={require("../assets/images/icon.png")}
-            style={styles.logo}
-            contentFit="contain"
-          />
+    <ScreenBackground>
+      <View style={styles.container}>
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <Animated.View style={{ opacity: logoOpacity }}>
+            <Image
+              source={require("../assets/images/icon.png")}
+              style={styles.logo}
+              contentFit="contain"
+            />
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
-    </View>
+      </View>
+    </ScreenBackground>
   );
 }
 
@@ -94,7 +97,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
   },
   logoContainer: {
     justifyContent: "center",

@@ -6,7 +6,7 @@ import {
   Star,
 } from "lucide-react-native";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, RefreshControl, Animated,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Animated,  } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,7 +15,12 @@ import * as Haptics from "expo-haptics";
 import { useQuery } from "@apollo/client";
 
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { NEARBY_ARTISANS_QUERY } from "@/lib/queries";
+
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function SearchResultsScreen() {
   const router = useRouter();
@@ -116,9 +121,12 @@ export default function SearchResultsScreen() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       {/* Header */}
-      <Animated.View
+      <AnimatedLinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           styles.header,
           { paddingTop: insets.top + 12 },
@@ -140,7 +148,7 @@ export default function SearchResultsScreen() {
           activeOpacity={0.7}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={22} color="#2C2C2C" strokeWidth={2} />
+          <ArrowLeft size={22} color="#FFFFFF" strokeWidth={2} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle} numberOfLines={1}>{heading}</Text>
@@ -148,7 +156,7 @@ export default function SearchResultsScreen() {
             <Text style={styles.headerCount}>{artisans.length} found</Text>
           )}
         </View>
-      </Animated.View>
+      </AnimatedLinearGradient>
 
       <ScrollView
         style={styles.scroll}
@@ -289,38 +297,35 @@ export default function SearchResultsScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 18,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
     gap: 12,
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
-      android: { elevation: 2 },
-    }),
+    ...Shadows.glow,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(255,255,255,0.18)",
     justifyContent: "center",
     alignItems: "center",
   },
   headerText: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: "700" as const, color: "#111827" },
-  headerCount: { fontSize: 13, color: "#6B7280", marginTop: 1 },
+  headerTitle: { fontSize: 18, fontWeight: "700" as const, color: "#FFFFFF" },
+  headerCount: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 1 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: 16, gap: 16 },
@@ -348,15 +353,10 @@ const styles = StyleSheet.create({
   resultsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   
   artisanCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    ...glassSurface,
+    borderRadius: Radius.lg,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-    ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10 },
-      android: { elevation: 3 },
-    }),
+    ...Shadows.medium,
   },
   artisanImageWrap: { position: "relative" },
   artisanAvatar: { width: "100%", height: 130, backgroundColor: "#F3F4F6" },

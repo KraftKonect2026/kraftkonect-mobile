@@ -13,6 +13,9 @@ import {
   Clock,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { MY_LISTINGS_QUERY } from "@/lib/queries";
 import { UPDATE_LISTING_MUTATION, DELETE_LISTING_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
@@ -71,13 +74,20 @@ export default function ServicesScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <View style={styles.headerBubble1} pointerEvents="none" />
+        <View style={styles.headerBubble2} pointerEvents="none" />
         <Text style={styles.headerTitle}>My Services</Text>
         <Text style={styles.headerSubtitle}>
           {listings.length} listing{listings.length !== 1 ? "s" : ""}
         </Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -183,39 +193,63 @@ export default function ServicesScreen() {
 
       <View style={[styles.fab, { bottom: insets.bottom + 96 }]}>
         <TouchableOpacity
-          style={styles.fabButton}
           activeOpacity={0.9}
           onPress={() => router.push("/provider/add-listing" as any)}
         >
-          <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
-          <Text style={styles.fabButtonText}>Add Listing</Text>
+          <LinearGradient
+            colors={Gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fabButton}
+          >
+            <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={styles.fabButtonText}>Add Listing</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
+  },
+  headerBubble1: {
+    position: "absolute",
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    top: -70,
+    right: -40,
+  },
+  headerBubble2: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    bottom: -50,
+    left: -10,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700" as const,
-    color: "#2C2C2C",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    color: "rgba(255,255,255,0.8)",
   },
   content: {
     flex: 1,
@@ -228,10 +262,9 @@ const styles = StyleSheet.create({
   },
   listingCard: {
     padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    ...glassSurface,
+    borderRadius: Radius.lg,
+    ...Shadows.soft,
   },
   listingHeader: {
     marginBottom: 12,
@@ -244,7 +277,7 @@ const styles = StyleSheet.create({
   categoryBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     borderRadius: 8,
   },
   categoryBadgeText: {
@@ -276,7 +309,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: "rgba(17,24,39,0.06)",
   },
   listingDetail: {
     flexDirection: "row",
@@ -298,8 +331,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#EFF6FF",
+    borderRadius: Radius.sm,
+    backgroundColor: "rgba(219,234,254,0.7)",
     gap: 6,
   },
   actionButtonSecondaryText: {
@@ -313,8 +346,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#FEF2F2",
+    borderRadius: Radius.sm,
+    backgroundColor: "rgba(254,226,226,0.7)",
     gap: 6,
   },
   actionButtonDangerText: {
@@ -358,14 +391,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
     gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    ...Shadows.glow,
   },
   fabButtonText: {
     fontSize: 16,

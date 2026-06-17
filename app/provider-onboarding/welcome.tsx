@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowRight, DollarSign, Calendar, Users } from "lucide-react-native";
 import Colors from "@/constants/colors";
+import { Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 import { Button } from "@/components/Button";
 
@@ -31,7 +33,7 @@ export default function ProviderWelcomeScreen() {
   ];
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       <ScrollView
         style={styles.content}
         contentContainerStyle={[
@@ -85,14 +87,13 @@ export default function ProviderWelcomeScreen() {
           onPress={() => router.back()}
         />
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -122,8 +123,8 @@ const styles = StyleSheet.create({
   illustrationPlaceholder: {
     width: 200,
     height: 200,
-    borderRadius: 20,
-    backgroundColor: "#EFF6FF",
+    borderRadius: Radius.lg,
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -133,16 +134,15 @@ const styles = StyleSheet.create({
   benefitCard: {
     flexDirection: "row",
     padding: 20,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    ...glassSurface,
+    borderRadius: Radius.md,
+    ...Shadows.soft,
   },
   benefitIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 24,
     paddingTop: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "rgba(255,255,255,0.65)",
   },
   primaryButton: {
     flexDirection: "row",

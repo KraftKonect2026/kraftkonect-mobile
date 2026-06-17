@@ -6,12 +6,13 @@ import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/Button";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function GetStartedScreen() {
   const router = useRouter();
 
   return (
-    <View style={styles.wrapper}>
+    <ScreenBackground>
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
           <View style={styles.header}>
@@ -48,15 +49,11 @@ export default function GetStartedScreen() {
           </View>
         </View>
       </SafeAreaView>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
   container: {
     flex: 1,
   },

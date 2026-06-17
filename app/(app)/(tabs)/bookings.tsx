@@ -9,6 +9,9 @@ import { useQuery } from "@apollo/client";
 
 import { useAppSelector } from "@/store";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { BOOKINGS_FOR_USER_QUERY } from "@/lib/queries";
 import { useOpenChat } from "@/lib/useOpenChat";
 
@@ -232,8 +235,13 @@ export default function BookingsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
         <Text style={styles.headerTitle}>Your bookings</Text>
 
         <View style={styles.tabContainer}>
@@ -252,7 +260,7 @@ export default function BookingsScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      </LinearGradient>
 
       {loading && !data ? (
         <View style={styles.centeredState}>
@@ -287,23 +295,24 @@ export default function BookingsScreen() {
           )}
         </ScrollView>
       )}
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 22,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700" as const,
-    color: "#2C2C2C",
+    color: "#FFFFFF",
     marginBottom: 16,
   },
   tabContainer: { flexDirection: "row", gap: 8 },
@@ -312,12 +321,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
   },
-  activeTab: { backgroundColor: Colors.primary },
-  tabText: { fontSize: 14, fontWeight: "600" as const, color: "#6B7280" },
-  activeTabText: { color: "#FFFFFF" },
+  activeTab: { backgroundColor: "#FFFFFF" },
+  tabText: { fontSize: 14, fontWeight: "600" as const, color: "rgba(255,255,255,0.85)" },
+  activeTabText: { color: Colors.primary },
   content: { flex: 1 },
   bookingsList: { padding: 16, gap: 16 },
 
@@ -356,15 +365,11 @@ const styles = StyleSheet.create({
 
   // Booking card
   bookingCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    ...Shadows.soft,
   },
   statusChip: {
     alignSelf: "flex-start",
@@ -379,7 +384,7 @@ const styles = StyleSheet.create({
   providerInfo: { flex: 1 },
   providerName: { fontSize: 16, fontWeight: "600" as const, color: "#2C2C2C", marginBottom: 2 },
   providerCategory: { fontSize: 14, color: "#6B7280" },
-  divider: { height: 1, backgroundColor: "#E5E7EB", marginVertical: 16 },
+  divider: { height: 1, backgroundColor: "rgba(17,24,39,0.06)", marginVertical: 16 },
   detailsSection: { gap: 12 },
   detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   detailLabel: { fontSize: 14, color: "#6B7280", flex: 1 },

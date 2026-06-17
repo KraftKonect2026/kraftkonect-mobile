@@ -14,7 +14,6 @@ import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
 import {
-  ArrowLeft,
   ChevronDown,
   CheckCircle2,
   Search,
@@ -23,6 +22,9 @@ import {
 } from "lucide-react-native";
 import { useQuery, useLazyQuery, useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { GradientHeader } from "@/components/GradientHeader";
 import { Button } from "@/components/Button";
 import { useToast } from "@/lib/toast";
 import { getApolloErrorMessage } from "@/utils/getApolloErrorMessage";
@@ -126,19 +128,9 @@ export default function PayoutMethodsScreen() {
   const canSave = !!bank && !!accountName && !saving;
 
   return (
-    <View style={styles.container}>
+    <ScreenBackground>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payout Method</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <GradientHeader title="Payout Method" showBack />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -186,7 +178,7 @@ export default function PayoutMethodsScreen() {
           {/* Account number */}
           <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Account Number</Text>
           <TextInput
-            style={styles.input}
+            style={styles.input as any}
             value={accountNumber}
             onChangeText={(t) => setAccountNumber(t.replace(/[^0-9]/g, "").slice(0, 10))}
             placeholder="0123456789"
@@ -286,44 +278,30 @@ export default function PayoutMethodsScreen() {
           )}
         </View>
       </Modal>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1 },
   flex: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  backButton: { width: 40, height: 40, justifyContent: "center" },
-  headerTitle: { fontSize: 18, fontWeight: "600" as const, color: "#2C2C2C" },
-  placeholder: { width: 40 },
   content: { padding: 20 },
 
   currentCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
     marginBottom: 24,
+    ...Shadows.soft,
   },
   currentIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -342,24 +320,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    ...glassSurface,
+    borderRadius: Radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    ...Shadows.soft,
   },
   selectorText: { fontSize: 16, color: "#2C2C2C" },
   selectorPlaceholder: { color: "#9CA3AF" },
   input: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    ...glassSurface,
+    borderRadius: Radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     color: "#2C2C2C",
+    ...Shadows.soft,
   },
   resolveRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
   resolveText: { fontSize: 14, color: "#6B7280" },

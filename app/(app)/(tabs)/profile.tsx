@@ -20,6 +20,9 @@ import { useAppSelector, useAppDispatch } from "@/store";
 import { updateUser } from "@/store/authSlice";
 import { USER_PROFILE_QUERY, MY_PROVIDER_PROFILE_QUERY } from "@/lib/queries";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -188,10 +191,15 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
         <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -296,26 +304,26 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 22,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: "700" as const,
-    color: "#2C2C2C",
+    color: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -327,8 +335,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 32,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    ...glassSurface,
+    borderRadius: Radius.lg,
+    margin: 16,
     marginBottom: 24,
+    ...Shadows.soft,
   },
   avatarContainer: {
     marginBottom: 16,
@@ -337,7 +348,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
@@ -367,14 +378,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    ...Shadows.soft,
   },
   menuItem: {
     flexDirection: "row",
@@ -392,7 +399,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "rgba(255,255,255,0.6)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -423,7 +430,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -435,7 +442,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(17,24,39,0.06)",
     marginLeft: 68,
   },
 
@@ -507,7 +514,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,

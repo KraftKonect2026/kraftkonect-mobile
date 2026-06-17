@@ -1,18 +1,22 @@
 import { ArrowLeft, Clock, ChevronRight } from "lucide-react-native";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Platform,  } from "react-native";
+import { View, Text, StyleSheet, ScrollView,  } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import { useQuery } from "@apollo/client";
 import Colors from "@/constants/colors";
+import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
+import { ScreenBackground } from "@/components/ScreenBackground";
+import { LinearGradient } from "expo-linear-gradient";
 import { PROVIDER_QUERY } from "@/lib/queries";
 import { formatPriceCents } from "@/utils/currency";
 import { ActivityIndicator } from "react-native";
 
 export default function SelectServiceScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { providerId } = useLocalSearchParams<{ providerId: string }>();
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const { data, loading, error, refetch } = useQuery(PROVIDER_QUERY, {
@@ -26,18 +30,18 @@ export default function SelectServiceScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenBackground>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Fetching available services...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenBackground>
     );
   }
 
   if (error || !provider) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenBackground>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>
             {error ? "Failed to load provider services" : "Provider not found"}
@@ -46,7 +50,7 @@ export default function SelectServiceScreen() {
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ScreenBackground>
     );
   }
 
@@ -59,24 +63,28 @@ export default function SelectServiceScreen() {
   };
 
   return (
-    <View style={styles.wrapper}>
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <ArrowLeft size={24} color="#2C2C2C" strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Select Service</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+    <ScreenBackground>
+      <LinearGradient
+        colors={Gradients.brandDiagonal}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 14 }]}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
         >
+          <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Select Service</Text>
+        <View style={styles.placeholder} />
+      </LinearGradient>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
           <View style={styles.providerCard}>
             <Image
               source={{ uri: provider.avatar }}
@@ -123,10 +131,9 @@ export default function SelectServiceScreen() {
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.summaryContainer}>
           {selectedService && (
             <>
@@ -141,18 +148,31 @@ export default function SelectServiceScreen() {
           onPress={handleContinue}
           disabled={!selectedServiceId}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
-          <ChevronRight size={20} color="#FFFFFF" strokeWidth={2} />
+          {selectedServiceId ? (
+            <LinearGradient
+              colors={Gradients.brand}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.continueButtonGradient}
+            >
+              <Text style={styles.continueButtonText}>Continue</Text>
+              <ChevronRight size={20} color="#FFFFFF" strokeWidth={2} />
+            </LinearGradient>
+          ) : (
+            <View style={styles.continueButtonGradient}>
+              <Text style={styles.continueButtonText}>Continue</Text>
+              <ChevronRight size={20} color="#FFFFFF" strokeWidth={2} />
+            </View>
+          )}
         </TouchableOpacity>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   container: {
     flex: 1,
@@ -162,20 +182,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 20,
+    borderBottomLeftRadius: Radius.xl,
+    borderBottomRightRadius: Radius.xl,
+    overflow: "hidden",
+    ...Shadows.glow,
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
     justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "700" as const,
-    color: "#2C2C2C",
+    color: "#FFFFFF",
   },
   placeholder: {
     width: 40,
@@ -186,21 +210,11 @@ const styles = StyleSheet.create({
   },
   providerCard: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     padding: 16,
     marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    ...Shadows.soft,
   },
   providerAvatar: {
     width: 60,
@@ -231,27 +245,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   serviceCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    ...glassSurface,
+    borderRadius: Radius.md,
     padding: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: "#E5E7EB",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    ...Shadows.soft,
   },
   serviceCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(219,234,254,0.7)",
   },
   serviceContent: {
     gap: 12,
@@ -314,21 +317,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "rgba(255,255,255,0.65)",
     padding: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    ...Shadows.medium,
   },
   summaryContainer: {
     marginBottom: 12,
@@ -344,9 +337,12 @@ const styles = StyleSheet.create({
     color: "#2C2C2C",
   },
   continueButton: {
+    borderRadius: Radius.pill,
+    overflow: "hidden",
+    ...Shadows.glow,
+  },
+  continueButtonGradient: {
     flexDirection: "row",
-    backgroundColor: Colors.primary,
-    borderRadius: 28,
     paddingVertical: 16,
     justifyContent: "center",
     alignItems: "center",
@@ -354,6 +350,7 @@ const styles = StyleSheet.create({
   },
   continueButtonDisabled: {
     backgroundColor: "#D1D5DB",
+    ...Shadows.soft,
   },
   continueButtonText: {
     fontSize: 18,
