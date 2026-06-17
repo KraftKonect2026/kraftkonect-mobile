@@ -124,7 +124,9 @@ export default function SelectServiceScreen() {
                       <Text style={styles.durationText}>{service.durationMinutes} min</Text>
                     </View>
                     <Text style={styles.servicePrice}>
-                      {formatPriceCents(service.priceCents, service.currency)}
+                      {service.minPriceCents != null && service.maxPriceCents != null && service.maxPriceCents > service.minPriceCents
+                        ? `${formatPriceCents(service.minPriceCents, service.currency)} - ${formatPriceCents(service.maxPriceCents, service.currency)}`
+                        : formatPriceCents(service.minPriceCents ?? service.priceCents, service.currency)}
                     </Text>
                   </View>
                 </View>

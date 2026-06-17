@@ -15,13 +15,20 @@ export const currencySymbol = (currency?: string | null): string => {
   return SYMBOLS[currency.toUpperCase()] ?? SYMBOLS[DEFAULT_CURRENCY];
 };
 
+// Formats a number with thousands separators safely.
+// Whole numbers show no decimals, floats show 2 decimal places.
+export const formatNumberSafe = (amount: number): string => {
+  if (amount == null || isNaN(amount)) return "0";
+  if (amount % 1 === 0) {
+    return amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
 // Formats a major-unit amount (e.g. naira) with thousands separators.
 // Whole amounts show no decimals; fractional amounts show up to two.
 export const formatCurrency = (amount: number, currency?: string | null): string =>
-  `${currencySymbol(currency)}${amount.toLocaleString("en-NG", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}`;
+  `${currencySymbol(currency)}${formatNumberSafe(amount)}`;
 
 // Formats a minor-unit amount (kobo/cents) coming straight from the API.
 export const formatPriceCents = (

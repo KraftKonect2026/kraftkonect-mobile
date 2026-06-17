@@ -18,10 +18,19 @@ export const combineDateAndTime = (dateIso: string, timeLabel: string): string =
 };
 
 // Friendly, consistent date label used across the booking screens.
-export const formatBookingDate = (dateIso: string): string =>
-  new Date(dateIso).toLocaleDateString("en-NG", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+export const formatBookingDate = (dateIso: string): string => {
+  try {
+    const d = new Date(dateIso);
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    const weekday = weekdays[d.getDay()];
+    const month = months[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    
+    return `${weekday}, ${month} ${day}, ${year}`;
+  } catch {
+    return dateIso;
+  }
+};

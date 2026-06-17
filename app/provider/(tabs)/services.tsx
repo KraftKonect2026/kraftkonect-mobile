@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MY_LISTINGS_QUERY } from "@/lib/queries";
 import { UPDATE_LISTING_MUTATION, DELETE_LISTING_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
+import { formatPriceCents } from "@/utils/currency";
 
 export default function ServicesScreen() {
   const insets = useSafeAreaInsets();
@@ -145,7 +146,9 @@ export default function ServicesScreen() {
                   <View style={styles.listingDetails}>
                     <View style={styles.listingDetail}>
                       <Text style={styles.listingDetailText}>
-                        {currencySymbol}{pricePerHour.toLocaleString()}/hr
+                        {listing.minPriceCents != null && listing.maxPriceCents != null && listing.maxPriceCents > listing.minPriceCents
+                          ? `${formatPriceCents(listing.minPriceCents, listing.currency)} - ${formatPriceCents(listing.maxPriceCents, listing.currency)}`
+                          : formatPriceCents(listing.minPriceCents ?? listing.priceCents, listing.currency)}
                       </Text>
                     </View>
                     <View style={styles.listingDetail}>

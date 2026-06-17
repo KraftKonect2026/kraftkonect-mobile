@@ -11,6 +11,7 @@ import { ScreenBackground } from "@/components/ScreenBackground";
 import { LinearGradient } from "expo-linear-gradient";
 import { PROVIDER_QUERY } from "@/lib/queries";
 import { formatPriceCents } from "@/utils/currency";
+import { formatBookingDate } from "@/utils/datetime";
 import { ActivityIndicator } from "react-native";
 
 const timeSlots = [
@@ -260,11 +261,7 @@ export default function DateTimeScreen() {
           <View style={styles.summaryContainer}>
             <CalendarIcon size={16} color="#9CA3AF" />
             <Text style={styles.summaryText}>
-              {selectedDate.toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric"
-              })} at {selectedTime}
+              {formatBookingDate(selectedDate.toISOString())} at {selectedTime}
             </Text>
           </View>
         )}

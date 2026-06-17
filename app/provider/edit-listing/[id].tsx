@@ -27,7 +27,7 @@ export default function EditListingScreen() {
   });
   const [updateListing, { loading: saving }] = useMutation(UPDATE_LISTING_MUTATION);
 
-  const listing = (data?.myProviderProfile?.services ?? []).find(
+  const listing = (data?.myProviderProfile?.listings ?? data?.myProviderProfile?.services ?? []).find(
     (l: any) => l.id === id,
   );
 

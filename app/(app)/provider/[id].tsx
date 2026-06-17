@@ -227,7 +227,7 @@ export default function ProviderProfileScreen() {
                 <View style={styles.serviceHeader}>
                   <Text style={styles.serviceTitle}>{service.title}</Text>
                   <Text style={styles.servicePrice}>
-                    {service.minPriceCents != null && service.maxPriceCents != null && service.minPriceCents !== service.maxPriceCents
+                    {service.minPriceCents != null && service.maxPriceCents != null && service.maxPriceCents > service.minPriceCents
                       ? `${formatPriceCents(service.minPriceCents, service.currency)} - ${formatPriceCents(service.maxPriceCents, service.currency)}`
                       : formatPriceCents(service.minPriceCents ?? service.priceCents, service.currency)}
                   </Text>

@@ -11,7 +11,7 @@ import { Gradients, Radius, Shadows, glassSurface } from "@/constants/theme";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { LinearGradient } from "expo-linear-gradient";
 import { PROVIDER_QUERY } from "@/lib/queries";
-import { formatCurrency } from "@/utils/currency";
+import { formatCurrency, formatNumberSafe } from "@/utils/currency";
 import { formatBookingDate } from "@/utils/datetime";
 import { ActivityIndicator } from "react-native";
 import { Input } from "@/components/Input";
@@ -164,8 +164,8 @@ export default function SummaryScreen() {
               <Text style={{ fontWeight: "700" }}>
                 {minAllowed > 0
                   ? maxAllowed > 0
-                    ? `₦${minAllowed.toLocaleString("en-NG")} - ₦${maxAllowed.toLocaleString("en-NG")}`
-                    : `₦${minAllowed.toLocaleString("en-NG")} minimum`
+                    ? `₦${formatNumberSafe(minAllowed)} - ₦${formatNumberSafe(maxAllowed)}`
+                    : `₦${formatNumberSafe(minAllowed)} minimum`
                   : "any amount"}
               </Text>
               . Please enter your custom offer below.
@@ -182,12 +182,12 @@ export default function SummaryScreen() {
             />
             {isBidTooLow && (
               <Text style={{ fontSize: 13, color: "#EF4444", marginTop: 4 }}>
-                Offer must be at least ₦{minAllowed.toLocaleString("en-NG")}
+                Offer must be at least ₦{formatNumberSafe(minAllowed)}
               </Text>
             )}
             {isBidTooHigh && (
               <Text style={{ fontSize: 13, color: "#EF4444", marginTop: 4 }}>
-                Offer cannot exceed ₦{maxAllowed.toLocaleString("en-NG")}
+                Offer cannot exceed ₦{formatNumberSafe(maxAllowed)}
               </Text>
             )}
           </View>
