@@ -113,6 +113,9 @@ export interface Provider {
   rating_count: number;
   stripe_account_id: string | null;
   created_at: string;
+  pricePerHour?: number | null;
+  minFee?: number | null;
+  maxFee?: number | null;
 }
 
 // NEW: Update provider types
@@ -165,6 +168,7 @@ export interface CreateBookingInput {
   listingId: string;
   bookingDate: string; // ISO 8601 date string
   notes?: string;
+  bidAmount?: number;
 }
 
 export interface CreateBookingMutationArgs {

@@ -192,13 +192,13 @@ export default function ProviderProfileScreen() {
                 <Text style={styles.statValue}>{provider.experience}</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Rate</Text>
+                <Text style={styles.statLabel}>Bids</Text>
                 <Text style={styles.statValue}>
-                  {provider.pricePerHour
-                    ? `₦${Number(provider.pricePerHour).toLocaleString("en-NG")}/hr`
-                    : provider.services?.length > 0
-                      ? `From ₦${Math.min(...(provider.services as any[]).filter((s: any) => s.priceCents > 0).map((s: any) => s.priceCents / 100)).toLocaleString("en-NG")}`
-                      : "Varies"}
+                  {provider.minFee != null
+                    ? provider.maxFee
+                      ? `₦${Number(provider.minFee).toLocaleString("en-NG")} - ₦${Number(provider.maxFee).toLocaleString("en-NG")}`
+                      : `From ₦${Number(provider.minFee).toLocaleString("en-NG")}`
+                    : "Varies"}
                 </Text>
               </View>
             </View>
@@ -227,7 +227,9 @@ export default function ProviderProfileScreen() {
                 <View style={styles.serviceHeader}>
                   <Text style={styles.serviceTitle}>{service.title}</Text>
                   <Text style={styles.servicePrice}>
-                    {formatPriceCents(service.priceCents, service.currency)}
+                    {service.minPriceCents != null && service.maxPriceCents != null && service.minPriceCents !== service.maxPriceCents
+                      ? `${formatPriceCents(service.minPriceCents, service.currency)} - ${formatPriceCents(service.maxPriceCents, service.currency)}`
+                      : formatPriceCents(service.minPriceCents ?? service.priceCents, service.currency)}
                   </Text>
                 </View>
                 <Text style={styles.serviceDescription}>{service.description}</Text>

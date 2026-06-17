@@ -111,7 +111,11 @@ export default function VerifyPhoneScreen() {
           dispatch(setIsAuthenticated(true));
         }
         toast.success("Phone verified!");
-        router.replace("/provider-onboarding/welcome" as any);
+        if (user?.role === "provider") {
+          router.replace("/provider/(tabs)/today" as any);
+        } else {
+          router.replace("/(app)" as any);
+        }
       }
     } catch (e: any) {
       const msg = getApolloErrorMessage(e);
@@ -197,7 +201,7 @@ export default function VerifyPhoneScreen() {
                     variant="outline"
                     style={{ borderWidth: 0, height: 48 }}
                     textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
-                    onPress={() => router.replace("/provider-onboarding/welcome" as any)}
+                    onPress={() => router.back()}
                   />
                 </View>
               </GlassCard>
@@ -288,7 +292,7 @@ export default function VerifyPhoneScreen() {
                   variant="outline"
                   style={{ borderWidth: 0, height: 48 }}
                   textStyle={{ color: Colors.textSecondary, fontWeight: "500", fontSize: 15 }}
-                  onPress={() => router.replace("/provider-onboarding/welcome" as any)}
+                  onPress={() => router.back()}
                 />
               </View>
             </GlassCard>

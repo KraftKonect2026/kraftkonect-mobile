@@ -1,5 +1,5 @@
 import { ArrowLeft, Clock, Calendar, MapPin, ChevronRight, AlertCircle } from "lucide-react-native";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,6 +14,7 @@ import { PROVIDER_QUERY } from "@/lib/queries";
 import { formatCurrency } from "@/utils/currency";
 import { formatBookingDate } from "@/utils/datetime";
 import { ActivityIndicator } from "react-native";
+import { Input } from "@/components/Input";
 
 export default function SummaryScreen() {
   const router = useRouter();
@@ -45,6 +46,24 @@ export default function SummaryScreen() {
     );
   }
 
+  const [bidAmount, setBidAmount] = useState<string>("");
+
+  const defaultPrice = service?.minPriceCents != null ? service.minPriceCents / 100 : (service?.priceCents ?? 0) / 100;
+
+  useEffect(() => {
+    if (defaultPrice > 0 && !bidAmount) {
+      setBidAmount(defaultPrice.toString());
+    }
+  }, [defaultPrice]);
+
+  const parsedBid = parseFloat(bidAmount) || 0;
+  const minAllowed = service?.minPriceCents != null ? service.minPriceCents / 100 : 0;
+  const maxAllowed = service?.maxPriceCents != null ? service.maxPriceCents / 100 : 0;
+
+  const isBidTooLow = minAllowed > 0 && parsedBid < minAllowed;
+  const isBidTooHigh = maxAllowed > 0 && parsedBid > maxAllowed;
+  const isValidBid = parsedBid > 0 && !isBidTooLow && !isBidTooHigh;
+
   if (error || !provider || !service || !date || !time) {
     return (
       <ScreenBackground>
@@ -60,15 +79,17 @@ export default function SummaryScreen() {
     );
   }
 
-  const basePrice = (service.priceCents ?? 0) / 100;
+  const basePrice = parsedBid;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
-  const hasValidPrice = basePrice > 0;
+  const hasValidPrice = isValidBid;
 
   const handleContinue = () => {
-    router.push(
-      `/(app)/booking/${providerId}/payment?serviceId=${serviceId}&date=${date}&time=${time}` as any
-    );
+    if (isValidBid) {
+      router.push(
+        `/(app)/booking/${providerId}/payment?serviceId=${serviceId}&date=${date}&time=${time}&bidAmount=${parsedBid}` as any
+      );
+    }
   };
 
   return (
@@ -134,6 +155,41 @@ export default function SummaryScreen() {
               <Text style={styles.detailLabel}>Time</Text>
               <Text style={styles.detailValue}>{time}</Text>
             </View>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Your Offer (Bid)</Text>
+            <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 12, lineHeight: 20 }}>
+              The bidding range for this service is{" "}
+              <Text style={{ fontWeight: "700" }}>
+                {minAllowed > 0
+                  ? maxAllowed > 0
+                    ? `₦${minAllowed.toLocaleString("en-NG")} - ₦${maxAllowed.toLocaleString("en-NG")}`
+                    : `₦${minAllowed.toLocaleString("en-NG")} minimum`
+                  : "any amount"}
+              </Text>
+              . Please enter your custom offer below.
+            </Text>
+            
+            <Input
+              placeholder="e.g. 5000"
+              keyboardType="numeric"
+              value={bidAmount}
+              onChangeText={setBidAmount}
+              style={[
+                isBidTooLow || isBidTooHigh ? { borderColor: "#EF4444" } : null
+              ]}
+            />
+            {isBidTooLow && (
+              <Text style={{ fontSize: 13, color: "#EF4444", marginTop: 4 }}>
+                Offer must be at least ₦{minAllowed.toLocaleString("en-NG")}
+              </Text>
+            )}
+            {isBidTooHigh && (
+              <Text style={{ fontSize: 13, color: "#EF4444", marginTop: 4 }}>
+                Offer cannot exceed ₦{maxAllowed.toLocaleString("en-NG")}
+              </Text>
+            )}
           </View>
 
           <View style={styles.card}>

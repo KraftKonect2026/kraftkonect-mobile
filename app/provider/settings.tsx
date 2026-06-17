@@ -24,8 +24,10 @@ import {
 import {
   UPDATE_PROVIDER_LOCATION_MUTATION,
   UPDATE_NOTIFICATION_PREFERENCES_MUTATION,
+  UPDATE_MY_PROVIDER_PROFILE_MUTATION,
 } from "@/lib/mutations";
 import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 import { LINKS, SUPPORT_EMAIL, SUPPORT_PHONE } from "@/constants/links";
 
 type NotificationPrefKey =
@@ -52,6 +54,9 @@ export default function ProviderSettingsScreen() {
   const [gpsBoost, setGpsBoost] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
+
+
+  const [updateMyProviderProfile] = useMutation(UPDATE_MY_PROVIDER_PROFILE_MUTATION);
 
   const locationSub = useRef<Location.LocationSubscription | null>(null);
 
@@ -97,6 +102,8 @@ export default function ProviderSettingsScreen() {
       setGpsBoost(profileData.myProviderProfile.gpsEnabled);
     }
   }, [profileData]);
+
+
 
   // Clean up subscription on unmount
   useEffect(() => {
@@ -238,6 +245,8 @@ export default function ProviderSettingsScreen() {
             )}
           </View>
         </View>
+
+
 
         {/* Notifications */}
         <View style={styles.section}>

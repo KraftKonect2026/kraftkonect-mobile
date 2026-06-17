@@ -516,10 +516,11 @@ export default function HomeScreen() {
                             </>
                           )}
                         </View>
-                        {artisan.pricePerHour && (
-                          <Text style={styles.artisanPrice}>
-                            ₦{Number(artisan.pricePerHour).toLocaleString("en-NG")}
-                            <Text style={styles.artisanPriceUnit}>/hr</Text>
+                        {artisan.minFee != null && (
+                          <Text style={styles.artisanPrice} numberOfLines={1}>
+                            {artisan.maxFee
+                              ? `₦${Number(artisan.minFee).toLocaleString("en-NG")} - ₦${Number(artisan.maxFee).toLocaleString("en-NG")}`
+                              : `₦${Number(artisan.minFee).toLocaleString("en-NG")}`}
                           </Text>
                         )}
                       </View>

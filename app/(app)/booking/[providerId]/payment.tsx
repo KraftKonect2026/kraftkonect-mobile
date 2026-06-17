@@ -17,11 +17,12 @@ type PaymentStep = "idle" | "creating" | "checkout" | "verifying" | "success" | 
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const { providerId, serviceId, date, time } = useLocalSearchParams<{
+  const { providerId, serviceId, date, time, bidAmount } = useLocalSearchParams<{
     providerId: string;
     serviceId: string;
     date: string;
     time: string;
+    bidAmount?: string;
   }>();
 
   const [step, setStep] = useState<PaymentStep>("idle");
@@ -68,7 +69,7 @@ export default function PaymentScreen() {
     );
   }
 
-  const basePrice = (service.priceCents ?? 0) / 100;
+  const basePrice = bidAmount ? parseFloat(bidAmount) : (service.priceCents ?? 0) / 100;
   const serviceFee = basePrice * 0.1;
   const totalAmount = basePrice + serviceFee;
   const hasValidPrice = basePrice > 0;
@@ -90,6 +91,7 @@ export default function PaymentScreen() {
             listingId: serviceId,
             bookingDate,
             description: `Booking for ${service.title}`,
+            bidAmount: bidAmount ? parseFloat(bidAmount) : null,
           },
         },
       });

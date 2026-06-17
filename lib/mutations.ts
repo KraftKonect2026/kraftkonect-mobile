@@ -198,6 +198,8 @@ export const CREATE_LISTING_MUTATION = gql`
       title
       description
       priceCents
+      minPriceCents
+      maxPriceCents
       durationMinutes
       currency
       category
@@ -221,6 +223,8 @@ export const UPDATE_LISTING_MUTATION = gql`
       title
       description
       priceCents
+      minPriceCents
+      maxPriceCents
       durationMinutes
       currency
       category

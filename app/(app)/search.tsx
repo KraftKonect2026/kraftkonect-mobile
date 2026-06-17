@@ -283,10 +283,11 @@ export default function SearchResultsScreen() {
                           </>
                         )}
                       </View>
-                      {artisan.pricePerHour != null && (
-                        <Text style={styles.artisanPrice}>
-                          ₦{Number(artisan.pricePerHour).toLocaleString("en-NG")}
-                          <Text style={styles.artisanPriceUnit}>/hr</Text>
+                      {artisan.minFee != null && (
+                        <Text style={styles.artisanPrice} numberOfLines={1}>
+                          {artisan.maxFee
+                            ? `₦${Number(artisan.minFee).toLocaleString("en-NG")} - ₦${Number(artisan.maxFee).toLocaleString("en-NG")}`
+                            : `₦${Number(artisan.minFee).toLocaleString("en-NG")}`}
                         </Text>
                       )}
                     </View>

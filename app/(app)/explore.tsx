@@ -473,10 +473,15 @@ export default function ExploreScreen() {
                           </View>
 
                           <View style={styles.providerFooter}>
-                            <View style={styles.priceContainer}>
-                              <Text style={styles.price}>₦{provider.pricePerHour}</Text>
-                              <Text style={styles.priceLabel}>/hr</Text>
-                            </View>
+                            {provider.minFee != null && (
+                              <View style={styles.priceContainer}>
+                                <Text style={styles.price}>
+                                  {provider.maxFee
+                                    ? `₦${Number(provider.minFee).toLocaleString("en-NG")} - ₦${Number(provider.maxFee).toLocaleString("en-NG")}`
+                                    : `₦${Number(provider.minFee).toLocaleString("en-NG")}`}
+                                </Text>
+                              </View>
+                            )}
                           </View>
 
                           <View style={styles.distanceContainer}>

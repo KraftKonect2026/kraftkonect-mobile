@@ -34,7 +34,8 @@ export default function EditListingScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [pricePerHour, setPricePerHour] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [duration, setDuration] = useState("");
 
   // Populate the form once the listing loads from the backend.
@@ -43,7 +44,8 @@ export default function EditListingScreen() {
       setTitle(listing.title ?? "");
       setDescription(listing.description ?? "");
       setCategory(listing.category ?? "");
-      setPricePerHour(((listing.priceCents ?? 0) / 100).toString());
+      setMinPrice(((listing.minPriceCents ?? listing.priceCents ?? 0) / 100).toString());
+      setMaxPrice(((listing.maxPriceCents ?? listing.priceCents ?? 0) / 100).toString());
       setDuration(((listing.durationMinutes ?? 0) / 60).toString());
     }
   }, [listing?.id]);
@@ -75,7 +77,9 @@ export default function EditListingScreen() {
     title.length > 0 &&
     description.length > 0 &&
     category.length > 0 &&
-    pricePerHour.length > 0 &&
+    minPrice.length > 0 &&
+    maxPrice.length > 0 &&
+    parseFloat(maxPrice) >= parseFloat(minPrice) &&
     duration.length > 0;
 
   const handleSave = async () => {
@@ -88,7 +92,9 @@ export default function EditListingScreen() {
             title,
             description,
             category,
-            priceCents: Math.round(parseFloat(pricePerHour) * 100),
+            priceCents: Math.round(parseFloat(minPrice) * 100),
+            minPriceCents: Math.round(parseFloat(minPrice) * 100),
+            maxPriceCents: Math.round(parseFloat(maxPrice) * 100),
             durationMinutes: Math.round(parseFloat(duration) * 60),
           },
         },
@@ -168,10 +174,10 @@ export default function EditListingScreen() {
           <View style={styles.row}>
             <View style={styles.inputGroupHalf}>
               <Input
-                label="Price per Hour"
-                placeholder="45"
-                value={pricePerHour}
-                onChangeText={setPricePerHour}
+                label="Min Price"
+                placeholder="e.g. 5000"
+                value={minPrice}
+                onChangeText={setMinPrice}
                 keyboardType="numeric"
                 icon={<Text style={{ fontSize: 16, fontWeight: "600", color: "#2C2C2C" }}>₦</Text>}
               />
@@ -179,14 +185,23 @@ export default function EditListingScreen() {
 
             <View style={styles.inputGroupHalf}>
               <Input
-                label="Duration (hours)"
-                placeholder="2"
-                value={duration}
-                onChangeText={setDuration}
+                label="Max Price"
+                placeholder="e.g. 15000"
+                value={maxPrice}
+                onChangeText={setMaxPrice}
                 keyboardType="numeric"
+                icon={<Text style={{ fontSize: 16, fontWeight: "600", color: "#2C2C2C" }}>₦</Text>}
               />
             </View>
           </View>
+
+          <Input
+            label="Duration (hours)"
+            placeholder="2"
+            value={duration}
+            onChangeText={setDuration}
+            keyboardType="numeric"
+          />
         </View>
       </ScrollView>
 

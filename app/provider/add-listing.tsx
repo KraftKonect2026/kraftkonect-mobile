@@ -31,7 +31,11 @@ const addListingSchema = Yup.object().shape({
     .min(20, "Description must be at least 20 characters")
     .required("Description is required"),
   category: Yup.string().required("Category is required"),
-  pricePerHour: Yup.number().positive("Price must be positive").required("Price is required"),
+  minPrice: Yup.number().positive("Min price must be positive").required("Min price is required"),
+  maxPrice: Yup.number()
+    .positive("Max price must be positive")
+    .required("Max price is required")
+    .min(Yup.ref("minPrice"), "Max price cannot be less than min price"),
   duration: Yup.number().positive("Duration must be positive").required("Duration is required"),
 });
 
@@ -75,7 +79,8 @@ export default function AddListingScreen() {
     title: string;
     description: string;
     category: string;
-    pricePerHour: number;
+    minPrice: number;
+    maxPrice: number;
     duration: number;
   }) => {
     if (photos.length === 0) {
@@ -89,7 +94,9 @@ export default function AddListingScreen() {
             title: values.title,
             description: values.description,
             category: values.category,
-            priceCents: Math.round(values.pricePerHour * 100),
+            priceCents: Math.round(values.minPrice * 100),
+            minPriceCents: Math.round(values.minPrice * 100),
+            maxPriceCents: Math.round(values.maxPrice * 100),
             durationMinutes: Math.round(values.duration * 60),
             currency: "ngn",
             photos,
@@ -104,7 +111,7 @@ export default function AddListingScreen() {
             title: values.title,
             description: values.description,
             category: values.category,
-            pricePerHour: values.pricePerHour,
+            pricePerHour: values.minPrice,
             duration: values.duration,
             visible: true,
             photos,
@@ -127,7 +134,7 @@ export default function AddListingScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
       <Formik
-        initialValues={{ title: "", description: "", category: "", pricePerHour: 0, duration: 0 }}
+        initialValues={{ title: "", description: "", category: "", minPrice: 0, maxPrice: 0, duration: 0 }}
         validationSchema={addListingSchema}
         onSubmit={handleSave}
       >
@@ -203,13 +210,13 @@ export default function AddListingScreen() {
                 <View style={styles.row}>
                   <View style={styles.inputGroupHalf}>
                     <Input
-                      label="Price per Hour"
-                      placeholder="45"
-                      value={values.pricePerHour ? values.pricePerHour.toString() : ""}
-                      onChangeText={(text) => setFieldValue("pricePerHour", parseFloat(text) || 0)}
-                      onBlur={handleBlur("pricePerHour")}
-                      touched={touched.pricePerHour}
-                      error={errors.pricePerHour}
+                      label="Min Price"
+                      placeholder="e.g. 5000"
+                      value={values.minPrice ? values.minPrice.toString() : ""}
+                      onChangeText={(text) => setFieldValue("minPrice", parseFloat(text) || 0)}
+                      onBlur={handleBlur("minPrice")}
+                      touched={touched.minPrice}
+                      error={errors.minPrice}
                       keyboardType="numeric"
                       icon={<Text style={{ fontSize: 16, fontWeight: "600", color: "#2C2C2C" }}>₦</Text>}
                     />
@@ -217,17 +224,29 @@ export default function AddListingScreen() {
 
                   <View style={styles.inputGroupHalf}>
                     <Input
-                      label="Duration (hours)"
-                      placeholder="2"
-                      value={values.duration ? values.duration.toString() : ""}
-                      onChangeText={(text) => setFieldValue("duration", parseFloat(text) || 0)}
-                      onBlur={handleBlur("duration")}
-                      touched={touched.duration}
-                      error={errors.duration}
+                      label="Max Price"
+                      placeholder="e.g. 15000"
+                      value={values.maxPrice ? values.maxPrice.toString() : ""}
+                      onChangeText={(text) => setFieldValue("maxPrice", parseFloat(text) || 0)}
+                      onBlur={handleBlur("maxPrice")}
+                      touched={touched.maxPrice}
+                      error={errors.maxPrice}
                       keyboardType="numeric"
+                      icon={<Text style={{ fontSize: 16, fontWeight: "600", color: "#2C2C2C" }}>₦</Text>}
                     />
                   </View>
                 </View>
+
+                <Input
+                  label="Duration (hours)"
+                  placeholder="2"
+                  value={values.duration ? values.duration.toString() : ""}
+                  onChangeText={(text) => setFieldValue("duration", parseFloat(text) || 0)}
+                  onBlur={handleBlur("duration")}
+                  touched={touched.duration}
+                  error={errors.duration}
+                  keyboardType="numeric"
+                />
 
                 {/* Photos — required so the listing surfaces to customers */}
                 <View style={styles.inputGroup}>

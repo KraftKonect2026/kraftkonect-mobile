@@ -210,10 +210,13 @@ export default function FavouritesScreen() {
                       </View>
 
                       <View style={styles.footer}>
-                        {provider.pricePerHour != null && (
+                        {provider.minFee != null && (
                           <View style={styles.priceRow}>
-                            <Text style={styles.price}>₦{provider.pricePerHour}</Text>
-                            <Text style={styles.priceUnit}>/hr</Text>
+                            <Text style={styles.price} numberOfLines={1}>
+                              {provider.maxFee
+                                ? `₦${Number(provider.minFee).toLocaleString("en-NG")} - ₦${Number(provider.maxFee).toLocaleString("en-NG")}`
+                                : `₦${Number(provider.minFee).toLocaleString("en-NG")}`}
+                            </Text>
                           </View>
                         )}
                         {provider.distanceMeters != null && (

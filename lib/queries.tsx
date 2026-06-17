@@ -60,6 +60,8 @@ export const MY_LISTINGS_QUERY = gql`
         title
         description
         priceCents
+        minPriceCents
+        maxPriceCents
         durationMinutes
         currency
         category
@@ -119,6 +121,8 @@ export const PROVIDERS_QUERY = gql`
             name
             portfolio
             pricePerHour
+            minFee
+            maxFee
             rating
             ratingCount
             reviewCount
@@ -137,6 +141,8 @@ export const PROVIDERS_QUERY = gql`
                 title
                 description
                 priceCents
+                minPriceCents
+                maxPriceCents
                 durationMinutes
                 currency
                 category
@@ -173,6 +179,8 @@ export const NEARBY_ARTISANS_QUERY = gql`
       id
       name
       pricePerHour
+      minFee
+      maxFee
       experience
       rating
       reviewCount
@@ -307,6 +315,8 @@ export const GET_FAVOURITES_QUERY = gql`
       rating
       reviewCount
       pricePerHour
+      minFee
+      maxFee
       distance
       distanceMeters
       verified
@@ -346,6 +356,8 @@ export const PROVIDER_QUERY = gql`
                 title
                 description
                 priceCents
+                minPriceCents
+                maxPriceCents
                 durationMinutes
                 currency
                 category
@@ -361,6 +373,8 @@ export const PROVIDER_QUERY = gql`
             expertise
             portfolio
             pricePerHour
+            minFee
+            maxFee
             distance
             available
             blockedDates
