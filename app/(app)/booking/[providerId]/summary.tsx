@@ -35,6 +35,16 @@ export default function SummaryScreen() {
   const provider = data?.provider;
   const service = (provider?.services || []).find((s: any) => s.id === serviceId);
 
+  const [bidAmount, setBidAmount] = useState<string>("");
+
+  const defaultPrice = service?.minPriceCents != null ? service.minPriceCents / 100 : (service?.priceCents ?? 0) / 100;
+
+  useEffect(() => {
+    if (defaultPrice > 0 && !bidAmount) {
+      setBidAmount(defaultPrice.toString());
+    }
+  }, [defaultPrice]);
+
   if (loading) {
     return (
       <ScreenBackground>
@@ -45,16 +55,6 @@ export default function SummaryScreen() {
       </ScreenBackground>
     );
   }
-
-  const [bidAmount, setBidAmount] = useState<string>("");
-
-  const defaultPrice = service?.minPriceCents != null ? service.minPriceCents / 100 : (service?.priceCents ?? 0) / 100;
-
-  useEffect(() => {
-    if (defaultPrice > 0 && !bidAmount) {
-      setBidAmount(defaultPrice.toString());
-    }
-  }, [defaultPrice]);
 
   const parsedBid = parseFloat(bidAmount) || 0;
   const minAllowed = service?.minPriceCents != null ? service.minPriceCents / 100 : 0;
