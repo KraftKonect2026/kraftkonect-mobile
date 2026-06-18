@@ -20,7 +20,11 @@ import { useOpenChat } from "@/lib/useOpenChat";
 type BookingStatus =
   | "pending"
   | "confirmed"
+  | "accepted"
+  | "rejected"
   | "in_progress"
+  | "submitted_for_review"
+  | "needs_revision"
   | "completed"
   | "cancelled"
   | "refunded";
@@ -84,7 +88,11 @@ type Tab = "active" | "completed" | "cancelled";
 const STATUS_BG: Record<BookingStatus, string> = {
   pending: "#FEF3C7",
   confirmed: "#DBEAFE",
+  accepted: "#EEF2FF",
+  rejected: "#FEF2F2",
   in_progress: "#E0E7FF",
+  submitted_for_review: "#FEF3C7",
+  needs_revision: "#FFF1F2",
   completed: "#D1FAE5",
   cancelled: "#FEE2E2",
   refunded: "#FEE2E2",
@@ -93,7 +101,11 @@ const STATUS_BG: Record<BookingStatus, string> = {
 const STATUS_TEXT: Record<BookingStatus, string> = {
   pending: "#92400E",
   confirmed: "#1E3A8A",
+  accepted: "#4F46E5",
+  rejected: "#EF4444",
   in_progress: "#3730A3",
+  submitted_for_review: "#D97706",
+  needs_revision: "#E11D48",
   completed: "#065F46",
   cancelled: "#991B1B",
   refunded: "#991B1B",
@@ -102,7 +114,11 @@ const STATUS_TEXT: Record<BookingStatus, string> = {
 const STATUS_LABEL: Record<BookingStatus, string> = {
   pending: "Pending",
   confirmed: "Confirmed",
+  accepted: "Accepted",
+  rejected: "Rejected",
   in_progress: "In Progress",
+  submitted_for_review: "Awaiting Action",
+  needs_revision: "Revision Requested",
   completed: "Completed",
   cancelled: "Cancelled",
   refunded: "Refunded",
@@ -130,10 +146,13 @@ export default function BookingsScreen() {
       return (
         b.status === "pending" ||
         b.status === "confirmed" ||
-        b.status === "in_progress"
+        b.status === "accepted" ||
+        b.status === "in_progress" ||
+        b.status === "submitted_for_review" ||
+        b.status === "needs_revision"
       );
     if (activeTab === "completed") return b.status === "completed";
-    return b.status === "cancelled" || b.status === "refunded";
+    return b.status === "cancelled" || b.status === "refunded" || b.status === "rejected";
   });
 
   const renderBookingCard = (booking: Booking) => (
