@@ -6,6 +6,7 @@ import {
   RefreshCw,
   X,
   RotateCw,
+  CheckCircle,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Modal, Alert, ActivityIndicator,  } from "react-native";
@@ -15,16 +16,21 @@ import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpac
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useQuery, useLazyQuery } from "@apollo/client";
+import { useQuery, useLazyQuery, useMutation } from "@apollo/client";
 
 import Colors from "@/constants/colors";
 import { BOOKING_DETAIL_QUERY, PROVIDER_QUERY } from "@/lib/queries";
+import { UPDATE_BOOKING_MUTATION } from "@/lib/mutations";
 import { useOpenChat } from "@/lib/useOpenChat";
 
 type BookingStatus =
   | "pending"
   | "confirmed"
+  | "accepted"
+  | "rejected"
   | "in_progress"
+  | "submitted_for_review"
+  | "needs_revision"
   | "completed"
   | "cancelled"
   | "refunded";
@@ -39,11 +45,65 @@ export default function BookingDetailScreen() {
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
 
+  const [revisionModalVisible, setRevisionModalVisible] = useState(false);
+  const [revisionReasonText, setRevisionReasonText] = useState("");
+
   const { data, loading, error, refetch } = useQuery(BOOKING_DETAIL_QUERY, {
     variables: { id },
     skip: !id,
     fetchPolicy: "cache-and-network",
   });
+
+  const [updateBooking, { loading: updating }] = useMutation(
+    UPDATE_BOOKING_MUTATION,
+    {
+      refetchQueries: [{ query: BOOKING_DETAIL_QUERY, variables: { id } }],
+    }
+  );
+
+  const handleApproveFunds = () => {
+    Alert.alert(
+      "Approve & Release Funds",
+      "Are you sure you want to approve this service and release the funds to the artisan? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Approve & Release",
+          onPress: async () => {
+            try {
+               await updateBooking({
+                 variables: { id, status: "completed" },
+               });
+               Alert.alert("Success", "Funds released successfully! Thank you.");
+            } catch (err: any) {
+               Alert.alert("Error", err.message || "Failed to approve booking.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSubmitRevision = async () => {
+    if (!revisionReasonText.trim()) {
+      Alert.alert("Error", "Please specify what revisions are needed.");
+      return;
+    }
+    try {
+      await updateBooking({
+        variables: {
+          id,
+          status: "needs_revision",
+          revisionReason: revisionReasonText.trim(),
+        },
+      });
+      setRevisionModalVisible(false);
+      setRevisionReasonText("");
+      Alert.alert("Success", "Revision request submitted to provider.");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to submit revision request.");
+    }
+  };
 
   const [fetchProvider, { loading: checkingAvailability }] = useLazyQuery(
     PROVIDER_QUERY,
@@ -108,6 +168,7 @@ export default function BookingDetailScreen() {
     status: raw.status as BookingStatus,
     bookingRef: raw.bookingRef ?? raw.id,
     notes: raw.notes as string | undefined,
+    revisionReason: raw.revisionReason as string | undefined,
     cancelReason: raw.status === "cancelled" ? raw.notes : undefined,
   };
 
@@ -175,8 +236,16 @@ export default function BookingDetailScreen() {
         return "#FEF3C7";
       case "confirmed":
         return "#DBEAFE";
+      case "accepted":
+        return "#EEF2FF";
+      case "rejected":
+        return "#FEF2F2";
       case "in_progress":
         return "#E0E7FF";
+      case "submitted_for_review":
+        return "#FEF3C7";
+      case "needs_revision":
+        return "#FFF1F2";
       case "completed":
         return "#D1FAE5";
       case "cancelled":
@@ -191,9 +260,17 @@ export default function BookingDetailScreen() {
       case "pending":
         return "#92400E";
       case "confirmed":
-        return "#1E3A8A";
+        return Colors.primary;
+      case "accepted":
+        return "#4F46E5";
+      case "rejected":
+        return "#EF4444";
       case "in_progress":
         return "#3730A3";
+      case "submitted_for_review":
+        return "#D97706";
+      case "needs_revision":
+        return "#E11D48";
       case "completed":
         return "#065F46";
       case "cancelled":
@@ -208,9 +285,17 @@ export default function BookingDetailScreen() {
       case "pending":
         return "Pending Provider Confirmation";
       case "confirmed":
-        return "Confirmed";
+        return "Paid & Confirmed";
+      case "accepted":
+        return "Accepted";
+      case "rejected":
+        return "Rejected";
       case "in_progress":
         return "In Progress";
+      case "submitted_for_review":
+        return "Submitted for Review (Action Required)";
+      case "needs_revision":
+        return "Revision Requested";
       case "completed":
         return "Completed";
       case "cancelled":
@@ -225,8 +310,12 @@ export default function BookingDetailScreen() {
       case "pending":
         return 0;
       case "confirmed":
+      case "accepted":
+      case "rejected":
         return 1;
       case "in_progress":
+      case "submitted_for_review":
+      case "needs_revision":
         return 2;
       case "completed":
         return 3;
@@ -271,6 +360,13 @@ export default function BookingDetailScreen() {
             {getStatusText(booking.status)}
           </Text>
         </View>
+
+        {booking.status === "needs_revision" && booking.revisionReason ? (
+          <View style={styles.revisionWarningCard}>
+            <Text style={styles.revisionWarningTitle}>Your Revision Request</Text>
+            <Text style={styles.revisionWarningText}>{booking.revisionReason}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Provider</Text>
@@ -429,8 +525,47 @@ export default function BookingDetailScreen() {
         )}
       </ScrollView>
 
+      {booking.status === "submitted_for_review" && (
+        <View
+          style={[
+            styles.bottomActions,
+            { paddingBottom: insets.bottom + 16 },
+          ]}
+        >
+          <Button
+            title="Approve & Release Funds"
+            onPress={handleApproveFunds}
+            loading={updating}
+            icon={<CheckCircle size={20} color="#FFFFFF" strokeWidth={2} />}
+            style={{ marginBottom: 12 }}
+          />
+          <Button
+            title="Request Revision"
+            variant="outline"
+            style={{ borderColor: Colors.primary, marginBottom: 12 }}
+            textStyle={{ color: Colors.primary }}
+            icon={<RotateCw size={20} color={Colors.primary} strokeWidth={2} />}
+            onPress={() => setRevisionModalVisible(true)}
+            disabled={updating}
+          />
+          <Button
+            title="Message Provider"
+            variant="outline"
+            style={{ borderColor: "#E5E7EB" }}
+            textStyle={{ color: "#4B5563" }}
+            onPress={() =>
+              booking.providerUserId &&
+              openChat(booking.providerUserId, booking.providerName, booking.providerImage)
+            }
+            icon={<MessageCircle size={20} color="#4B5563" strokeWidth={2} />}
+          />
+        </View>
+      )}
+
       {(booking.status === "pending" ||
         booking.status === "confirmed" ||
+        booking.status === "accepted" ||
+        booking.status === "needs_revision" ||
         booking.status === "in_progress") && (
         <View
           style={[
@@ -572,6 +707,63 @@ export default function BookingDetailScreen() {
                     (selectedReason === "Other" && !customReason.trim())
                   }
                   style={{ flex: 1, backgroundColor: "#EF4444", borderColor: "#EF4444" }}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={revisionModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRevisionModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setRevisionModalVisible(false);
+            setRevisionReasonText("");
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Request Revision</Text>
+              <Text style={styles.modalDescription}>
+                Explain what needs to be changed or fixed. The artisan will see this feedback.
+              </Text>
+
+              <Input
+                placeholder="Describe the revision requirements in detail..."
+                value={revisionReasonText}
+                onChangeText={setRevisionReasonText}
+                multiline
+                numberOfLines={4}
+                style={{ minHeight: 120, borderRadius: 16, marginBottom: 20 }}
+                inputStyle={{ textAlignVertical: "top", paddingTop: 12 }}
+              />
+
+              <View style={styles.modalActions}>
+                <Button
+                  title="Cancel"
+                  variant="outline"
+                  style={{ flex: 1 }}
+                  textStyle={{ color: "#6B7280" }}
+                  onPress={() => {
+                    setRevisionModalVisible(false);
+                    setRevisionReasonText("");
+                  }}
+                />
+                <Button
+                  title="Submit Request"
+                  onPress={handleSubmitRevision}
+                  disabled={!revisionReasonText.trim()}
+                  style={{ flex: 1, backgroundColor: Colors.primary, borderColor: Colors.primary }}
                 />
               </View>
             </View>
@@ -986,5 +1178,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600" as const,
     color: "#FFFFFF",
+  },
+  revisionWarningCard: {
+    backgroundColor: "#FFF1F2",
+    borderWidth: 1.5,
+    borderColor: "#FFE4E6",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+  },
+  revisionWarningTitle: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#E11D48",
+    marginBottom: 8,
+  },
+  revisionWarningText: {
+    fontSize: 14,
+    color: "#9F1239",
+    lineHeight: 22,
   },
 });

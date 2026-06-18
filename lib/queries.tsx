@@ -11,6 +11,7 @@ export const BOOKINGS_FOR_PROVIDER_QUERY = gql`
       status
       notes
       description
+      revisionReason
       aiParsedSkill
       createdAt
       listing {
@@ -200,6 +201,7 @@ export const BOOKINGS_FOR_USER_QUERY = gql`
       status
       notes
       description
+      revisionReason
       createdAt
       listing {
         id
@@ -233,6 +235,7 @@ export const BOOKING_DETAIL_QUERY = gql`
       status
       notes
       description
+      revisionReason
       createdAt
       listing {
         id

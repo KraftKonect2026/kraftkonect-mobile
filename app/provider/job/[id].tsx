@@ -46,17 +46,27 @@ function formatTime(iso: string): string {
 const STATUS_COLORS: Record<string, string> = {
   pending: "#FEF3C7",
   confirmed: "#DBEAFE",
+  accepted: "#EEF2FF",
+  rejected: "#FEF2F2",
   in_progress: "#E0E7FF",
+  submitted_for_review: "#FEF3C7",
+  needs_revision: "#FFF1F2",
   completed: "#D1FAE5",
   cancelled: "#FEE2E2",
+  refunded: "#F3F4F6",
 };
 
 const STATUS_TEXT_COLORS: Record<string, string> = {
   pending: "#92400E",
   confirmed: Colors.primary,
+  accepted: "#4F46E5",
+  rejected: "#EF4444",
   in_progress: "#4F46E5",
+  submitted_for_review: "#D97706",
+  needs_revision: "#E11D48",
   completed: "#065F46",
   cancelled: "#991B1B",
+  refunded: "#4B5563",
 };
 
 export default function JobDetailScreen() {
@@ -94,22 +104,22 @@ export default function JobDetailScreen() {
   };
 
   const handleAccept = () => {
-    Alert.alert("Accept Booking", "Confirm this booking?", [
+    Alert.alert("Accept Booking", "Do you want to accept this booking?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Accept",
-        onPress: () => changeStatus("confirmed", "Booking confirmed!"),
+        onPress: () => changeStatus("accepted", "Booking accepted!"),
       },
     ]);
   };
 
   const handleReject = () => {
-    Alert.alert("Reject Booking", "Are you sure you want to reject?", [
+    Alert.alert("Reject Booking", "Are you sure you want to reject this booking?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Reject",
         style: "destructive",
-        onPress: () => changeStatus("cancelled", "Booking rejected", () => router.back()),
+        onPress: () => changeStatus("rejected", "Booking rejected", () => router.back()),
       },
     ]);
   };
@@ -117,18 +127,29 @@ export default function JobDetailScreen() {
   const handleStartJob = () =>
     changeStatus("in_progress", "Job started — timer running");
 
-  const handleCompleteJob = () => {
+  const handleSubmitForReview = () => {
     Alert.alert(
-      "Complete Job",
-      "Mark as completed? This will release payment to you.",
+      "Submit for Review",
+      "Submit this job for customer approval?",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Complete",
-          onPress: () =>
-            changeStatus("completed", "Job completed! Payment will be processed.", () =>
-              router.back(),
-            ),
+          text: "Submit",
+          onPress: () => changeStatus("submitted_for_review", "Submitted for review!"),
+        },
+      ],
+    );
+  };
+
+  const handleResubmitForReview = () => {
+    Alert.alert(
+      "Resubmit for Review",
+      "Submit your revisions for customer approval?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Submit",
+          onPress: () => changeStatus("submitted_for_review", "Resubmitted for review!"),
         },
       ],
     );
@@ -176,9 +197,19 @@ export default function JobDetailScreen() {
       >
         <View style={[styles.statusBanner, { backgroundColor: STATUS_COLORS[status] ?? "#F3F4F6" }]}>
           <Text style={[styles.statusText, { color: STATUS_TEXT_COLORS[status] ?? "#374151" }]}>
-            {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")}
+            {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ")}
           </Text>
         </View>
+
+        {status === "needs_revision" && booking.revisionReason ? (
+          <View style={styles.revisionBanner}>
+            <View style={styles.revisionBannerHeader}>
+              <XCircle size={18} color="#E11D48" strokeWidth={2} />
+              <Text style={styles.revisionBannerTitle}>Revision Requested</Text>
+            </View>
+            <Text style={styles.revisionReasonText}>{booking.revisionReason}</Text>
+          </View>
+        ) : null}
 
         {/* Customer */}
         <View style={styles.section}>
@@ -212,7 +243,7 @@ export default function JobDetailScreen() {
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity
-                style={styles.iconButton}
+                style={styles.messageButton}
                 activeOpacity={0.7}
                 onPress={() =>
                   booking.customer?.id &&
@@ -223,7 +254,8 @@ export default function JobDetailScreen() {
                   )
                 }
               >
-                <MessageCircle size={20} color={Colors.primary} strokeWidth={2} />
+                <MessageCircle size={18} color={Colors.primary} strokeWidth={2} />
+                <Text style={styles.messageButtonText}>Message Customer</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -268,7 +300,7 @@ export default function JobDetailScreen() {
         </View>
 
         {/* Progress */}
-        {status !== "cancelled" && status !== "completed" ? (
+        {status !== "cancelled" && status !== "rejected" ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Progress</Text>
             <View style={styles.card}>
@@ -279,27 +311,38 @@ export default function JobDetailScreen() {
                   </View>
                   <Text style={styles.progressStepText}>Booked</Text>
                 </View>
-                <View style={[styles.progressLine, (status === "confirmed" || status === "in_progress") && styles.progressLineCompleted]} />
-                <View style={[styles.progressStep, (status === "confirmed" || status === "in_progress") && styles.progressStepCompleted]}>
+                <View style={[styles.progressLine, ["confirmed", "accepted", "in_progress", "submitted_for_review", "needs_revision", "completed"].includes(status) && styles.progressLineCompleted]} />
+                <View style={[styles.progressStep, ["accepted", "in_progress", "submitted_for_review", "needs_revision", "completed"].includes(status) && styles.progressStepCompleted]}>
                   <View style={styles.progressStepCircle}>
-                    {status === "confirmed" || status === "in_progress" ? (
+                    {["accepted", "in_progress", "submitted_for_review", "needs_revision", "completed"].includes(status) ? (
                       <CheckCircle size={20} color={Colors.primary} strokeWidth={2} />
                     ) : (
                       <View style={styles.progressStepDot} />
                     )}
                   </View>
-                  <Text style={styles.progressStepText}>Confirmed</Text>
+                  <Text style={styles.progressStepText}>Accepted</Text>
                 </View>
-                <View style={[styles.progressLine, status === "in_progress" && styles.progressLineCompleted]} />
-                <View style={[styles.progressStep, status === "in_progress" && styles.progressStepCompleted]}>
+                <View style={[styles.progressLine, ["in_progress", "submitted_for_review", "needs_revision", "completed"].includes(status) && styles.progressLineCompleted]} />
+                <View style={[styles.progressStep, ["in_progress", "submitted_for_review", "needs_revision", "completed"].includes(status) && styles.progressStepCompleted]}>
                   <View style={styles.progressStepCircle}>
-                    {status === "in_progress" ? (
+                    {["in_progress", "submitted_for_review", "needs_revision", "completed"].includes(status) ? (
                       <CheckCircle size={20} color={Colors.primary} strokeWidth={2} />
                     ) : (
                       <View style={styles.progressStepDot} />
                     )}
                   </View>
                   <Text style={styles.progressStepText}>In Progress</Text>
+                </View>
+                <View style={[styles.progressLine, status === "completed" && styles.progressLineCompleted]} />
+                <View style={[styles.progressStep, status === "completed" && styles.progressStepCompleted]}>
+                  <View style={styles.progressStepCircle}>
+                    {status === "completed" ? (
+                      <CheckCircle size={20} color={Colors.primary} strokeWidth={2} />
+                    ) : (
+                      <View style={styles.progressStepDot} />
+                    )}
+                  </View>
+                  <Text style={styles.progressStepText}>Completed</Text>
                 </View>
               </View>
             </View>
@@ -313,7 +356,7 @@ export default function JobDetailScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         ) : (
           <>
-            {status === "pending" && (
+            {status === "confirmed" && (
               <View style={styles.buttonRow}>
                 <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} activeOpacity={0.8} onPress={handleReject}>
                   <XCircle size={20} color="#EF4444" strokeWidth={2} />
@@ -325,15 +368,27 @@ export default function JobDetailScreen() {
                 </TouchableOpacity>
               </View>
             )}
-            {status === "confirmed" && (
+            {status === "accepted" && (
               <TouchableOpacity style={styles.primaryButton} activeOpacity={0.8} onPress={handleStartJob}>
                 <Text style={styles.primaryButtonText}>Start Job</Text>
               </TouchableOpacity>
             )}
             {status === "in_progress" && (
-              <TouchableOpacity style={styles.primaryButton} activeOpacity={0.8} onPress={handleCompleteJob}>
+              <TouchableOpacity style={styles.primaryButton} activeOpacity={0.8} onPress={handleSubmitForReview}>
                 <CheckCircle size={20} color="#FFFFFF" strokeWidth={2} />
-                <Text style={styles.primaryButtonText}>Mark as Completed</Text>
+                <Text style={styles.primaryButtonText}>Submit for Review</Text>
+              </TouchableOpacity>
+            )}
+            {status === "submitted_for_review" && (
+              <TouchableOpacity style={[styles.primaryButton, styles.disabledButton]} activeOpacity={1} disabled>
+                <Clock size={20} color="#9CA3AF" strokeWidth={2} />
+                <Text style={styles.disabledButtonText}>Awaiting Customer Approval</Text>
+              </TouchableOpacity>
+            )}
+            {status === "needs_revision" && (
+              <TouchableOpacity style={styles.primaryButton} activeOpacity={0.8} onPress={handleResubmitForReview}>
+                <CheckCircle size={20} color="#FFFFFF" strokeWidth={2} />
+                <Text style={styles.primaryButtonText}>Resubmit for Review</Text>
               </TouchableOpacity>
             )}
           </>
@@ -358,8 +413,14 @@ const styles = StyleSheet.create({
   customerDetails: { flex: 1 },
   customerName: { fontSize: 20, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 4 },
   customerCategory: { fontSize: 14, color: "#6B7280" },
-  customerActions: { flexDirection: "row", gap: 12 },
+  customerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
   iconButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(219,234,254,0.7)", justifyContent: "center", alignItems: "center" },
+  messageButton: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, backgroundColor: "rgba(219,234,254,0.5)", borderWidth: 1, borderColor: "rgba(219,234,254,0.8)" },
+  messageButtonText: { fontSize: 14, fontWeight: "600" as const, color: Colors.primary },
+  revisionBanner: { backgroundColor: "#FFF1F2", borderWidth: 1, borderColor: "#FFE4E6", borderRadius: Radius.lg, padding: 16, marginBottom: 24, ...Shadows.soft },
+  revisionBannerHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  revisionBannerTitle: { fontSize: 14, fontWeight: "700" as const, color: "#E11D48" },
+  revisionReasonText: { fontSize: 14, color: "#9F1239", lineHeight: 20 },
   serviceTitle: { fontSize: 18, fontWeight: "700" as const, color: "#2C2C2C", marginBottom: 20 },
   detailsList: { gap: 16 },
   detailRow: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -388,6 +449,8 @@ const styles = StyleSheet.create({
   acceptButtonText: { fontSize: 16, fontWeight: "600" as const, color: "#FFFFFF" },
   primaryButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 16, backgroundColor: Colors.primary, gap: 8 },
   primaryButtonText: { fontSize: 16, fontWeight: "600" as const, color: "#FFFFFF" },
+  disabledButton: { backgroundColor: "#F3F4F6", borderColor: "rgba(17,24,39,0.06)", borderWidth: 1 },
+  disabledButtonText: { fontSize: 16, fontWeight: "600" as const, color: "#9CA3AF" },
   errorContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { fontSize: 16, color: "#6B7280" },
 });

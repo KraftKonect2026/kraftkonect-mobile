@@ -113,10 +113,11 @@ export const SET_AVAILABILITY_MUTATION = gql`
 `;
 
 export const UPDATE_BOOKING_MUTATION = gql`
-  mutation UpdateBooking($id: ID!, $status: BookingStatus!) {
-    updateBooking(id: $id, input: { status: $status }) {
+  mutation UpdateBooking($id: ID!, $status: BookingStatus!, $revisionReason: String) {
+    updateBooking(id: $id, input: { status: $status, revisionReason: $revisionReason }) {
       id
       status
+      revisionReason
     }
   }
 `;
