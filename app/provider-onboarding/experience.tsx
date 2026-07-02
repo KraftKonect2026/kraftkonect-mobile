@@ -47,7 +47,6 @@ export default function ExperienceScreen() {
           <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={[styles.progressDot, styles.progressDotActive]} />
-          <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={styles.progressDot} />
         </View>
         <View style={styles.placeholder} />
@@ -62,7 +61,7 @@ export default function ExperienceScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.step}>Step 4 of 5</Text>
+          <Text style={styles.step}>Step 3 of 4</Text>
           <Text style={styles.title}>Tell us about your experience</Text>
           <Text style={styles.subtitle}>
             Share your skills and what makes you great at what you do

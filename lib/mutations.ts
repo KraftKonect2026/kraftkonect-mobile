@@ -334,3 +334,14 @@ export const UPDATE_MY_PROVIDER_PROFILE_MUTATION = gql`
     }
   }
 `;
+
+export const START_KYC_INQUIRY_MUTATION = gql`
+  mutation StartKycInquiry($providerId: String!) {
+    startKycInquiry(providerId: $providerId) {
+      inquiryId
+      clientToken
+      inquiryUrl
+      status
+    }
+  }
+`;

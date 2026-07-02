@@ -66,7 +66,6 @@ export default function CategoryScreen() {
           <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={styles.progressDot} />
           <View style={styles.progressDot} />
-          <View style={styles.progressDot} />
         </View>
         <View style={styles.placeholder} />
       </LinearGradient>
@@ -80,7 +79,7 @@ export default function CategoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.step}>Step 2 of 5</Text>
+          <Text style={styles.step}>Step 2 of 4</Text>
           <Text style={styles.title}>Choose your categories</Text>
           <Text style={styles.subtitle}>
             Select the services you want to offer. You can choose multiple.
@@ -129,7 +128,7 @@ export default function CategoryScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <Button
           title="Continue"
-          onPress={() => router.push("/provider-onboarding/verification" as any)}
+          onPress={() => router.push("/provider-onboarding/experience" as any)}
           disabled={!isValid}
           icon={<ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />}
         />

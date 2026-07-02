@@ -7,11 +7,13 @@ import { CheckCircle2, ArrowRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
 
 import { useMutation } from "@apollo/client";
-import { ONBOARD_PROVIDER_MUTATION } from "@/lib/mutations";
+import { ONBOARD_PROVIDER_MUTATION, START_KYC_INQUIRY_MUTATION } from "@/lib/mutations";
 import { useProviderOnboarding } from "./context";
 import { ActivityIndicator, Alert } from "react-native";
 import { useState } from "react";
 import { useToast } from "@/lib/toast";
+import * as WebBrowser from "expo-web-browser";
+import { Inquiry, Environment } from "react-native-persona";
 
 import { Button } from "@/components/Button";
 
@@ -20,7 +22,9 @@ export default function SubmitScreen() {
   const router = useRouter();
   const { basicInfo, selectedCategories, verification, experience } = useProviderOnboarding();
 
-  const [submitProvider, { loading }] = useMutation(ONBOARD_PROVIDER_MUTATION);
+  const [submitProvider, { loading: submitLoading }] = useMutation(ONBOARD_PROVIDER_MUTATION);
+  const [startKycInquiry, { loading: kycLoading }] = useMutation(START_KYC_INQUIRY_MUTATION);
+  const [isVerifying, setIsVerifying] = useState(false);
   const { showToast } = useToast()
 
   const isComplete =
@@ -28,8 +32,6 @@ export default function SubmitScreen() {
     !!basicInfo.email &&
     !!basicInfo.phone &&
     selectedCategories.length > 0 &&
-    !!verification.idUrl &&
-    !!verification.selfieUrl &&
     !!experience.description;
 
   const handleSubmit = async () => {
@@ -38,27 +40,74 @@ export default function SubmitScreen() {
       return;
     }
     try {
-      await submitProvider({
+      setIsVerifying(true);
+      // 1. Submit basic provider profile with placeholder document URLs
+      const submitRes = await submitProvider({
         variables: {
           input: {
             name: basicInfo.name,
             email: basicInfo.email,
             phone: basicInfo.phone,
             selectedCategories: selectedCategories,
-            idUrl: verification.idUrl,
-            selfieUrl: verification.selfieUrl,
+            idUrl: "", // placeholder for backward-compatibility
+            selfieUrl: "", // placeholder for backward-compatibility
             experience: experience.years,
             description: experience.description,
           }
         }
       });
-      showToast("success", "Provider application submitted successfully.")
-      router.replace("/provider-onboarding/pending-approval" as any);
+
+      const providerId = submitRes.data?.onboardProvider?.id;
+      if (!providerId) {
+        throw new Error("Failed to retrieve provider profile registration ID.");
+      }
+
+      // 2. Request the Persona Inquiry link from backend
+      const kycRes = await startKycInquiry({
+        variables: { providerId }
+      });
+
+      const { inquiryId, clientToken, inquiryUrl } = kycRes.data?.startKycInquiry || {};
+      if (!inquiryId || !inquiryUrl) {
+        throw new Error("Failed to generate secure verification session.");
+      }
+
+      // 3. Launch the native Persona SDK Flow (or fall back to WebBrowser on error/simulator)
+      try {
+        Inquiry.fromInquiry(inquiryId)
+          .sessionToken(clientToken || "")
+          .onComplete((completedInquiryId: string, status: string) => {
+            console.log(`[Persona SDK] Inquiry completed: ${completedInquiryId}, status: ${status}`);
+            showToast("success", "Identity verification complete!");
+            router.replace("/provider-onboarding/pending-approval" as any);
+          })
+          .onCanceled((canceledInquiryId?: string, sessionToken?: string) => {
+            console.log(`[Persona SDK] Inquiry canceled: ${canceledInquiryId}`);
+            showToast("info", "Identity verification was canceled.");
+            router.replace("/provider-onboarding/pending-approval" as any);
+          })
+          .onError((error: Error) => {
+            console.warn(`[Persona SDK Error, falling back to WebBrowser]:`, error);
+            WebBrowser.openBrowserAsync(inquiryUrl).then(() => {
+              router.replace("/provider-onboarding/pending-approval" as any);
+            });
+          })
+          .build()
+          .start();
+      } catch (sdkErr) {
+        console.warn("[Persona SDK Exception, falling back to WebBrowser]:", sdkErr);
+        await WebBrowser.openBrowserAsync(inquiryUrl);
+        router.replace("/provider-onboarding/pending-approval" as any);
+      }
     } catch (error: any) {
-      console.error("Submission failed:", error);
-      showToast("error", error.message || "Something went wrong. Please try again.")
+      console.error("Submission/KYC failed:", error);
+      showToast("error", error.message || "Something went wrong. Please try again.");
+    } finally {
+      setIsVerifying(false);
     }
   };
+
+  const loading = submitLoading || kycLoading || isVerifying;
 
   return (
     <View style={styles.container}>
@@ -96,7 +145,7 @@ export default function SubmitScreen() {
           <View style={styles.divider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Identity Verification</Text>
-            <Text style={styles.summaryValue}>{verification.idUrl ? "Complete ✓" : "Missing"}</Text>
+            <Text style={[styles.summaryValue, { color: Colors.primary }]}>Required Next ➜</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryItem}>

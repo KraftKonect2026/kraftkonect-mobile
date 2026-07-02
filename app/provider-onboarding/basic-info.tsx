@@ -76,7 +76,6 @@ export default function BasicInfoScreen() {
                 <View style={styles.progressDot} />
                 <View style={styles.progressDot} />
                 <View style={styles.progressDot} />
-                <View style={styles.progressDot} />
               </View>
               <View style={styles.placeholder} />
             </LinearGradient>
@@ -90,7 +89,7 @@ export default function BasicInfoScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.titleContainer}>
-                <Text style={styles.step}>Step 1 of 5</Text>
+                <Text style={styles.step}>Step 1 of 4</Text>
                 <Text style={styles.title}>Tell us about yourself</Text>
                 <Text style={styles.subtitle}>
                   We&apos;ll use this information to set up your provider profile

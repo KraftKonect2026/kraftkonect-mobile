@@ -27,8 +27,12 @@ import {
   GET_DEMAND_FORECAST_QUERY,
   GET_CONVERSATIONS_QUERY,
 } from "@/lib/queries";
-import { SET_AVAILABILITY_MUTATION } from "@/lib/mutations";
+import { SET_AVAILABILITY_MUTATION, START_KYC_INQUIRY_MUTATION } from "@/lib/mutations";
 import { useToast } from "@/lib/toast";
+import * as WebBrowser from "expo-web-browser";
+import { Inquiry, Environment } from "react-native-persona";
+import { BlurView } from "expo-blur";
+import { ShieldAlert } from "lucide-react-native";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +110,57 @@ export default function TodayDashboardScreen() {
     fetchPolicy: "network-only",
     onCompleted: () => setOptimisticAvailable(null),
   });
+
+  const [startKycInquiry, { loading: kycLoading }] = useMutation(START_KYC_INQUIRY_MUTATION);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleVerifyKyc = async () => {
+    const providerId = profileData?.myProviderProfile?.id;
+    if (!providerId) {
+      toast.error("Failed to load provider profile. Please refresh.");
+      return;
+    }
+    try {
+      setIsVerifying(true);
+      const res = await startKycInquiry({ variables: { providerId } });
+      const { inquiryId, clientToken, inquiryUrl } = res.data?.startKycInquiry || {};
+      if (!inquiryId || !inquiryUrl) {
+        throw new Error("Failed to generate secure verification session.");
+      }
+
+      try {
+        Inquiry.fromInquiry(inquiryId)
+          .sessionToken(clientToken || "")
+          .onComplete((completedInquiryId: string, status: string) => {
+            console.log(`[Persona SDK] Inquiry completed: ${completedInquiryId}, status: ${status}`);
+            toast.success("Identity verified successfully!");
+            refetchProfile();
+          })
+          .onCanceled((canceledInquiryId?: string) => {
+            console.log(`[Persona SDK] Inquiry canceled: ${canceledInquiryId}`);
+            toast.info("Identity verification canceled.");
+            refetchProfile();
+          })
+          .onError((error: Error) => {
+            console.warn(`[Persona SDK Error, falling back to WebBrowser]:`, error);
+            WebBrowser.openBrowserAsync(inquiryUrl).then(() => {
+              refetchProfile();
+            });
+          })
+          .build()
+          .start();
+      } catch (sdkErr) {
+        console.warn("[Persona SDK Exception, falling back to WebBrowser]:", sdkErr);
+        await WebBrowser.openBrowserAsync(inquiryUrl);
+        refetchProfile();
+      }
+    } catch (error: any) {
+      console.error("KYC start failed:", error);
+      toast.error(error.message || "Failed to start identity verification.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const [setAvailability, { loading: mutationLoading }] = useMutation(
     SET_AVAILABILITY_MUTATION,
@@ -604,6 +659,42 @@ export default function TodayDashboardScreen() {
           </View>
         </Animated.View>
       </Animated.ScrollView>
+
+      {/* KYC Lock Overlay */}
+      {profileData?.myProviderProfile && profileData.myProviderProfile.kycStatus !== "approved" && (
+        <BlurView intensity={90} style={StyleSheet.absoluteFill} tint="light">
+          <View style={styles.lockOverlayContainer}>
+            <View style={styles.lockIconCircle}>
+              <ShieldAlert size={48} color={Colors.primary} strokeWidth={2} />
+            </View>
+            <Text style={styles.lockTitle}>Verification Required</Text>
+            <Text style={styles.lockDescription}>
+              To continue using KraftKonect provider services, please verify your identity securely. This takes less than 2 minutes.
+            </Text>
+            <TouchableOpacity
+              style={styles.lockButton}
+              activeOpacity={0.8}
+              disabled={isVerifying || kycLoading}
+              onPress={handleVerifyKyc}
+            >
+              {isVerifying || kycLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.lockButtonText}>Verify with Persona</Text>
+              )}
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.lockSecondaryButton}
+              activeOpacity={0.8}
+              disabled={isVerifying || kycLoading}
+              onPress={() => router.replace("/(app)/(tabs)/profile" as any)}
+            >
+              <Text style={styles.lockSecondaryButtonText}>Switch back to Client mode</Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      )}
     </ScreenBackground>
   );
 }
@@ -794,4 +885,57 @@ const styles = StyleSheet.create({
   },
   areaChipText: { fontSize: 11, fontWeight: "700" as const, color: Colors.primary },
   insightText: { fontSize: 14, color: "#374151", lineHeight: 20 },
+
+  lockOverlayContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.45)",
+  },
+  lockIconCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#FEE2E2",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  lockTitle: {
+    fontSize: 24,
+    fontWeight: "800" as const,
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  lockDescription: {
+    fontSize: 15,
+    color: "#4B5563",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  lockButton: {
+    width: "100%",
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  lockButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#FFFFFF",
+  },
+  lockSecondaryButton: {
+    paddingVertical: 12,
+  },
+  lockSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: "600" as const,
+    color: "#6B7280",
+  },
 });

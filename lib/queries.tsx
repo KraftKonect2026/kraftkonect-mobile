@@ -42,6 +42,7 @@ export const MY_PROVIDER_PROFILE_QUERY = gql`
       reviewCount
       avatar
       banner
+      kycStatus
     }
   }
 `
