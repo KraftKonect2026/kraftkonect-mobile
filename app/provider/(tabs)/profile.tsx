@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Star,
   Camera,
+  Check,
+  AlertCircle,
 } from "lucide-react-native";
 import { useQuery, useMutation } from "@apollo/client";
 import * as ImagePicker from "expo-image-picker";
@@ -174,6 +176,26 @@ export default function ProviderProfileScreen() {
           </TouchableOpacity>
 
           <Text style={styles.name}>{user?.name || "Provider"}</Text>
+
+          {/* KYC Verification Badge */}
+          <View style={styles.kycContainer}>
+            {profile?.kycStatus === "approved" ? (
+              <View style={styles.kycBadgeVerified}>
+                <Check size={12} color="#10B981" strokeWidth={3} />
+                <Text style={styles.kycTextVerified}>KYC Verified</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.kycBadgeUnverified}
+                activeOpacity={0.7}
+                onPress={() => router.replace("/provider/(tabs)/today" as any)}
+              >
+                <AlertCircle size={12} color="#EF4444" strokeWidth={2.5} />
+                <Text style={styles.kycTextUnverified}>Verify Identity</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={styles.ratingContainer}>
             <Star size={16} color="#FCD34D" strokeWidth={2} fill="#FCD34D" />
             <Text style={styles.rating}>{rating}</Text>
@@ -498,5 +520,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600" as const,
     color: "#FFFFFF",
+  },
+  kycContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  kycBadgeVerified: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  kycTextVerified: {
+    fontSize: 12,
+    fontWeight: "700" as const,
+    color: "#065F46",
+  },
+  kycBadgeUnverified: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FEE2E2",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  kycTextUnverified: {
+    fontSize: 12,
+    fontWeight: "700" as const,
+    color: "#991B1B",
   },
 });

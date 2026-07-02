@@ -114,6 +114,31 @@ export default function TodayDashboardScreen() {
   const [startKycInquiry, { loading: kycLoading }] = useMutation(START_KYC_INQUIRY_MUTATION);
   const [isVerifying, setIsVerifying] = useState(false);
 
+  const pollKycStatus = () => {
+    setIsVerifying(true);
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const result = await refetchProfile();
+        const currentStatus = result.data?.myProviderProfile?.kycStatus;
+        if (currentStatus === "approved" || attempts >= 8) {
+          clearInterval(interval);
+          setIsVerifying(false);
+          if (currentStatus === "approved") {
+            toast.success("Identity verification approved!");
+          }
+        }
+      } catch (err) {
+        console.warn("[pollKycStatus] refetch failed:", err);
+        if (attempts >= 8) {
+          clearInterval(interval);
+          setIsVerifying(false);
+        }
+      }
+    }, 2500);
+  };
+
   const handleVerifyKyc = async () => {
     const providerId = profileData?.myProviderProfile?.id;
     if (!providerId) {
@@ -133,18 +158,19 @@ export default function TodayDashboardScreen() {
           .sessionToken(clientToken || "")
           .onComplete((completedInquiryId: string, status: string) => {
             console.log(`[Persona SDK] Inquiry completed: ${completedInquiryId}, status: ${status}`);
-            toast.success("Identity verified successfully!");
-            refetchProfile();
+            toast.success("Identity verified successfully! Syncing status...");
+            pollKycStatus();
           })
           .onCanceled((canceledInquiryId?: string) => {
             console.log(`[Persona SDK] Inquiry canceled: ${canceledInquiryId}`);
             toast.info("Identity verification canceled.");
             refetchProfile();
+            setIsVerifying(false);
           })
           .onError((error: Error) => {
             console.warn(`[Persona SDK Error, falling back to WebBrowser]:`, error);
             WebBrowser.openBrowserAsync(inquiryUrl).then(() => {
-              refetchProfile();
+              pollKycStatus();
             });
           })
           .build()
@@ -152,12 +178,11 @@ export default function TodayDashboardScreen() {
       } catch (sdkErr) {
         console.warn("[Persona SDK Exception, falling back to WebBrowser]:", sdkErr);
         await WebBrowser.openBrowserAsync(inquiryUrl);
-        refetchProfile();
+        pollKycStatus();
       }
     } catch (error: any) {
       console.error("KYC start failed:", error);
       toast.error(error.message || "Failed to start identity verification.");
-    } finally {
       setIsVerifying(false);
     }
   };

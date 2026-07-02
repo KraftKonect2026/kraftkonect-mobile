@@ -20,6 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kraftkonect",
+      "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -29,7 +30,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.kraftkonect"
+      "package": "com.kraftkonect",
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
