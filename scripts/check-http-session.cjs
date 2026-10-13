@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),Module=require('node:module'),ts=require('typescript');
+const {gql}=require('@apollo/client'),load=require('./load-typescript.cjs');
+const query=gql`query ScopedFixture($id: ID!) { fixtureRecord(id: $id) { id } }`;
+const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
+const stateFor=id=>({auth:{user:{id},isAuthenticated:true,accessToken:'fixture-access-'+id,refreshToken:'fixture-refresh-'+id}});
+const response=body=>new Response(JSON.stringify(body),{status:200,headers:{'content-type':'application/json'}});
+async function testRuntime(run){
+ const originalFetch=global.fetch,state={value:stateFor('a')},listeners=new Set(),actions=[],requests=[],refreshStarted=deferred(),refreshResult=deferred();
+ let rejectAll=false;
+ const store={getState:()=>state.value,subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},dispatch:action=>{actions.push(action);if(action.type==='tokens')state.value={auth:{...state.value.auth,...action.payload}};if(action.type==='signOut')state.value={auth:{user:null,isAuthenticated:false,accessToken:null,refreshToken:null}};listeners.forEach(f=>f());}};
+ global.fetch=async(url,options)=>{const body=JSON.parse(options.body);requests.push({body,authorization:new Headers(options.headers).get('Authorization')});if(body.query.includes('mutation RefreshToken')){refreshStarted.resolve();return response(await refreshResult.promise);}if(rejectAll||!requests.at(-1).authorization?.includes('rotated'))return response({errors:[{message:'Unauthorized',extensions:{code:'UNAUTHENTICATED'}}]});return response({data:{fixtureRecord:{id:body.variables.id}}});};
+ const file=path.resolve(__dirname,'../lib/apolloClient.ts'),mod=new Module(file,module);mod.filename=file;mod.paths=Module._nodeModulePaths(path.dirname(file));const originalRequire=mod.require.bind(mod);
+ mod.require=specifier=>specifier==='@/store'?{store}:specifier==='@/store/authSlice'?{setTokens:payload=>({type:'tokens',payload}),signOut:()=>({type:'signOut'})}:specifier==='@/lib/toast'?{toastRef:{current:{error:()=>{}}}}:specifier==='@/lib/account/liveAccount'?load('lib/account/liveAccount.ts'):originalRequire(specifier);
+ mod._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,file);
+ const client=mod.exports.default;
+ const runtime={client,state,store,actions,requests,refreshStarted,refreshResult,setRejectAll:value=>{rejectAll=value;},setIdentity:id=>{state.value=stateFor(id);listeners.forEach(f=>f());}};
+ try{await run(runtime);}finally{client.stop();global.fetch=originalFetch;}
+}
+const bounded=promise=>{let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Fixture request did not settle.')),2000);})]).finally(()=>clearTimeout(timer));};
+let count=0;async function check(name,run){await run();count++;console.log('PASS '+name);}
+(async()=>{
+ await check('The actual Apollo link rejects a foreign owner before any HTTP request',()=>testRuntime(async r=>{await assert.rejects(r.client.query({query,variables:{id:'one'},fetchPolicy:'no-cache',context:{accountOwnerId:'b'}}));assert.equal(r.requests.length,0);assert.equal(r.state.value.auth.user.id,'a');}));
+ await check('A matched refresh retries the owned operation using the confirmed tokens',()=>testRuntime(async r=>{const result=r.client.query({query,variables:{id:'one'},fetchPolicy:'no-cache',context:{accountOwnerId:'a'}});await r.refreshStarted.promise;r.refreshResult.resolve({data:{refreshToken:{accessToken:'fixture-access-a-rotated',refreshToken:'fixture-refresh-a-rotated'}}});assert.equal((await bounded(result)).data.fixtureRecord.id,'one');assert.equal(r.state.value.auth.user.id,'a');assert.ok(r.requests.at(-1).authorization.includes('rotated'));assert.ok(!JSON.stringify(r.requests.at(-1).body).includes('accountOwnerId'));}));
+ await check('An old refresh cannot replace or sign out a newly signed-in identity',()=>testRuntime(async r=>{const result=r.client.query({query,variables:{id:'one'},fetchPolicy:'no-cache',context:{accountOwnerId:'a'}}).catch(e=>e);await r.refreshStarted.promise;r.setIdentity('b');r.refreshResult.resolve({data:{refreshToken:{accessToken:'fixture-access-a-rotated',refreshToken:'fixture-refresh-a-rotated'}}});await bounded(result);await new Promise(resolve=>setImmediate(resolve));assert.equal(r.state.value.auth.user.id,'b');assert.equal(r.state.value.auth.accessToken,'fixture-access-b');assert.equal(r.actions.filter(a=>a.type==='tokens'||a.type==='signOut').length,0);}));
+ await check('A failed refresh rejects queued observers rather than leaving requests pending',()=>testRuntime(async r=>{r.setRejectAll(true);const first=r.client.query({query,variables:{id:'one'},fetchPolicy:'no-cache'}).catch(e=>e);await r.refreshStarted.promise;const second=r.client.query({query,variables:{id:'two'},fetchPolicy:'no-cache'}).catch(e=>e);await new Promise(resolve=>setImmediate(resolve));r.refreshResult.resolve({errors:[{message:'Fixture refresh failed'}]});const results=await bounded(Promise.all([first,second]));assert.ok(results.every(v=>v instanceof Error));assert.equal(r.state.value.auth.user,null);assert.equal(r.actions.filter(a=>a.type==='signOut').length,1);}));
+ console.log(count+' HTTP session integration checks passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="82" height="7" viewBox="0 0 82 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Carousel dots" clip-path="url(#clip0_0_22)">
+<path id="Active indicator" d="M0 3.5C0 1.567 1.567 0 3.5 0H18.5C20.433 0 22 1.567 22 3.5V3.5C22 5.433 20.433 7 18.5 7H3.5C1.567 7 0 5.433 0 3.5V3.5Z" fill="#0F172A"/>
+<circle id="Indicator" cx="33.5" cy="3.5" r="3.5" fill="#DADADA"/>
+<circle id="Indicator_2" cx="48.5" cy="3.5" r="3.5" fill="#DADADA"/>
+<circle id="Indicator_3" cx="63.5" cy="3.5" r="3.5" fill="#DADADA"/>
+<circle id="Indicator_4" cx="78.5" cy="3.5" r="3.5" fill="#DADADA"/>
+</g>
+<defs>
+<clipPath id="clip0_0_22">
+<rect width="82" height="7" fill="white"/>
+</clipPath>
+</defs>
+</svg>

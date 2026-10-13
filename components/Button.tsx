@@ -1,174 +1,56 @@
 import React from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  ViewStyle,
-  TextStyle,
-  ActivityIndicator,
-  Platform,
-} from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { Pressable, PressableProps, StyleProp, StyleSheet, TextStyle, ViewStyle } from "react-native";
 import Colors from "@/constants/colors";
-import { Gradients, Glass, Radius, Shadows } from "@/constants/theme";
+import { Borders, ControlSize, Corners, Space } from "@/constants/layout";
+import { AppText } from "@/components/AppText";
+import { BrandMark } from "@/components/BrandMark";
 
-export interface ButtonProps {
+export interface ButtonProps extends Omit<PressableProps, "style" | "children" | "onPress"> {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "outline" | "glass";
-  disabled?: boolean;
+  variant?: "primary" | "outline" | "subtle" | "secondary" | "glass";
+  size?: "regular" | "compact";
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   icon?: React.ReactNode;
 }
 
-export const Button: React.FC<ButtonProps> = ({
-  title,
-  onPress,
-  variant = "primary",
-  disabled = false,
-  loading = false,
-  style,
-  textStyle,
-  icon,
-}) => {
-  const isPrimary = variant === "primary";
-  const isSecondary = variant === "secondary";
-  const isOutline = variant === "outline";
-  const isGlass = variant === "glass";
+const buttonColors = {
+  primary: { background: Colors.primary, pressed: Colors.primaryDark, text: Colors.textOnPrimary },
+  outline: { background: Colors.surface, pressed: Colors.primarySoft, text: Colors.primary },
+  subtle: { background: Colors.surfaceMuted, pressed: Colors.primarySoft, text: Colors.textPrimary },
+} as const;
 
-  const content = (
-    <>
-      {loading ? (
-        <ActivityIndicator color={isPrimary ? "#FFFFFF" : Colors.primary} size="small" />
-      ) : (
-        <>
-          {icon}
-          <Text
-            style={[
-              styles.text,
-              isPrimary && styles.primaryText,
-              isSecondary && styles.secondaryText,
-              isOutline && styles.outlineText,
-              isGlass && styles.glassText,
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
-        </>
-      )}
-    </>
-  );
-
-  // Primary buttons use a brand gradient fill with a coloured glow.
-  if (isPrimary) {
-    return (
-      <Pressable
-        onPress={onPress}
-        disabled={disabled || loading}
-        style={({ pressed }) => [
-          styles.shell,
-          Shadows.glow,
-          (disabled || loading) && styles.disabled,
-          pressed && styles.pressed,
-          style,
-        ]}
-      >
-        <LinearGradient
-          colors={Gradients.brand}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientFill}
-        >
-          {content}
-        </LinearGradient>
-      </Pressable>
-    );
-  }
-
+/** KK/Button (857:178). Legacy secondary/glass variants map to Subtle. */
+export function Button({ title, onPress, variant = "primary", size = "regular", disabled = false, loading = false, style, textStyle, icon, accessibilityLabel, ...props }: ButtonProps) {
+  const primary = variant === "primary";
+  const outline = variant === "outline";
+  const palette = buttonColors[variant === "secondary" || variant === "glass" ? "subtle" : variant];
+  const color = disabled ? Colors.disabled : palette.text;
   return (
     <Pressable
+      {...props}
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{ ...props.accessibilityState, disabled: disabled || loading, busy: loading }}
+      aria-disabled={disabled || loading}
+      aria-busy={loading}
       style={({ pressed }) => [
         styles.button,
-        isSecondary && styles.secondary,
-        isOutline && styles.outline,
-        isGlass && styles.glass,
-        (disabled || loading) && styles.disabled,
-        pressed && styles.pressed,
+        { minHeight: size === "compact" ? ControlSize.compactButton : ControlSize.button,
+          backgroundColor: disabled ? Colors.surfaceMuted : pressed ? palette.pressed : palette.background,
+          borderWidth: outline ? Borders.thin : 0,
+          borderColor: disabled ? Colors.borderStrong : Colors.primary },
         style,
       ]}
     >
-      {content}
+      {loading ? <BrandMark height={20} tone={primary ? "white" : "blue"} decorative /> : icon}
+      <AppText variant={size === "compact" ? "label" : "button"} color={color} style={textStyle}>{title}</AppText>
     </Pressable>
   );
-};
+}
 
-const styles = StyleSheet.create({
-  shell: {
-    height: 54,
-    borderRadius: Radius.pill,
-    overflow: "hidden",
-  },
-  gradientFill: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 8,
-  },
-  button: {
-    height: 54,
-    borderRadius: Radius.pill,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 8,
-  },
-  secondary: {
-    backgroundColor: "rgba(255,255,255,0.7)",
-    borderWidth: 1,
-    borderColor: "rgba(17,24,39,0.08)",
-    ...Shadows.soft,
-  },
-  outline: {
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-  },
-  glass: {
-    backgroundColor: Glass.overlay,
-    borderWidth: 1,
-    borderColor: Glass.border,
-    ...Shadows.soft,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
-  text: {
-    fontSize: 16,
-    fontWeight: "700",
-    ...Platform.select({ default: {} }),
-  },
-  primaryText: {
-    color: "#FFFFFF",
-  },
-  secondaryText: {
-    color: Colors.textPrimary,
-  },
-  outlineText: {
-    color: Colors.primary,
-  },
-  glassText: {
-    color: Colors.primary,
-  },
-});
+const styles = StyleSheet.create({ button: { borderRadius: Corners.control, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: Space.lg, paddingVertical: Space.sm, gap: Space.sm } });

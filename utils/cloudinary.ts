@@ -1,59 +1,40 @@
-import Constants from "expo-constants";
+import { Platform } from "react-native";
 
-// TODO: DELETE THIS COMMENT AND REPLACE VALUES BELOW
-// 1. Go to Cloudinary Console > Settings > Upload > Upload presets
-// 2. Click "Add upload preset"
-// 3. Set "Signing Mode" to "Unsigned" (CRITICAL!)
-// 4. Copy the "Upload preset name"
-const CLOUD_NAME = "dhzckqyuu"; // e.g. "dxyz123"
-const UPLOAD_PRESET = "kraftkonect_unsigned"; // e.g. "kraftkonect_unsigned"
+// Existing public profile-photo destination. Private ID/selfie uploads use separate backend contracts.
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dhzckqyuu/image/upload";
+const UPLOAD_PRESET = "kraftkonect_unsigned";
 
-const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
-
-export const uploadImageToCloudinary = async (
-  imageUri: string
-): Promise<string> => {
-  if (!imageUri) {
-    throw new Error("No image URI provided");
-  }
-
+export async function uploadImageToCloudinary(imageUri: string, isCurrent: () => boolean = () => true): Promise<string> {
+  const assertCurrent = () => { if (!isCurrent()) throw new Error("The signed-in account changed. Please select the photo again."); };
+  assertCurrent();
+  if (!imageUri || typeof imageUri !== "string") throw new Error("No image was selected.");
+  const filename = imageUri.split(/[?#]/)[0].split("/").pop() || "profile-photo.jpg";
+  const extension = /\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.exec(filename)?.[1].toLowerCase();
+  const type = extension ? "image/" + (extension === "jpg" ? "jpeg" : extension) : "image/jpeg";
   const formData = new FormData();
-
-  // Create a file object for the image
-  const filename = imageUri.split("/").pop() || "image.jpg";
-  const match = /\.(\w+)$/.exec(filename);
-  const type = match ? `image/${match[1]}` : `image`;
-
-  // @ts-ignore: FormData expects a Blob or File on web, but React Native handles { uri, type, name }
-  formData.append("file", {
-    uri: imageUri,
-    name: filename,
-    type,
-  });
-
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", "providers"); // Optional: organize uploads in a folder
-
-  try {
-    const response = await fetch(CLOUDINARY_URL, {
-      method: "POST",
-      body: formData as any,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    const data: any = await response.json();
-
-    if (response.ok) {
-      return data.secure_url;
-    } else {
-      console.error("Cloudinary upload failed:", data);
-      throw new Error(data.error?.message || "Failed to upload image");
-    }
-  } catch (error) {
-    console.error("Error uploading to Cloudinary:", error);
-    throw error;
+  if (Platform.OS === "web") {
+    const selected = await fetch(imageUri);
+    assertCurrent();
+    if (!selected.ok) throw new Error("The selected photo could not be read.");
+    const blob = await selected.blob();
+    assertCurrent();
+    if (!blob.size || !/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/i.test(blob.type)) throw new Error("Please select a supported image.");
+    formData.append("file", blob, extension ? filename : "profile-photo." + (blob.type.slice(6) === "jpeg" ? "jpg" : blob.type.slice(6)));
+  } else {
+    // React Native's FormData supports its native URI file shape.
+    formData.append("file", { uri: imageUri, name: filename, type } as unknown as Blob);
   }
-};
+  formData.append("upload_preset", UPLOAD_PRESET);
+  formData.append("folder", "providers");
+  assertCurrent();
+  // Fetch supplies the multipart boundary on both native and web.
+  // Expo's native and web ambient FormData declarations differ, but fetch accepts each platform's instance.
+  const response = await fetch(CLOUDINARY_URL, { method: "POST", body: formData as unknown as NonNullable<Parameters<typeof fetch>[1]>["body"], headers: { Accept: "application/json" } });
+  assertCurrent();
+  if (!response.ok) throw new Error("The photo upload failed. Please try again.");
+  const data: unknown = await response.json();
+  assertCurrent();
+  const url = data && typeof data === "object" && "secure_url" in data ? data.secure_url : undefined;
+  if (typeof url !== "string" || !/^https:\/\/res\.cloudinary\.com\/dhzckqyuu\//.test(url)) throw new Error("The uploaded photo could not be confirmed.");
+  return url;
+}

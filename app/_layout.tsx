@@ -7,8 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { ApolloProvider } from "@apollo/client/react";
-import { useAppSelector } from "@/store";
-import { store, persistor } from "@/store";
+import { store, persistor, useAppSelector } from "@/store";
 import apolloClient from "@/lib/apolloClient";
 import { ToastProvider } from "@/lib/toast";
 import { interFontMap, applyGlobalInterFont } from "@/lib/fonts";
@@ -23,7 +22,7 @@ applyGlobalInterFont();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated && !!state.auth.accessToken && !!state.auth.user);
   const isRehydrated = useAppSelector((state) => state._persist?.rehydrated);
 
   const [fontsLoaded] = useFonts(interFontMap);
@@ -50,38 +49,49 @@ function RootLayoutNav() {
         animationDuration: 250,
       }}
     >
-      {isAuthenticated === false ? (
-        // Auth Screens (shown when not authenticated)
-        <>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="get-started" options={{ headerShown: false }} />
-          <Stack.Screen name="sign-up/index" options={{ headerShown: false }} />
-          <Stack.Screen name="sign-up/verify-email" options={{ headerShown: false }} />
-          <Stack.Screen name="sign-up/verify-phone" options={{ headerShown: false }} />
-          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-          <Stack.Screen name="forgot-password/index" options={{ headerShown: false }} />
-          <Stack.Screen name="forgot-password/reset" options={{ headerShown: false }} />
-        </>
-      ) : (
-        // App Screens (shown when authenticated)
-        <>
-          <Stack.Screen name="(app)" options={{ headerShown: false }} />
-          <Stack.Screen name="booking-detail/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="chat/[providerId]" options={{ headerShown: false }} />
-          <Stack.Screen name="review/[bookingId]" options={{ headerShown: false, presentation: "modal" }} />
-          <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
-          <Stack.Screen name="payment-methods" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-          <Stack.Screen name="provider" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-onboarding/welcome" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-onboarding/basic-info" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-onboarding/category" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-onboarding/verification" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-onboarding/experience" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-onboarding/submit" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-onboarding/pending-approval" options={{ headerShown: false }} />
-        </>
-      )}
+      <Stack.Screen name="index" />
+      <Stack.Screen name="get-started" />
+      <Stack.Screen name="sign-in" />
+      <Stack.Screen name="sign-up/index" />
+      <Stack.Screen name="sign-up/verify-email" />
+      <Stack.Screen name="sign-up/verify-phone" />
+      <Stack.Screen name="forgot-password/index" />
+      <Stack.Screen name="forgot-password/reset" />
+      <Stack.Screen name="design-system" />
+      <Stack.Screen name="app-preview" />
+      <Stack.Screen name="auth-preview" />
+      <Stack.Screen name="discovery-preview" />
+      <Stack.Screen name="booking-preview" />
+      <Stack.Screen name="finance-preview" />
+      <Stack.Screen name="provider-preview" />
+      <Stack.Screen name="account-preview" />
+      <Stack.Screen name="messages-preview" />
+      <Stack.Screen name="notifications-preview" />
+      <Stack.Screen name="support-preview" />
+      <Stack.Screen name="account-adapter-preview" />
+      <Stack.Screen name="messages-adapter-preview" />
+      <Stack.Screen name="provider-adapter-preview" />
+      <Stack.Screen name="finance-adapter-preview" />
+      <Stack.Screen name="review-adapter-preview" />
+      <Stack.Screen name="recovery-preview" />
+      <Stack.Screen name="recovery" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Protected guard={!isAuthenticated}>
+        <Stack.Screen name="legacy-sign-in" />
+        <Stack.Screen name="legacy-sign-up" />
+      </Stack.Protected>
+      <Stack.Protected guard={isAuthenticated}>
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="provider" />
+        <Stack.Screen name="provider-onboarding" />
+        <Stack.Screen name="booking-detail/[id]" />
+        <Stack.Screen name="chat/[providerId]" />
+        <Stack.Screen name="review/[bookingId]" options={{ presentation: "modal" }} />
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="payment-methods" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="account-settings" />
+      </Stack.Protected>
     </Stack>
   );
 }

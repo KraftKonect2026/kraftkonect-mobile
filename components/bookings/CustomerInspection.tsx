@@ -1,0 +1,44 @@
+import { View } from "react-native";
+import { AppText } from "@/components/AppText";
+import { Button } from "@/components/Button";
+import { Callout } from "@/components/Callout";
+import { Input } from "@/components/Input";
+import Colors from "@/constants/colors";
+import { appointmentLabel, BookingRecord, exactAddress, inspectionVerified, money } from "@/lib/bookings/model";
+import { dateLabel } from "@/lib/discovery/model";
+import { currentAppointment } from "@/lib/bookings/work";
+import { BookingFrame, bs, DetailCard, DetailRow, Heading, InspectionTimeline, RoughEstimate, TextAction } from "./Parts";
+
+export type CustomerInspectionStep="request"|"response"|"schedule"|"pay"|"payment"|"confirmed"|"inspection";
+type Props={record:BookingRecord;step:CustomerInspectionStep;onStep:(step:CustomerInspectionStep)=>void;onBack:()=>void;onBookings:()=>void;onMessage:()=>void;onCancel:()=>void;onHelp:()=>void;onProposal?:()=>void;address:string;onAddress:(v:string)=>void;onCheckout:()=>void;onPayment:(status:"pending"|"failed"|"verified")=>void;busy:boolean;error?:string;preview?:boolean};
+export function CustomerInspection(p:Props) {
+  const {record:r,step}=p;const terms=r.terms;const verified=inspectionVerified(r);const initial=terms?money(terms.deposit):"Not set";
+  const secondary=<Button title={"Message "+r.providerName.split(" ")[0]} variant="outline" onPress={p.onMessage}/>;
+  let title="Request details",subtitle=r.serviceTitle;let body;let footer=<View style={bs.actions}><Button title="Return to bookings" onPress={p.onBookings}/>{secondary}</View>;
+  const depositRow=(label="Initial deposit")=><DetailRow label={label} value={initial} help="info" onHelp={p.onHelp}/>;
+  const appointment=<DetailCard title="Inspection appointment"><DetailRow label="Provider" value={r.providerName}/><DetailRow label="When" value={appointmentLabel(currentAppointment(r,"inspection"))}/><DetailRow label={r.serviceMode==="remote"?"Where":"Address"} value={r.serviceMode==="remote"?"Remote appointment":exactAddress(r,"customer")||p.address||"Add address"}/>{depositRow(verified?"Initial deposit paid":"Initial deposit")}{r.dateProposal?.status==="proposed"&&p.onProposal&&<TextAction title="Review proposed appointment" onPress={p.onProposal}/>}</DetailCard>;
+  if(step==="request") body=<><Callout title={"Waiting for "+r.providerName.split(" ")[0]} message="We’ll notify you when they reply. Your preferred date is not confirmed yet."/><DetailCard title="Request details"><DetailRow label="Service" value={r.serviceTitle}/><DetailRow label="Provider" value={r.providerName}/><DetailRow label="Area" value={r.area}/><DetailRow label="Preferred date" value={dateLabel(r.preferredDate)}/></DetailCard><Callout title="What you sent" message={r.description}/><TextAction title="Cancel request" error onPress={p.onCancel}/></>;
+  else if(step==="response" && terms) {
+    title=r.providerName.split(" ")[0]+"’s response";subtitle=r.serviceTitle;
+    body=<><RoughEstimate terms={terms} quiet/><DetailCard title="Before the inspection">{depositRow()}<DetailRow label="Suggested appointment" value={appointmentLabel(terms)}/></DetailCard><Callout title="Your initial deposit" message={`${initial} is credited in full against the final quote if you hire ${r.providerName.split(" ")[0]}. The deposit confirms the inspection visit, not repair work.`}/><TextAction title="Cancel request" error onPress={p.onCancel}/></>;
+    footer=<View style={bs.actions}><Button title="Continue to deposit" onPress={()=>p.onStep("schedule")}/>{secondary}</View>;
+  } else if(step==="schedule" && terms) {
+    title="Schedule inspection";subtitle="Confirm the appointment before paying.";
+    body=<><DetailCard title="Proposed inspection">{depositRow()}<DetailRow label="Suggested appointment" value={appointmentLabel(terms)}/><DetailRow label="Area" value={r.area}/></DetailCard>{r.serviceMode==="onsite" ? <DetailCard title="Appointment address"><AppText variant="bodySmall" color={Colors.textSecondary}>Enter the exact address for this visit. It is shared with the provider after payment is confirmed.</AppText><Input placeholder="Fill in address" accessibilityLabel="Appointment address" autoComplete="street-address" value={p.address} maxLength={240} onChangeText={p.onAddress}/></DetailCard> : <Callout title="Remote appointment" message="No home address is needed for this service."/>}<Callout title="Need a different date?" message="Message the provider to agree on another appointment before paying."/></>;
+    footer=<View style={bs.actions}><Button title="Continue" disabled={r.serviceMode==="onsite" && p.address.trim().length<8} onPress={()=>p.onStep("pay")}/>{secondary}</View>;
+  } else if(step==="pay" && terms) {
+    title="Initial deposit";subtitle="Confirm the visit before any repair work is booked.";
+    body=<><DetailCard quiet><AppText variant="label" color={Colors.primary}>Initial deposit</AppText><AppText variant="h1">{initial}</AppText><AppText variant="bodySmall" color={Colors.textSecondary}>{appointmentLabel(terms)}</AppText></DetailCard>{appointment}<Callout title="Pay using your card or bank transfer" message={`Non-refundable after the inspection. If you hire ${r.providerName.split(" ")[0]}, ${initial} is deducted from the final quote.`}/>{p.preview && <AppText variant="captionRegular" color={Colors.textSecondary}>The next screen simulates hosted checkout locally. No money is charged.</AppText>}</>;
+    footer=<Button title="Confirm" loading={p.busy} onPress={p.onCheckout}/>;
+  } else if(step==="payment" && r.payment) {
+    title=r.payment.status==="failed"?"Payment unsuccessful":"Payment pending";subtitle="The inspection is confirmed only after the payment is verified.";
+    body=<><DetailCard title="Initial deposit"><DetailRow label="Amount" value={money(r.payment.amount)}/><DetailRow label="Reference" value={r.payment.reference}/><DetailRow label="Status" value={r.payment.status==="failed"?"Unsuccessful":"Awaiting verification"}/></DetailCard><Callout title={p.preview?"Local checkout simulator":"Secure checkout"} message={p.preview?"Choose a sample payment result below. This does not open Paystack or process a real payment.":"Payment status must be verified by the server. Do not share card details, PINs or payment codes in messages."}/>{r.payment.status==="pending" && p.preview && <View style={bs.actions}><Button title="Simulate verified payment" loading={p.busy} onPress={()=>p.onPayment("verified")}/><Button title="Keep payment pending" variant="outline" disabled={p.busy} onPress={()=>p.onPayment("pending")}/><Button title="Simulate unsuccessful payment" variant="outline" disabled={p.busy} onPress={()=>p.onPayment("failed")}/></View>}</>;
+    footer=r.payment.status==="failed" ? <View style={bs.actions}><Button title="Try payment again" onPress={()=>p.onStep("pay")}/><Button title="Return to bookings" variant="outline" onPress={p.onBookings}/></View> : <Button title="Return to bookings" onPress={p.onBookings}/>;
+  } else if((step==="confirmed" || step==="inspection") && verified) {
+    title=step==="confirmed"?"Payment confirmed":r.stage==="inspection_complete"?"Inspection complete":"Your inspection";
+    subtitle=r.stage==="inspection_complete"?"Waiting for the provider’s final quote.":step==="confirmed"?"Your inspection is scheduled. Repair work is not booked yet.":r.serviceTitle+" · Active booking";
+    body=<>{appointment}{r.stage==="inspection_complete" ? <><InspectionTimeline date={appointmentLabel(terms)} provider={r.providerName.split(" ")[0]}/><Callout title="Inspection findings" message={r.findings||"Findings unavailable"}/><Callout title="What happens next" message="The provider will prepare a final quote. Review the scope, price and work appointment before booking the repair."/></> : <Callout title="The visit is confirmed" message="Your initial deposit confirms this inspection appointment. The repair needs an accepted final quote and verified payment."/>}</>;
+  } else body=<Callout title="Refresh this booking" message="This screen needs a current inspection response. Return to bookings to view the latest status."/>;
+  if(r.cancelled){title="Request ended";subtitle=r.serviceTitle;body=<><Callout title={r.cancelled.by==="provider"?"Request declined":"Request cancelled"} message="This unpaid request has ended. No refund is needed."/><DetailCard title="Reason"><AppText variant="body">{r.cancelled.reason}</AppText></DetailCard></>;footer=<Button title="Return to bookings" onPress={p.onBookings}/>;}
+  return <BookingFrame preview={p.preview} onBack={step==="confirmed"?undefined:p.onBack} onClose={step==="confirmed"?p.onBookings:undefined} footer={footer}><Heading title={title} subtitle={subtitle}/>{body}{p.error && <Callout title="Couldn’t save this change" message={p.error} tone="error"/>}</BookingFrame>;
+}

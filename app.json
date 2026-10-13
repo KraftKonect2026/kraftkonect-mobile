@@ -51,10 +51,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/brand/kk-mark-white.png",
+          "imageWidth": 118,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#225EE1"
         }
       ]
     ],

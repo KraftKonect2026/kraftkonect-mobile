@@ -8,7 +8,8 @@ import { useMutation } from "@apollo/client";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
-import { useAppDispatch } from "@/store";
+import { store, useAppDispatch } from "@/store";
+import { homeForMode, resolveAppMode } from "@/lib/appMode";
 import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
 import { Radius, Shadows, glassSurface } from "@/constants/theme";
 import { ScreenBackground } from "@/components/ScreenBackground";
@@ -111,11 +112,7 @@ export default function VerifyPhoneScreen() {
           dispatch(setIsAuthenticated(true));
         }
         toast.success("Phone verified!");
-        if (user?.role === "provider") {
-          router.replace("/provider/(tabs)/today" as any);
-        } else {
-          router.replace("/(app)" as any);
-        }
+        router.replace(homeForMode(resolveAppMode(store.getState().auth)));
       }
     } catch (e: any) {
       const msg = getApolloErrorMessage(e);

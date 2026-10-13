@@ -10,6 +10,7 @@ import { setContext } from "@apollo/client/link/context";
 import { store } from "@/store";
 import { setTokens, signOut } from "@/store/authSlice";
 import { toastRef } from "@/lib/toast";
+import { assertHttpAccountScope, currentRefreshSession, verifiedRefreshTokens } from "@/lib/account/liveAccount";
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -23,17 +24,21 @@ const HTTP_ENDPOINT =
 
 const httpLink = new HttpLink({ uri: HTTP_ENDPOINT });
 
-const authLink = setContext((_, { headers }) => {
-  const rawToken = store.getState().auth.accessToken;
+const authLink = setContext((_, { headers, accountOwnerId }) => {
+  const auth=store.getState().auth;
+  const scope=accountOwnerId===undefined?auth.user?.id??null:accountOwnerId;
+  assertHttpAccountScope(scope,auth.user?.id??null);
+  const rawToken = auth.accessToken;
 
   if (!rawToken) {
-    return { headers };
+    return { headers,accountOwnerId:scope };
   }
 
   const token = rawToken.trim();
   const authHeaderValue = token.startsWith("Bearer ") ? token : `${token}`;
 
   return {
+    accountOwnerId:scope,
     headers: {
       ...headers,
       Authorization: authHeaderValue,
@@ -42,10 +47,10 @@ const authLink = setContext((_, { headers }) => {
 });
 
 let isRefreshing = false;
-let pendingRequests: any[] = [];
+let pendingRequests: {complete:()=>void;reject:(error:unknown)=>void}[] = [];
 
 const resolvePendingRequests = () => {
-  pendingRequests.map((callback) => callback());
+  pendingRequests.forEach((pending) => pending.complete());
   pendingRequests = [];
 };
 
@@ -57,15 +62,19 @@ const errorLink = onError(
           err.message === "Unauthorized" ||
           err.extensions?.code === "UNAUTHENTICATED"
         ) {
+          const expectedOwner=operation.getContext().accountOwnerId;
+          try{assertHttpAccountScope(expectedOwner??null,store.getState().auth.user?.id??null);}catch(error){return new Observable(observer=>observer.error(error));}
           let forward$: Observable<void>;
 
           if (!isRefreshing) {
+            const origin=store.getState().auth,ownerId=origin.user?.id??null,capturedRefresh=origin.refreshToken;
             isRefreshing = true;
             forward$ = new Observable<void>((observer) => {
               (async () => {
                 try {
                   const state = store.getState();
                   const refreshToken = state.auth.refreshToken;
+                  if(!capturedRefresh||!currentRefreshSession(ownerId,capturedRefresh,state.auth))throw new Error("The session changed before refresh.");
 
                   if (!refreshToken) {
                     throw new Error("No refresh token available");
@@ -93,8 +102,8 @@ const errorLink = onError(
                     throw new Error("Failed to refresh token");
                   }
 
-                  const { accessToken, refreshToken: newRefreshToken } =
-                    result.data.refreshToken;
+                  if(!currentRefreshSession(ownerId,refreshToken,store.getState().auth))throw new Error("The session changed during refresh.");
+                  const { accessToken, refreshToken: newRefreshToken } = verifiedRefreshTokens(result.data.refreshToken);
 
                   store.dispatch(
                     setTokens({ accessToken, refreshToken: newRefreshToken }),
@@ -104,9 +113,12 @@ const errorLink = onError(
                   observer.next();
                   observer.complete();
                 } catch (error) {
+                  pendingRequests.forEach(pending=>pending.reject(error));
                   pendingRequests = [];
-                  store.dispatch(signOut());
-                  toastRef.current?.error("Session expired", "Please login again");
+                  if(capturedRefresh&&currentRefreshSession(ownerId,capturedRefresh,store.getState().auth)){
+                    store.dispatch(signOut());
+                    toastRef.current?.error("Session expired", "Please login again");
+                  }
                   observer.error(error);
                 } finally {
                   isRefreshing = false;
@@ -115,10 +127,10 @@ const errorLink = onError(
             });
           } else {
             forward$ = new Observable<void>((observer) => {
-              pendingRequests.push(() => {
+              pendingRequests.push({complete:() => {
                 observer.next();
                 observer.complete();
-              });
+              },reject:error=>observer.error(error)});
             });
           }
 
@@ -161,3 +173,14 @@ const client = new ApolloClient({
 });
 
 export default client;
+
+// Shared account data must not survive a switch to a different signed-in identity.
+// Switching customer/provider mode keeps the same identity and keeps this cache.
+let cacheAccountId = store.getState().auth.user?.id;
+store.subscribe(() => {
+  const nextAccountId = store.getState().auth.user?.id;
+  if (nextAccountId !== cacheAccountId) {
+    cacheAccountId = nextAccountId;
+    void client.clearStore().catch(() => {});
+  }
+});

@@ -1,9 +1,7 @@
 import { Stack } from "expo-router";
-import { ProviderOnboardingProvider } from "./context";
 
 export default function ProviderOnboardingLayout() {
     return (
-        <ProviderOnboardingProvider>
             <Stack
                 screenOptions={{
                     headerShown: false,
@@ -11,6 +9,5 @@ export default function ProviderOnboardingLayout() {
                     animationDuration: 250,
                 }}
             />
-        </ProviderOnboardingProvider>
     );
 }

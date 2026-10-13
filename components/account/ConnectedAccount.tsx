@@ -1,0 +1,74 @@
+import { useEffect, useRef, useState } from "react";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useApolloClient, useMutation } from "@apollo/client";
+import { View } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { AppText } from "@/components/AppText";
+import { Button } from "@/components/Button";
+import { Callout } from "@/components/Callout";
+import { ModeHeader } from "@/components/ModeHeader";
+import { Sheet } from "@/components/discovery/Parts";
+import { ConfirmDialog } from "@/components/bookings/Parts";
+import { AccountHub } from "./AccountHub";
+import { LiveAccountContent } from "./LiveAccountContent";
+import { useAccountRead } from "@/lib/hooks/useAccountRead";
+import { saveServiceArea } from "@/lib/hooks/useServiceArea";
+import { liveAccountStep, LiveAccountStep, matchedAvatarUpdate, sameAccountSession } from "@/lib/account/liveAccount";
+import { areaError } from "@/lib/account/model";
+import { EDIT_PROFILE_MUTATION, UPDATE_MY_PROVIDER_PROFILE_MUTATION } from "@/lib/mutations";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { useAppDispatch, useAppSelector, store } from "@/store";
+import { selectActiveMode, setActiveMode, signOut, updateUser } from "@/store/authSlice";
+import { AppMode } from "@/lib/appMode";
+import Colors from "@/constants/colors";
+
+const accountPath=(mode:AppMode)=>mode==="provider"?"/provider/(tabs)/profile" as const:"/(app)/(tabs)/profile" as const;
+export function ConnectedAccountHub({mode}:{mode:AppMode}) {
+ const router=useRouter(),dispatch=useAppDispatch(),client=useApolloClient(),data=useAccountRead();
+ const [exit,setExit]=useState(false),[busy,setBusy]=useState(false),[unavailable,setUnavailable]=useState<string>();
+ const alive=useRef(true);useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+ const switchMode=(next:AppMode)=>{if(!data.signedIn)return;dispatch(setActiveMode(next));router.replace(accountPath(next));};
+ const open=(target:string)=>{
+  if(target==="sign-out")setExit(true);
+  else if(target==="saved")router.push("/(app)/(tabs)/favourites");
+  else if(target==="verification")router.push("/provider/verification-status");
+  else if(target==="services")router.push("/provider/services");
+  else if(target==="availability")router.push("/provider/availability");
+  else if(target==="earnings")router.push("/provider/earnings");
+  else router.push({pathname:"/account-settings",params:{step:liveAccountStep(target)}});
+ };
+ const leave=async()=>{if(busy)return;setBusy(true);dispatch(signOut());try{await client.clearStore();}finally{if(alive.current){setBusy(false);setExit(false);}router.replace("/sign-in");}};
+ if(!data.signedIn)return <Redirect href="/sign-in"/>;
+ return <View style={{flex:1,backgroundColor:Colors.surface}}><ModeHeader mode={mode} onModeChange={switchMode} onNotifications={()=>setUnavailable("Notifications")} showNotifications={mode==="customer"} showBorder={mode==="customer"}/>{data.error&&<View style={{paddingHorizontal:24,paddingVertical:12,gap:8}}><Callout tone="error" message={data.error}/><Button title="Refresh account" size="compact" variant="outline" disabled={data.loading} onPress={()=>void data.refresh()}/></View>}{data.snapshot&&<AccountHub mode={mode} account={{firstName:data.snapshot.firstName,lastName:data.snapshot.lastName,avatarUrl:data.snapshot.avatarUrl,profile:{avatar:false},verificationLabel:data.snapshot.verificationLabel}} onOpen={open}/>}
+ {exit&&<ConfirmDialog provider title="Sign out of KraftKonect?" description="Your bookings and messages stay on your account. Sign in again with your phone number and a one-time code." onClose={()=>{if(!busy)setExit(false);}}><Button title="Sign out" loading={busy} style={{backgroundColor:Colors.error}} onPress={()=>void leave()}/><Button title="Stay signed in" variant="outline" disabled={busy} onPress={()=>setExit(false)}/></ConfirmDialog>}
+ {unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+}
+function UnavailableSheet({title,onClose}:{title:string;onClose:()=>void}){return <Sheet title={title+" unavailable"} showClose onClose={onClose}><Callout message="This service could not be connected. Your saved account and activity are kept. Please try again later."/><Button title="Done" onPress={onClose}/></Sheet>;}
+
+export function ConnectedAccountSettings(){
+ const router=useRouter(),dispatch=useAppDispatch(),data=useAccountRead(),mode=useAppSelector(selectActiveMode),params=useLocalSearchParams<{step?:string}>(),step=liveAccountStep(params.step);
+ const [editPhoto]=useMutation(EDIT_PROFILE_MUTATION),[editProvider]=useMutation(UPDATE_MY_PROVIDER_PROFILE_MUTATION);
+ const [busy,setBusy]=useState(false),[error,setError]=useState<string>(),[unavailable,setUnavailable]=useState<string>(),[savedArea,setSavedArea]=useState<{id:string;label:string}>();
+ const alive=useRef(true),lock=useRef(false);useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+ useEffect(()=>{setError(undefined);setUnavailable(undefined);setBusy(false);},[data.ownerId,step]);
+ const stillOwn=(id:string)=>{const auth=store.getState().auth;return alive.current&&sameAccountSession(id,auth.user?.id,auth.isAuthenticated&&!!auth.accessToken);};
+ const go=(next:LiveAccountStep)=>{if(!busy)router.setParams({step:next});};
+ const saveArea=async(label:string)=>{if(!data.ownerId||lock.current||!stillOwn(data.ownerId))return;const id=data.ownerId,validation=areaError(label);if(validation){setError(validation);return;}lock.current=true;setBusy(true);setError(undefined);try{await saveServiceArea(id,{label:label.trim()});if(stillOwn(id)){setSavedArea({id,label:label.trim()});router.setParams({step:"privacy"});}}catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save this area.");}finally{lock.current=false;if(stillOwn(id))setBusy(false);}};
+ const photo=async(kind:"personal"|"avatar"|"banner")=>{
+  const id=data.ownerId,providerId=data.snapshot?.providerId;if(!id||lock.current||!stillOwn(id))return;if(!data.accountLoaded){setUnavailable("Photo update");return;}if(kind!=="personal"&&!providerId){setUnavailable("Provider profile");return;}
+  lock.current=true;setBusy(true);setError(undefined);
+  try{
+   const selection=await ImagePicker.launchImageLibraryAsync({mediaTypes:["images"],allowsEditing:true,aspect:kind==="banner"?[16,9]:[1,1],quality:0.8});
+   if(selection.canceled||!stillOwn(id))return;const url=await uploadImageToCloudinary(selection.assets[0].uri,()=>stillOwn(id));if(!stillOwn(id))return;
+   if(kind==="personal"){const result=await editPhoto({variables:{avatarUrl:url},context:{accountOwnerId:id}});if(!stillOwn(id))return;dispatch(updateUser(matchedAvatarUpdate(id,result.data?.editProfile,url)));}
+   else{const result=await editProvider({variables:{input:{[kind]:url}},context:{accountOwnerId:id}});if(!stillOwn(id))return;if(result.data?.updateMyProviderProfile?.id!==providerId||result.data.updateMyProviderProfile[kind]!==url)throw new Error("The provider photo update was not confirmed.");}
+   if(stillOwn(id))await data.refresh();
+  }catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save the public photo.");}
+  finally{lock.current=false;if(stillOwn(id))setBusy(false);}
+ };
+ const saveBio=async(bio:string)=>{const id=data.ownerId,providerId=data.snapshot?.providerId;if(!id||!providerId||lock.current||!stillOwn(id))return;if(!data.accountLoaded){setUnavailable("Introduction update");return;}if(bio.trim().length<10||bio.length>2000){setError("Enter an introduction of 10 to 2,000 characters.");return;}lock.current=true;setBusy(true);setError(undefined);try{const result=await editProvider({variables:{input:{bio:bio.trim()}},context:{accountOwnerId:id}});if(!stillOwn(id))return;if(result.data?.updateMyProviderProfile?.id!==providerId||result.data.updateMyProviderProfile.bio!==bio.trim())throw new Error("The introduction update was not confirmed.");await data.refresh();}catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save the introduction.");}finally{lock.current=false;if(stillOwn(id))setBusy(false);}};
+ if(!data.signedIn)return <Redirect href="/sign-in"/>;
+ const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
+ const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;
+ return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+}

@@ -2,7 +2,8 @@ import { Platform, ViewStyle } from "react-native";
 import Colors from "@/constants/colors";
 
 /**
- * KraftKonect glassmorphism design system.
+ * Previous decorative theme, retained while individual screens are migrated.
+ * New KK components use colors.ts, layout.ts and typography.ts.
  *
  * The look is built from three layers:
  *   1. A soft, colourful gradient backdrop (see `ScreenBackground`).

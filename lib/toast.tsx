@@ -1,20 +1,19 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react-native';
-
-type ToastType = 'success' | 'error' | 'warning' | 'info';
+import React, { createContext, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, Platform, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FeedbackBanner, FeedbackTone } from "@/components/FeedbackBanner";
+import { Space } from "@/constants/layout";
 
 interface ToastConfig {
-  id: string;
-  type: ToastType;
+  id: number;
+  type: FeedbackTone;
   title: string;
   message?: string;
   duration?: number;
 }
 
 interface ToastContextType {
-  showToast: (type: ToastType, title: string, message?: string, duration?: number) => void;
+  showToast: (type: FeedbackTone, title: string, message?: string, duration?: number) => void;
   success: (title: string, message?: string, duration?: number) => void;
   error: (title: string, message?: string, duration?: number) => void;
   warning: (title: string, message?: string, duration?: number) => void;
@@ -22,232 +21,78 @@ interface ToastContextType {
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
-
-// Create a ref to access toast functions outside of React context
 export const toastRef = React.createRef<ToastContextType>();
 
 export const useToast = () => {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within ToastProvider');
-  }
+  if (!context) throw new Error("useToast must be used within ToastProvider");
   return context;
 };
 
-const { width } = Dimensions.get('window');
-
-const Toast: React.FC<{ toast: ToastConfig; onDismiss: (id: string) => void }> = ({
-  toast,
-  onDismiss,
-}) => {
+function Toast({ toast, onDismiss }: { toast: ToastConfig; onDismiss: (id: number) => void }) {
   const insets = useSafeAreaInsets();
-  const [translateY] = useState(new Animated.Value(-100));
-  const [opacity] = useState(new Animated.Value(0));
-
-  const dismiss = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -100,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onDismiss(toast.id);
-    });
-  }, [translateY, opacity, toast.id, onDismiss]);
+  const text = [toast.title, toast.message].filter(Boolean).join(" ");
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        tension: 50,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const startTimer = async () => {
+      // Keep feedback available for screen-reader users; duration=0 is also persistent.
+      const originalTimeout = toast.duration ?? (toast.type === "error" ? 8000 : 5000);
+      if (originalTimeout <= 0 || focused || hovered) return;
+      // RN Web's implementation always returns true; it cannot detect a screen reader.
+      const screenReaderEnabled = Platform.OS === "web"
+        ? false
+        : await AccessibilityInfo.isScreenReaderEnabled().catch(() => false);
+      if (cancelled || screenReaderEnabled) return;
+      const timeout = Platform.OS === "android"
+        ? await AccessibilityInfo.getRecommendedTimeoutMillis(originalTimeout).catch(() => originalTimeout)
+        : originalTimeout;
+      if (!cancelled) timer = setTimeout(() => onDismiss(toast.id), timeout);
+    };
+    void startTimer();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [toast.id, toast.type, toast.duration, text, onDismiss, focused, hovered]);
 
-    const timer = setTimeout(() => {
-      dismiss();
-    }, toast.duration || 4000);
-
-    return () => clearTimeout(timer);
-  }, [translateY, opacity, toast.duration, dismiss]);
-
-
-
-  const getIcon = () => {
-    const iconSize = 22;
-    const iconColor = '#FFFFFF';
-
-    switch (toast.type) {
-      case 'success':
-        return <CheckCircle size={iconSize} color={iconColor} />;
-      case 'error':
-        return <XCircle size={iconSize} color={iconColor} />;
-      case 'warning':
-        return <AlertCircle size={iconSize} color={iconColor} />;
-      case 'info':
-        return <Info size={iconSize} color={iconColor} />;
-    }
-  };
-
-  const getBackgroundColor = () => {
-    switch (toast.type) {
-      case 'success':
-        return '#10B981';
-      case 'error':
-        return '#EF4444';
-      case 'warning':
-        return '#F59E0B';
-      case 'info':
-        return '#3B82F6';
-    }
-  };
+  useEffect(() => {
+    if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(text);
+  }, [text]);
 
   return (
-    <Animated.View
-      style={[
-        styles.toastContainer,
-        {
-          top: insets.top + 8,
-          backgroundColor: getBackgroundColor(),
-          transform: [{ translateY }],
-          opacity,
-        },
-      ]}
-    >
-      <View style={styles.iconContainer}>{getIcon()}</View>
-      <View style={styles.textContainer}>
-        <Text style={styles.title} numberOfLines={1}>
-          {toast.title}
-        </Text>
-        {toast.message && (
-          <Text style={styles.message} numberOfLines={2}>
-            {toast.message}
-          </Text>
-        )}
-      </View>
-    </Animated.View>
+    <View style={[styles.position, { top: insets.top + Space.sm + 2 }]} pointerEvents="box-none">
+      <FeedbackBanner message={text} tone={toast.type} onDismiss={() => onDismiss(toast.id)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} style={styles.banner} />
+    </View>
   );
-};
+}
 
+/** Existing toast API retained; feedback is now Figma's top banner. Queue avoids overlaps. */
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastConfig[]>([]);
-
-  const showToast = useCallback(
-    (type: ToastType, title: string, message?: string, duration?: number) => {
-      const id = Date.now().toString();
-      setToasts((prev) => [...prev, { id, type, title, message, duration }]);
-    },
-    []
-  );
-
-  // Assign to ref for external access
-  React.useImperativeHandle(toastRef as any, () => ({
-    showToast,
-    success,
-    error,
-    warning,
-    info
-  }));
-
-  const success = useCallback(
-    (title: string, message?: string, duration?: number) => {
-      showToast('success', title, message, duration);
-    },
-    [showToast]
-  );
-
-  const error = useCallback(
-    (title: string, message?: string, duration?: number) => {
-      showToast('error', title, message, duration);
-    },
-    [showToast]
-  );
-
-  const warning = useCallback(
-    (title: string, message?: string, duration?: number) => {
-      showToast('warning', title, message, duration);
-    },
-    [showToast]
-  );
-
-  const info = useCallback(
-    (title: string, message?: string, duration?: number) => {
-      showToast('info', title, message, duration);
-    },
-    [showToast]
-  );
-
-  const onDismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  const sequence = useRef(0);
+  const showToast = useCallback((type: FeedbackTone, title: string, message?: string, duration?: number) => {
+    const id = ++sequence.current;
+    setToasts((previous) => [...previous, { id, type, title, message, duration }]);
   }, []);
+  const success = useCallback((title: string, message?: string, duration?: number) => showToast("success", title, message, duration), [showToast]);
+  const error = useCallback((title: string, message?: string, duration?: number) => showToast("error", title, message, duration), [showToast]);
+  const warning = useCallback((title: string, message?: string, duration?: number) => showToast("warning", title, message, duration), [showToast]);
+  const info = useCallback((title: string, message?: string, duration?: number) => showToast("info", title, message, duration), [showToast]);
+  const value = useMemo(() => ({ showToast, success, error, warning, info }), [showToast, success, error, warning, info]);
+  useImperativeHandle(toastRef, () => value, [value]);
+  const onDismiss = useCallback((id: number) => setToasts((previous) => previous.filter((toast) => toast.id !== id)), []);
+  const active = toasts[0];
 
   return (
-    <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
+    <ToastContext.Provider value={value}>
       {children}
-      <View style={styles.toastWrapper} pointerEvents="box-none">
-        {toasts.map((toast) => (
-          <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />
-        ))}
-      </View>
+      {active ? <View style={StyleSheet.absoluteFill} pointerEvents="box-none"><Toast key={active.id} toast={active} onDismiss={onDismiss} /></View> : null}
     </ToastContext.Provider>
   );
 };
 
 const styles = StyleSheet.create({
-  toastWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 9999,
-  },
-  toastContainer: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: width - 32,
-    minHeight: 68,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  iconContainer: {
-    marginRight: 12,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  message: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 18,
-  },
+  position: { position: "absolute", left: Space.page, right: Space.page, alignItems: "center", zIndex: 9999, elevation: 20 },
+  banner: { width: "100%", maxWidth: 480 },
 });

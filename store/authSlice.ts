@@ -1,5 +1,6 @@
 import { User } from "@/types";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { AppMode, resolveAppMode } from "@/lib/appMode";
 
 export interface AuthState {
   user: User | null;
@@ -7,10 +8,12 @@ export interface AuthState {
   refreshToken: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  // Last signed-in email/name — kept across sign-out so we can greet the user
-  // by name and only ask for the password when the session expires.
+  // Remember this identity's sign-in details across sign-out.
   lastEmail: string | null;
   lastName: string | null;
+  lastPhone: string | null;
+  activeMode: AppMode | null;
+  modeAccountId: string | null;
 }
 
 const initialState: AuthState = {
@@ -21,6 +24,9 @@ const initialState: AuthState = {
   isAuthenticated: false,
   lastEmail: null,
   lastName: null,
+  lastPhone: null,
+  activeMode: null,
+  modeAccountId: null,
 };
 
 const authSlice = createSlice({
@@ -28,10 +34,18 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<User>) => {
+      if (action.payload?.id && state.modeAccountId !== action.payload.id) {
+        state.activeMode = action.payload.role === "provider" ? "provider" : "customer";
+        state.modeAccountId = action.payload.id;
+        state.lastEmail = null;
+        state.lastName = null;
+        state.lastPhone = null;
+      }
       state.user = action.payload;
       state.isLoading = false;
       if (action.payload?.email) state.lastEmail = action.payload.email;
       if (action.payload?.name) state.lastName = action.payload.name;
+      if (action.payload?.phone) state.lastPhone = action.payload.phone;
     },
     setLastEmail: (state, action: PayloadAction<string>) => {
       state.lastEmail = action.payload;
@@ -39,6 +53,14 @@ const authSlice = createSlice({
     forgetLastAccount: (state) => {
       state.lastEmail = null;
       state.lastName = null;
+      state.lastPhone = null;
+      state.activeMode = null;
+      state.modeAccountId = null;
+    },
+    setActiveMode: (state, action: PayloadAction<AppMode>) => {
+      if (!state.user?.id || !state.accessToken || !state.isAuthenticated) return;
+      state.activeMode = action.payload;
+      state.modeAccountId = state.user.id;
     },
     setIsAuthenticated: (state, action: PayloadAction<boolean>) => {
       state.isAuthenticated = action.payload;
@@ -60,7 +82,7 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.refreshToken = null;
       state.isAuthenticated = false;
-      // Intentionally keep `lastEmail` so the next sign-in only needs a password.
+      // Keep this identity's remembered phone/email for the next sign-in.
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
@@ -68,7 +90,9 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, setTokens, updateUser, signOut, setLoading, setIsAuthenticated, setLastEmail, forgetLastAccount } =
+export const { setUser, setTokens, updateUser, signOut, setLoading, setIsAuthenticated, setLastEmail, forgetLastAccount, setActiveMode } =
   authSlice.actions;
+
+export const selectActiveMode = (state: { auth: AuthState }) => resolveAppMode(state.auth);
 
 export default authSlice.reducer;

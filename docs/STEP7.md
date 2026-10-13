@@ -1,0 +1,17 @@
+# Step 7 — final quotes and protected payment
+
+Local frontend gate passed on 12 October 2026. No GitHub push, commit, deployment, EAS build or OTA update was made. Live backend/payment and native-device gates remain open.
+
+Provider quote preparation, review, sending and confirmed-job screens follow Figma 1334:6154–6156 and 1541:8573. Customer quote review, payment details, protected-payment review and booking confirmation follow 1005:3000/3024/3048/3072. The editable scope and explicit work time fulfill the handoff using the shared native Input pattern. Artwork sources and the Code Connect native fallback are recorded in `assets/bookings/README.md`.
+
+The shared sample record keeps versioned scope, materials/labour, dates, duration and amounts. Acceptance freezes a matching quote snapshot. The gross inspection deposit is credited exactly once. A receipt must match the booking, quote version, purpose, reference, amount and currency before work is booked. Pending/failed balances remain unconfirmed. A zero remaining balance still requires explicit confirmation.
+
+Provider review distinguishes whole-job fee/net from the remaining-payment fee/net. The sample uses integer minor units and one 5% fee capped at ₦20,000 across deposit and balance; no customer KK fee or additional release/payout fee. Production values must come from the server. The illustrated ₦90,000 quote has a separately supplied fictional ledger allocation. Other cost allocations are left unavailable. Payment verification alone never credits materials; labour is pending customer confirmation. The handoff's allocation/custody/refund policies still need resolution.
+
+The five legacy immediate-booking checkout routes now return to the selected provider/service for a new unpaid request. Existing confirmation links with an actual booking ID open the legacy record. This removes the old 10% customer fee and unsupported direct paid-booking path without rewriting stored history.
+
+Verification: all 74 regression checks passed (15 navigation, 14 auth/onboarding, 11 discovery, 17 inspection, 17 quote/payment), TypeScript and scoped ESLint passed, Git diff whitespace checks passed. Local Android export succeeded: 3,412 modules, 132 assets, 7.07MB bundle. A later type-only cleanup passed TypeScript; no native component structure changed. Every Step 7 asset loaded, with no horizontal overflow at 393px or 320px widths.
+
+Browser journeys covered provider review/save failure/retry/send; customer scope/materials/labour and full deposit credit; acceptance locking provider editing; unsuccessful balance and retry; normal verified balance followed by a separate ledger credit; credit failure and retry clearing the stale error; processing credit remaining unavailable; provider materials available versus pending labour; and persisted booking proof after reload. Cards now show the confirmed work appointment instead of the earlier inspection date. Proof images are outside app assets in `../review/step7-customer-preview.png` and `../review/step7-provider-preview.png`.
+
+Live gate: obtain backend source and contracts for quote ownership/versioning, immutable acceptance, hosted checkout and verified receipts, idempotent events, custody, ledger allocation/releases and notifications. No new production GraphQL mutations or speculative financial allocation rules were added. The configured Cloud Run endpoint returned HTTP 503. Android export is not native-device QA.

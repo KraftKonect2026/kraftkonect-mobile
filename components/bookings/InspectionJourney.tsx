@@ -1,0 +1,58 @@
+import { useEffect, useRef, useState } from "react";
+import { Pressable, View } from "react-native";
+import { Image } from "expo-image";
+import { AppText } from "@/components/AppText";
+import { Button } from "@/components/Button";
+import { Callout } from "@/components/Callout";
+import { Input } from "@/components/Input";
+import { LogoLoader } from "@/components/LogoLoader";
+import { IconButton, Sheet } from "@/components/discovery/Parts";
+import { Calendar } from "@/components/discovery/SearchFields";
+import Colors from "@/constants/colors";
+import { BookingRecord, BookingRole, inspectionVerified, parseMoney } from "@/lib/bookings/model";
+import { dateLabel } from "@/lib/discovery/model";
+import { SampleCommand, sampleDepositBreakdown, sampleParticipantView } from "@/lib/preview/inspectionModel";
+import { useInspectionDraft } from "@/lib/preview/useInspectionDraft";
+import { bs, BookingFrame, BookingIcon, ConfirmDialog } from "./Parts";
+import { CustomerInspection, CustomerInspectionStep } from "./CustomerInspection";
+import { ProviderInspection, ProviderInspectionStep } from "./ProviderInspection";
+
+type Step=CustomerInspectionStep|ProviderInspectionStep|"message";
+function destination(r:BookingRecord,role:BookingRole):Step {
+  if(role==="customer")return r.payment && !inspectionVerified(r)?"payment":inspectionVerified(r)?"inspection":r.terms?"response":"request";
+  return r.stage==="inspection_complete"?"complete":inspectionVerified(r)?"visit":r.terms?"awaiting":"request";
+}
+export function InspectionJourney({record,role,onBookings,onCommand,initialMessage=false,onQuote,onPaidCancel,onReschedule,onProposal,onContext,onMessage}:{record:BookingRecord;role:BookingRole;onBookings:()=>void;onCommand:(key:string,command:SampleCommand)=>Promise<BookingRecord>;initialMessage?:boolean;onQuote:()=>void;onPaidCancel?:()=>void;onReschedule?:()=>void;onProposal?:()=>void;onContext?:()=>void;onMessage?:()=>void}) {
+  const [step,setStep]=useState<Step>(()=>initialMessage?"message":destination(record,role));const [history,setHistory]=useState<Step[]>([]);
+  const [dialog,setDialog]=useState<"cancel"|"complete"|"date"|"fee"|"deposit"|"directions"|"attachment"|"paid-cancel">();
+  const [busy,setBusy]=useState(false);const locked=useRef(false);const [error,setError]=useState<string>();const [reason,setReason]=useState("");const [calendarDate,setCalendarDate]=useState("");const [message,setMessage]=useState("");
+  const alive=useRef(true);const pendingKey=useRef<{key:string;signature:string}|undefined>(undefined);
+  const {draft,ready,error:draftError,update}=useInspectionDraft(record,role);
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+  const navigate=(next:Step)=>{if(next==="message"&&onMessage){onMessage();return;}setHistory(previous=>[...previous,step]);setStep(next);setError(undefined);};
+  const back=()=>{if(busy)return;if(history.length){setStep(history[history.length-1]);setHistory(history.slice(0,-1));setError(undefined);}else onBookings();};
+  const save=async(command:SampleCommand,next?:Step)=>{
+    if(locked.current)return;locked.current=true;setBusy(true);setError(undefined);
+    const signature=JSON.stringify(command);const key=pendingKey.current?.signature===signature?pendingKey.current.key:"step6-"+Date.now()+"-"+Math.random().toString(36).slice(2);pendingKey.current={key,signature};
+    try{const stored=await onCommand(key,command);if(!alive.current)return;pendingKey.current=undefined;setDialog(undefined);if(command.type==="message")setMessage("");if(next){setHistory([]);setStep(next);}else if(command.type==="cancel_request")setStep(destination(stored,role));}
+    catch(e){if(alive.current)setError(e instanceof Error?e.message:"Couldn’t save this change.");}
+    finally{locked.current=false;if(alive.current)setBusy(false);}
+  };
+  const view=sampleParticipantView(record,role);const avatar=role==="provider"?require("@/assets/bookings/6cc70.png"):require("@/assets/discovery/2543d.png");
+  const cancel=()=>{if(inspectionVerified(record)&&onPaidCancel)onPaidCancel();else setDialog(record.payment?.status==="pending"?"paid-cancel":"cancel");};
+  const currentDeposit=["details","review"].includes(step)?parseMoney(draft.response.deposit):record.terms?.deposit;
+  const breakdown=currentDeposit!==null && currentDeposit!==undefined?sampleDepositBreakdown(currentDeposit):undefined;
+  if(!ready)return <BookingFrame preview onBack={onBookings}><LogoLoader label="Loading inspection draft"/></BookingFrame>;
+  let content;
+  if(step==="message") {
+    const name=role==="provider"?record.customerName:record.providerName;
+    content=<BookingFrame preview header={<><IconButton name="back" label="Back" onPress={back}/><Image source={avatar} style={{width:32,height:32,borderRadius:999}} contentFit="cover"/><View style={{flex:1,minWidth:0,gap:4}}><AppText variant="label">{name}</AppText><AppText variant="bodySmall" color={Colors.textSecondary} numberOfLines={1}>{record.serviceTitle}</AppText></View></>} footer={<View style={{gap:8}}>{error && <Callout message={error} tone="error"/>}<View style={[bs.row,{gap:8}]}><Pressable accessibilityRole="button" accessibilityLabel="Message attachments" onPress={()=>setDialog("attachment")} style={{width:44,height:44,borderRadius:999,backgroundColor:Colors.controlQuiet,alignItems:"center",justifyContent:"center"}}><BookingIcon name="attachment"/></Pressable><Input placeholder="Message…" accessibilityLabel="Message" value={message} onChangeText={setMessage} maxLength={1000} containerStyle={{flex:1,width:undefined}}/><Button title="Send" disabled={!message.trim()||!!record.cancelled} loading={busy} size="compact" onPress={()=>void save({type:"message",text:message})}/></View></View>}><Pressable accessibilityRole="button" accessibilityLabel={record.quote||record.refund?"View booking":"View request"} onPress={onContext??(()=>navigate(destination(record,role)))} style={[bs.card,bs.quiet,bs.row]}><BookingIcon name="calendar"/><View style={{flex:1,gap:4}}><AppText variant="label">{record.quote||record.refund?"View booking":"View request"}</AppText><AppText variant="bodySmall" color={Colors.textSecondary}>{record.serviceTitle}</AppText></View><BookingIcon name="forward"/></Pressable><AppText variant="caption" color={Colors.textSecondary} style={{textAlign:"center"}}>Local sample conversation</AppText><View style={[bs.quiet,{padding:12,borderRadius:16,maxWidth:"86%"}]}><AppText variant="body">{record.description}</AppText></View>{record.messages.map(m=><View key={m.id} style={{alignSelf:m.sender===role?"flex-end":"flex-start",backgroundColor:m.sender===role?Colors.primary:Colors.background,padding:12,borderRadius:16,maxWidth:"86%"}}><AppText variant="body" color={m.sender===role?Colors.textOnPrimary:Colors.textPrimary}>{m.text}</AppText></View>)}</BookingFrame>;
+  } else if(role==="customer")content=<CustomerInspection record={view} step={step as CustomerInspectionStep} onStep={navigate} onBack={back} onBookings={onBookings} onMessage={()=>navigate("message")} onCancel={cancel} onProposal={onProposal} onHelp={()=>setDialog("deposit")} address={draft.address} onAddress={address=>update({address})} onCheckout={()=>void save({type:"checkout",address:draft.address},"payment")} onPayment={status=>{if(record.payment)void save({type:"payment",receipt:{...record.payment,status}},status==="verified"?"confirmed":undefined);}} busy={busy} error={error??draftError} preview/>;
+  else content=<ProviderInspection record={view} step={step as ProviderInspectionStep} draft={draft.response} onDraft={patch=>update({response:{...draft.response,...patch}})} onStep={navigate} onDate={()=>{setCalendarDate(draft.response.date);setDialog("date");}} onReschedule={onReschedule} onBack={back} onJobs={onBookings} onMessage={()=>navigate("message")} onCancel={cancel} onSend={()=>void save({type:"respond",draft:draft.response},"sent")} onHelp={()=>setDialog("fee")} onDirections={()=>setDialog("directions")} onComplete={()=>setDialog("complete")} onQuote={onQuote} findings={draft.findings} onFindings={findings=>update({findings})} busy={busy} error={error??draftError} preview avatar={avatar} breakdown={breakdown}/>;
+  return <View style={{flex:1}}>{content}
+    {dialog==="cancel" && <ConfirmDialog provider={role==="provider"} title={role==="provider"?"Decline this request?":"Cancel this request?"} description="The other participant will see that this unpaid request has ended. No refund is needed." onClose={()=>{if(!busy)setDialog(undefined);}}><AppText variant="label">{record.serviceTitle}</AppText><Input label="Reason" value={reason} onChangeText={setReason} maxLength={500}/>{error && <Callout message={error} tone="error"/>}<Button title={role==="provider"?"Decline request":"Cancel request"} style={{backgroundColor:Colors.error}} disabled={reason.trim().length<3} loading={busy} onPress={()=>void save({type:"cancel_request",reason})}/><Button title="Keep request" variant="outline" disabled={busy} onPress={()=>setDialog(undefined)}/></ConfirmDialog>}
+    {dialog==="complete" && <Sheet title="Complete inspection?" description="Confirm you’ve inspected the job and recorded your findings." showHandle={false} topPadding={24} bodyPadding={16} onClose={()=>{if(!busy)setDialog(undefined);}}><Callout title={record.customerName+" · "+record.serviceTitle} titleVariant="labelSmall" message={draft.findings}/><AppText variant="body" color={Colors.textSecondary}>The customer can view the completed inspection. You’ll prepare the final quote next.</AppText>{error && <Callout message={error} tone="error"/>}<Button title="Yes, complete inspection" loading={busy} onPress={()=>void save({type:"complete_inspection",findings:draft.findings},"complete")}/></Sheet>}
+    {dialog==="date" && <Sheet title="Choose a date" titleVariant="h3" showHandle={false} topPadding={24} bodyPadding={12} bodyGap={16} onClose={()=>setDialog(undefined)}><Calendar layout="appointment" value={calendarDate} onChange={setCalendarDate}/><AppText variant="label" color={Colors.primary}>{dateLabel(calendarDate)}</AppText><Button title="Use this date" onPress={()=>{update({response:{...draft.response,date:calendarDate}});setDialog(undefined);}}/></Sheet>}
+    {(dialog==="fee"||dialog==="deposit"||dialog==="directions"||dialog==="attachment"||dialog==="paid-cancel") && <Sheet title={dialog==="paid-cancel"?"Cancellation and refund":dialog==="fee"?"KK service fee":dialog==="deposit"?"Your initial deposit":dialog==="directions"?"Appointment address":"Message attachments"} showClose showHandle={false} onClose={()=>setDialog(undefined)}><Callout message={dialog==="paid-cancel"?"This inspection has a payment record. Cancellation, refund review and any provider repayment must be tracked separately. The full exception journey is Step 8; this preview has not cancelled the inspection or promised a refund.":dialog==="fee"?"The provider fee is 5%, capped at ₦20,000 across all payments for one booking. This local preview shows sample amounts; live amounts must come from the server. The customer’s deposit is credited in full.":dialog==="deposit"?"Your deposit confirms the inspection, not repair work. It is credited in full against the final quote if hired, and becomes non-refundable after the inspection takes place.":dialog==="directions"?"This is a fictional preview address: "+(view.address??"Address unavailable")+". Live map directions will use the confirmed address.":"This preview currently supports local text messages. Attachment upload and failure recovery are part of the later messaging checks."}/><Button title="Done" onPress={()=>setDialog(undefined)}/></Sheet>}
+  </View>;
+}

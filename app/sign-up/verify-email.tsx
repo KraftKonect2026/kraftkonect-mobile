@@ -14,7 +14,8 @@ import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
 import { AuthPayload } from "@/types";
 import { useToast } from "@/lib/toast";
 import { useMutation } from "@apollo/client";
-import { useAppDispatch, useAppSelector } from "@/store";
+import { store, useAppDispatch, useAppSelector } from "@/store";
+import { homeForMode, resolveAppMode } from "@/lib/appMode";
 import { RESEND_OTP_MUTATION, VERIFY_EMAIL_MUTATION } from "@/lib/mutations";
 import { useCountdown } from "@/lib/hooks/useCountdown";
 
@@ -56,7 +57,7 @@ export default function VerifyEmailScreen() {
             refreshToken: authPayload.refreshToken,
           }));
         }
-        router.replace("/(app)" as any);
+        router.replace(homeForMode(resolveAppMode(store.getState().auth)));
       }
 
     } catch (e: any) {

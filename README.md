@@ -1,5 +1,178 @@
 # Welcome to your Rork app
 
+## Developer handover
+
+Start with [the developer handover](docs/DEVELOPER_HANDOVER.md) for the code map,
+local test login, integration order and release requirements. The repository
+also contains [Joshua's original product handoff](docs/KraftKonect_Codex_Handoff.md),
+the step notes, implementation gates and design audit. Use these documents
+when checking out the developer handover branch `codex/figma-foundation`.
+
+## Local browser preview
+
+Open PowerShell in the app folder and run:
+
+```powershell
+cd "C:\Users\Joshua\Documents\KK App\kraftkonect-mobile"
+npm run start:web:local
+```
+
+Open [http://localhost:8081](http://localhost:8081) and keep the terminal running.
+Saved code changes reload the preview automatically. Press `Ctrl+C` in the terminal
+to stop it. This command runs Expo locally and does not push code or publish an update.
+
+Dependencies are already installed in this checkout. On a fresh checkout, install
+Node.js 22 LTS and run `npm ci` before starting. Use `npm run typecheck` to check TypeScript.
+
+The browser preview includes the new Figma entry, sign-in and onboarding screens.
+Open [the Step 4 preview](http://localhost:8081/auth-preview?step=intro) to test
+both journeys with sample data and code **123456**. It cannot sign in, send SMS,
+create real accounts, or upload files. The **States** menu also opens individual
+screens and error scenarios. See [Step 4](docs/STEP4.md) for implementation details.
+
+Authentication, bookings, messages, and other live data still require the configured GraphQL backend; its
+last checked endpoint returned HTTP 503. Native Persona verification loads only
+on native platforms, with the existing browser verification flow used on web.
+Native SDK behavior must also be tested in a compatible development build.
+
+For testing while the backend is unavailable, open [Sign in](http://localhost:8081/sign-in),
+enter **8000000000** in the field beside **+234**, press **Send code**, then enter
+**123456** and press **Sign in**. This development-only test login opens the existing
+fictional customer/provider preview. It sends no SMS, creates no backend session,
+and leaves real account credentials unchanged. The fixed test code is reusable;
+each request expires after ten minutes. Other numbers keep the live backend flow.
+If a previous sample recovery/deletion test locked the account, reset the sample
+in Account preview states. Run `npm run check:onboarding` to check the test-login gate.
+
+The [13 October design audit](docs/DESIGN_AUDIT.md) records corrections against
+Figma, the 269-check result, phone-size browser evidence, full source-frame
+inventory and the remaining motion, backend and native-device acceptance gates.
+
+Expo's [web development guide](https://docs.expo.dev/workflow/web/) describes the
+browser workflow.
+
+## Shared KK design system
+
+Open [the local component preview](http://localhost:8081/design-system) while Expo
+is running. This development-only screen requires no login or backend. It redirects
+to the app entry point in production builds.
+
+- `constants/colors.ts`: semantic colours from Figma Foundations (847:2).
+- `constants/typography.ts`: 23 Inter roles from 847:100 and 971:1708, using the
+  already-bundled font files. Use `AppText` or the role styles directly.
+- `constants/layout.ts`: spacing, radii, border widths and control dimensions
+  from 847:152. New UI uses these tokens; `constants/theme.ts` remains the previous
+  decorative theme until its individual screens are migrated.
+- `Button`: Primary, Outline and Subtle; regular (52) and compact (44); native
+  press feedback, disabled and loading states. Existing Secondary/Glass calls
+  remain compatible and use Subtle styling.
+- `Input`: labelled text, phone-prefix and multiline fields; focus, error and
+  disabled states. Existing Formik props and animated container styles still work.
+- `VerificationCode`: controlled six-digit entry, numeric filtering, paste,
+  OS autofill and error presentation. The caller performs actual verification.
+- `SelectionChip` and `RoleSwitch`: controlled selected states and accessible
+  labels. Changing the preview mode does not change an account or call an API.
+- `Callout`: persistent neutral/information/success/warning/error cards.
+- `FeedbackBanner` and the existing `useToast` API: nonblocking text banners at
+  the safe-area top. Banners queue, wrap long text, dismiss on tap, and last 5
+  seconds (8 for errors). Duration 0 and native screen-reader use keep them available;
+  Android's recommended accessibility timeout is respected. Web banners pause
+  while hovered or focused.
+- `BrandMark` and `LogoLoader`: approved blue/white artwork exported from Figma
+  nodes 982:1798/982:1819, stored in `assets/brand`, preserving proportions.
+
+Sources: [KK Foundations](https://www.figma.com/design/r9tDEePO6S96nPWlE2fw2c/KraftKonect?node-id=846-3),
+[buttons](https://www.figma.com/design/r9tDEePO6S96nPWlE2fw2c/KraftKonect?node-id=857-178),
+[fields](https://www.figma.com/design/r9tDEePO6S96nPWlE2fw2c/KraftKonect?node-id=859-489),
+[feedback](https://www.figma.com/design/r9tDEePO6S96nPWlE2fw2c/KraftKonect?node-id=1582-9128).
+
+### Logo pulse follow-up
+
+The current loader preserves the approved resting logo. Figma's motion export
+for 1625:8718 returned no motion tracks. Its pulse is a prototype transition
+between frames, so exact animation remains pending rather than using guessed
+timing. The Figma motion skill documents this limitation:
+
+> Prototype interactions aren't currently supported in MCP. Keyframes on the canvas are visible, but not the smart animate interactions between frames or their transition settings. Code generated from this selection will represent the start and end states, not the transition between them.
+
+Loading never resolves a payment or other operation automatically. Callers must
+use the authoritative operation state. Device testing is still needed for native
+SDK behavior and platform accessibility features.
+
+## Step 3: navigation and Home screens
+
+Open [the local app preview](http://localhost:8081/app-preview) to review both
+Home screens and switch modes without signing in. The ribbon labels sample
+data; **States** shows setup, verification, empty, loading and error variants.
+The preview never changes the real account and redirects in production builds.
+
+Run `npm run check:navigation` for the account/mode regression checks.
+See [docs/STEP3.md](docs/STEP3.md) for route changes, Figma references,
+verification, and the remaining backend dependencies.
+
+## Step 5: search, profiles and requests
+
+Open [the local discovery preview](http://localhost:8081/discovery-preview) to
+test What → Where → When, provider results and filters, profiles/photos/reviews,
+Saved, Book again and the targeted-request form. Customer Home now links into
+this journey. **States** includes a failed-send scenario that preserves the draft.
+All preview submissions are labelled samples. Real free-request submission and
+dated availability still need the developer's backend contract; the new journey
+does not call the old paid checkout. Run `npm run check:discovery` and see
+[docs/STEP5.md](docs/STEP5.md) for the API connection points and validation.
+
+## Step 6: requests and paid inspections
+
+Open [the local inspection preview](http://localhost:8081/booking-preview).
+Use **States** to view the same booking as customer/provider, try a save failure,
+or reset the sample stage. Provider response → customer deposit/address →
+verified sample payment → provider findings/completion → awaiting final quote.
+Pending/failed payment stays unconfirmed; no real charge or backend write occurs.
+Run `npm run check:inspection`, `npm run check:quotes`, `npm run check:work`, `npm run check:finance`, `npm run check:catalog`, `npm run check:account`, `npm run check:messaging`, `npm run check:notifications`, `npm run check:recovery` and `npm run check:account-support`. Step 9 previews include `/finance-preview`, `/provider-preview`, `/account-preview`, `/messages-preview`, `/notifications-preview`, `/recovery-preview` and `/support-preview`, linked from `/app-preview` and the local sign-in preview. They use fictional records and never transfer money, upload an ID or delete a real account. The recovery preview includes verified email, previous-identity review, activity challenge, new-number verification and support fallback. Its States menu provides explicit fictional outcomes; the public `/recovery` route cannot change a contact until the ownership service is connected. See [Step 9](docs/STEP9.md), [Step 8](docs/STEP8.md), [Step 7](docs/STEP7.md), [Step 6](docs/STEP6.md) and
+[remaining implementation gates](docs/IMPLEMENTATION_GATES.md).
+
+The signed-in Account tabs now share the new Figma screens and preserve the same
+identity across modes. Legacy settings/profile/card links open protected
+`/account-settings` screens. Known public photo and introduction updates retain
+their existing API paths; new contact, lifecycle and secure-card operations remain
+unavailable until their services are verified. Missing records are not presented
+as empty accounts or successful operations.
+
+Open [the Account adapter preview](http://localhost:8081/account-adapter-preview)
+to inspect the same presentation with a fictional API response. It cannot sign
+in, upload a photo or change a real account. Run `npm run check:live-account` and
+`npm run check:http-session` for owned-response and actual HTTP-link checks.
+The latter uses mocked transport/store dependencies without contacting the backend.
+
+The live Messages tabs and old chat route also share the new design. Chat history
+opens only after the conversation is found in the signed-in account's inbox;
+recipient details in a URL cannot establish ownership. Sending, read writes and
+photo uploads remain unavailable until verified contracts exist.
+Open [the message reader preview](http://localhost:8081/messages-adapter-preview)
+for search, both modes, retained drafts and read-error retry using fictional data.
+Run `npm run check:live-messages` for participant and read-coordinator checks.
+
+Provider service/calendar/earnings links now share the new secondary screens.
+Known service and financial records stay separate from new publication, weekday,
+archive, bank-verification and payout permissions. Missing data stays unavailable;
+an old booking total does not become a withdrawable wallet balance.
+Open [the provider reader](http://localhost:8081/provider-adapter-preview) and
+[the financial reader](http://localhost:8081/finance-adapter-preview) for labelled
+fictional response data and failure states. These readers perform no uploads,
+service writes or money movements. Run `npm run check:live-catalog` and
+`npm run check:live-finance`; see Step 9 for the latest 265-check record and live gates.
+
+The direct review route now uses the shared review fields and fresh participant
+history. Prepare a draft in [the review reader](http://localhost:8081/review-adapter-preview);
+it cannot submit a real review or fabricate completion proof. Home/discovery and
+verification reads are tied to the current account. Old provider settings and
+password-recovery links enter the new flows; password recovery no longer shows
+timed success without a server response. Public profile photos use native URI
+files on Android/iOS and image bytes with a proper multipart boundary on web.
+Run `npm run check:live-bookings`, `npm run check:public-photo` and
+`npm run check:live-verification` for the added adapter checks. These checks use
+fictional data and mocked transport; no photo or identity inquiry is uploaded.
+
 ## Project info
 
 This is a native cross-platform mobile app created with [Rork](https://rork.com)
