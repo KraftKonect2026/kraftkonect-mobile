@@ -16,7 +16,7 @@ import { assertHttpAccountScope, currentRefreshSession, verifiedRefreshTokens } 
 
 const HTTP_ENDPOINT =
   process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT ||
-  "https://kraftkonnect-backend-230084714703.us-central1.run.app/graphql";
+  "https://kraftkonnect-backend-867437225113.us-central1.run.app/graphql";
 
 
 

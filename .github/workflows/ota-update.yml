@@ -1,10 +1,11 @@
 name: OTA Update
 
+# Automatic publishing on push to main/staging is OFF while the redesigned app is
+# integrated with the new backend flow. Publish deliberately via "Run workflow"
+# (channel: production | preview). To restore auto-publish, re-add:
+#   push:
+#     branches: [main, staging]   # main -> production channel, staging -> preview
 on:
-  push:
-    branches:
-      - main        # → production channel
-      - staging     # → preview channel
   workflow_dispatch:
     inputs:
       channel:

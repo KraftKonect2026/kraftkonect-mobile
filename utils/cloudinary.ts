@@ -19,7 +19,9 @@ export async function uploadImageToCloudinary(imageUri: string, isCurrent: () =>
     const blob = await selected.blob();
     assertCurrent();
     if (!blob.size || !/^image\/(jpeg|png|webp|gif|heic|heif|avif)$/i.test(blob.type)) throw new Error("Please select a supported image.");
-    formData.append("file", blob, extension ? filename : "profile-photo." + (blob.type.slice(6) === "jpeg" ? "jpg" : blob.type.slice(6)));
+    // React Native's FormData typing omits the browser's three-argument append(name, blob, filename).
+    const webForm = formData as unknown as { append(name: string, value: Blob, filename?: string): void };
+    webForm.append("file", blob, extension ? filename : "profile-photo." + (blob.type.slice(6) === "jpeg" ? "jpg" : blob.type.slice(6)));
   } else {
     // React Native's FormData supports its native URI file shape.
     formData.append("file", { uri: imageUri, name: filename, type } as unknown as Blob);
