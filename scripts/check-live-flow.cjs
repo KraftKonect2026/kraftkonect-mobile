@@ -98,7 +98,7 @@ function fakeClient(result) {
     const out = base({ depositPayment: { reference: "KK-DEP-1", status: "pending", amountMinor: 500000, termsVersion: 1 } });
     const c = fakeClient({ startInspectionCheckout: { reference: "KK-DEP-1", authorizationUrl: "https://checkout.paystack.test/KK-DEP-1", booking: out } });
     let opened; const result = await flow.runFlowCommand(c, "c1", "customer", base(), { type: "checkout", address: "  12 Admiralty Way, Lekki " }, { onCheckout: x => { opened = x; } });
-    assert.deepEqual(c.calls[0].variables, { bookingId: "b1", revision: 3, address: "12 Admiralty Way, Lekki" });
+    assert.deepEqual(c.calls[0].variables, { bookingId: "b1", revision: 3, address: "12 Admiralty Way, Lekki", cardId: null, saveCard: false });
     assert.deepEqual(opened, { reference: "KK-DEP-1", url: "https://checkout.paystack.test/KK-DEP-1" });
     assert.equal(result, out);
     assert.equal(flow.flowToRecord(result).payment.status, "pending", "the app shows a pending payment, never a paid one");
@@ -124,6 +124,38 @@ function fakeClient(result) {
     assert.equal(model.inspectionVerified(flow.flowToRecord(out)), true);
     const stillPending = flow.flowToRecord(base({ depositPayment: { reference: "KK-DEP-1", status: "pending", amountMinor: 500000, termsVersion: 1 } }));
     assert.equal(model.inspectionVerified(stillPending), false);
+  });
+  await check("A saved card is sent with the checkout; a decline leaves the booking alone and says so; paying by card opens no window", async () => {
+    const paid = fakeClient({ startInspectionCheckout: { reference: "KK-DEP-2", authorizationUrl: null, outcome: "paid", booking: base({ stage: "inspection_scheduled", depositVerified: true }) } });
+    let opened = false;
+    const out = await flow.runFlowCommand(paid, "c1", "customer", base(), { type: "checkout", address: "12 Admiralty Way", cardId: "card-1" }, { onCheckout: () => { opened = true; } });
+    assert.deepEqual([paid.calls[0].variables.cardId, paid.calls[0].variables.saveCard], ["card-1", false]);
+    assert.equal(opened, false); assert.equal(out.depositVerified, true);
+    const hosted = fakeClient({ startBalanceCheckout: { reference: "KK-BAL-9", authorizationUrl: "https://checkout.paystack.test/KK-BAL-9", outcome: null, booking: base() } });
+    await flow.runFlowCommand(hosted, "c1", "customer", base(), { type: "balance_checkout", version: 1, saveCard: true }, {});
+    assert.deepEqual([hosted.calls[0].variables.cardId, hosted.calls[0].variables.saveCard], [null, true]);
+    const declined = fakeClient({ startBalanceCheckout: { reference: "KK-BAL-8", authorizationUrl: null, outcome: "declined", booking: base() } });
+    await assert.rejects(flow.runFlowCommand(declined, "c1", "customer", base(), { type: "balance_checkout", version: 1, cardId: "card-1" }), /card was declined/);
+  });
+  await check("Repaying a refund by card: the checkout opens for a new card, a saved card answers at once, and the server confirms the result", async () => {
+    const hostedRepay = fakeClient({ startRepaymentCheckout: { reference: "KK-RPY-1", authorizationUrl: "https://checkout.paystack.test/KK-RPY-1", outcome: null } });
+    hostedRepay.query = async () => ({ data: { flowBooking: base({ stage: "cancelled" }) } });
+    let opened; await flow.runFlowCommand(hostedRepay, "u2", "provider", base(), { type: "repay_card", saveCard: true }, { onCheckout: x => { opened = x; } });
+    assert.deepEqual([hostedRepay.calls[0].variables.bookingId, hostedRepay.calls[0].variables.cardId, hostedRepay.calls[0].variables.saveCard], ["b1", null, true]);
+    assert.deepEqual([opened.reference, opened.kind], ["KK-RPY-1", "repayment"]);
+    const saved = fakeClient({ startRepaymentCheckout: { reference: "KK-RPY-2", authorizationUrl: null, outcome: "paid" } });
+    saved.query = async () => ({ data: { flowBooking: base() } });
+    let called = false; await flow.runFlowCommand(saved, "u2", "provider", base(), { type: "repay_card", cardId: "card-1" }, { onCheckout: () => { called = true; } });
+    assert.equal(called, false);
+    const declined = fakeClient({ startRepaymentCheckout: { reference: "KK-RPY-3", authorizationUrl: null, outcome: "declined" } });
+    await assert.rejects(flow.runFlowCommand(declined, "u2", "provider", base(), { type: "repay_card", cardId: "card-1" }), /card was declined/);
+    const insecure = fakeClient({ startRepaymentCheckout: { reference: "KK-RPY-4", authorizationUrl: "http://evil.test/x", outcome: null } });
+    insecure.query = async () => ({ data: { flowBooking: base() } });
+    let opened2 = false; await flow.runFlowCommand(insecure, "u2", "provider", base(), { type: "repay_card" }, { onCheckout: () => { opened2 = true; } });
+    assert.equal(opened2, false, "a checkout address that is not https is never opened");
+    const ver = fakeClient({ verifyRepaymentCharge: base() });
+    await flow.runFlowCommand(ver, "u2", "provider", base(), { type: "verify_repayment", reference: "KK-RPY-1" });
+    assert.deepEqual(ver.calls[0].variables, { reference: "KK-RPY-1" });
   });
   await check("A repair confirmed with nothing to pay shows as verified to the app's own checks", () => {
     const paid = { reference: "ref-1", status: "verified", amountMinor: 500000, termsVersion: 1 };

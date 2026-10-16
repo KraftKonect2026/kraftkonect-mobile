@@ -8,6 +8,7 @@ import { Button } from "@/components/Button";
 import { Callout } from "@/components/Callout";
 import { LogoLoader } from "@/components/LogoLoader";
 import PaystackWebViewModal from "@/components/PaystackWebViewModal";
+import { paymentChoice } from "@/lib/payments/liveCards";
 import { InspectionJourney } from "@/components/bookings/InspectionJourney";
 import { QuoteJourney } from "@/components/bookings/QuoteJourney";
 import { WorkJourney } from "@/components/bookings/WorkJourney";
@@ -81,7 +82,11 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
     const cur = latest.current;
     if (!cur || !role) throw new Error("The request has not loaded yet.");
     try {
+      // The card picked on the payment screen goes with the payment being started. Resuming never charges a card again.
+      const startsPayment = ["checkout", "balance_checkout", "repay_card"].includes(command.type) && command.resume !== true;
+      if (startsPayment && command.cardId === undefined) { const c = paymentChoice.get(); command = { ...command, cardId: c.cardId, saveCard: c.saveCard }; }
       const next = await runFlowCommand(client, owner, role, cur, command, { onCheckout: c => { setCheckout(c); setPayOpen(!!c.url); } });
+      if (startsPayment) paymentChoice.reset();
       if (current()) { latest.current = next; setPayload(next); }
       return flowToRecord(next);
     } catch (e) {
@@ -96,25 +101,25 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
     const cur = latest.current;
     return [cur?.depositPayment, cur?.balancePayment].find(p => p?.status === "pending")?.reference ?? checkout?.reference ?? null;
   };
-  const verify = async (reference: string) => {
+  const verify = async (reference: string, kind?: "repayment") => {
     const cur = latest.current;
     if (!cur || !role) return;
     try {
-      const next = await runFlowCommand(client, owner, role, cur, { type: "verify_payment", reference });
+      const next = await runFlowCommand(client, owner, role, cur, { type: kind === "repayment" ? "verify_repayment" : "verify_payment", reference });
       if (current()) { latest.current = next; setPayload(next); }
     } catch (e) {
       toast.error(friendlyError(e).message);
     }
   };
   // The checkout window only says it closed. What actually happened is decided by the server.
-  const checkoutClosed = () => { setPayOpen(false); const reference = checkout?.reference ?? pendingReference(); if (reference) void verify(reference); };
+  const checkoutClosed = () => { setPayOpen(false); const reference = checkout?.reference ?? pendingReference(); paymentChoice.reset(); if (reference) void verify(reference, checkout?.kind); };
   const resumePayment = async () => {
     if (checkout?.url) { setPayOpen(true); return; }
     const cur = latest.current;
     if (!cur) return;
     try {
       // Re-starting returns the same open payment (and, for the deposit, reuses the stored address).
-      const command = cur.stage === "response" ? { type: "checkout", address: "" } : cur.acceptedQuote ? { type: "balance_checkout", version: cur.acceptedQuote.version } : undefined;
+      const command = cur.stage === "response" ? { type: "checkout", address: "", resume: true } : cur.acceptedQuote ? { type: "balance_checkout", version: cur.acceptedQuote.version, resume: true } : undefined;
       if (command) await onCommand("resume", command);
     } catch (e) {
       toast.error(friendlyError(e).message);

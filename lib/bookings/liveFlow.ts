@@ -83,11 +83,13 @@ export const EDIT_FLOW_REVIEW = mutation("EditFlowReview", "$bookingId: ID!, $ra
 export const DELETE_FLOW_REVIEW = mutation("DeleteFlowReview", "$bookingId: ID!", "deleteFlowReview(bookingId: $bookingId)");
 export const ACCEPT_FINAL_QUOTE = mutation("AcceptFinalQuote", "$bookingId: ID!, $revision: Int!, $version: Int!", "acceptFinalQuote(bookingId: $bookingId, revision: $revision, version: $version)");
 const checkoutMutation = (name: string, args: string, call: string) => gql`
-  mutation ${name}(${args}) { ${call} { reference authorizationUrl booking { ...FlowBookingFields } } }
+  mutation ${name}(${args}) { ${call} { reference authorizationUrl outcome booking { ...FlowBookingFields } } }
   ${FLOW_BOOKING_FRAGMENT}
 `;
-export const START_INSPECTION_CHECKOUT = checkoutMutation("StartInspectionCheckout", "$bookingId: ID!, $revision: Int!, $address: String", "startInspectionCheckout(bookingId: $bookingId, revision: $revision, address: $address)");
-export const START_BALANCE_CHECKOUT = checkoutMutation("StartBalanceCheckout", "$bookingId: ID!, $revision: Int!, $version: Int!", "startBalanceCheckout(bookingId: $bookingId, revision: $revision, version: $version)");
+export const START_INSPECTION_CHECKOUT = checkoutMutation("StartInspectionCheckout", "$bookingId: ID!, $revision: Int!, $address: String, $cardId: ID, $saveCard: Boolean", "startInspectionCheckout(bookingId: $bookingId, revision: $revision, address: $address, cardId: $cardId, saveCard: $saveCard)");
+export const START_BALANCE_CHECKOUT = checkoutMutation("StartBalanceCheckout", "$bookingId: ID!, $revision: Int!, $version: Int!, $cardId: ID, $saveCard: Boolean", "startBalanceCheckout(bookingId: $bookingId, revision: $revision, version: $version, cardId: $cardId, saveCard: $saveCard)");
+export const START_REPAYMENT_CHECKOUT = gql`mutation StartRepaymentCheckout($bookingId: ID!, $cardId: ID, $saveCard: Boolean) { startRepaymentCheckout(bookingId: $bookingId, cardId: $cardId, saveCard: $saveCard) { reference authorizationUrl outcome } }`;
+export const VERIFY_REPAYMENT_CHARGE = mutation("VerifyRepaymentCharge", "$reference: String!", "verifyRepaymentCharge(reference: $reference)");
 export const VERIFY_FLOW_PAYMENT = mutation("VerifyFlowPayment", "$reference: String!", "verifyFlowPayment(reference: $reference)");
 export const PROPOSE_DATE = mutation("ProposeDate", "$bookingId: ID!, $revision: Int!, $purpose: String!, $date: String!, $time: String!", "proposeDate(bookingId: $bookingId, revision: $revision, purpose: $purpose, date: $date, time: $time)");
 export const RESPOND_TO_DATE_PROPOSAL = mutation("RespondToDateProposal", "$bookingId: ID!, $revision: Int!, $proposalId: ID!, $accept: Boolean!", "respondToDateProposal(bookingId: $bookingId, revision: $revision, proposalId: $proposalId, accept: $accept)");
@@ -267,7 +269,7 @@ async function reload(client: LiveClient, ownerId: string, id: string): Promise<
     throw friendlyError(error);
   }
 }
-export type CheckoutInfo = { reference: string | null; url: string | null };
+export type CheckoutInfo = { reference: string | null; url: string | null; kind?: "repayment" };
 async function runCheckout(client: LiveClient, ownerId: string, document: unknown, variables: Record<string, unknown>, field: string): Promise<{ payload: FlowBookingPayload; checkout: CheckoutInfo }> {
   let result;
   try {
@@ -275,8 +277,10 @@ async function runCheckout(client: LiveClient, ownerId: string, document: unknow
   } catch (error) {
     throw friendlyError(error);
   }
-  const out = (result.data as Record<string, { reference?: string | null; authorizationUrl?: string | null; booking?: FlowBookingPayload } | null> | null | undefined)?.[field];
+  const out = (result.data as Record<string, { reference?: string | null; authorizationUrl?: string | null; outcome?: string | null; booking?: FlowBookingPayload } | null> | null | undefined)?.[field];
   if (!out?.booking) throw new Error("The server did not confirm that change.");
+  // A saved card answers straight away. A decline leaves the booking exactly as it was, ready for another way to pay.
+  if (out.outcome === "declined") throw new Error("Your card was declined. Choose another card or pay another way.");
   return { payload: out.booking, checkout: { reference: out.reference ?? null, url: out.authorizationUrl ?? null } };
 }
 
@@ -296,6 +300,8 @@ export async function sendServiceRequest(client: LiveClient, ownerId: string, dr
 }
 
 type LiveCommand = { type: string; [key: string]: unknown };
+/** The card the person chose, if any. Anything else means the secure checkout page. */
+const cardChoice = (command: LiveCommand) => ({ cardId: typeof command.cardId === "string" && command.cardId ? command.cardId : null, saveCard: command.saveCard === true });
 const NOT_CONNECTED = "This step is not available in this version of the app yet.";
 
 /** Run a screen command against the server and return the server's updated booking. */
@@ -307,16 +313,29 @@ export async function runFlowCommand(
   switch (command.type) {
     case "checkout": {
       // Pay the inspection deposit. The address is only needed the first time; resuming reuses it.
-      const done = await runCheckout(client, ownerId, START_INSPECTION_CHECKOUT, { ...base, address: String(command.address ?? "").trim() || null }, "startInspectionCheckout");
-      hooks.onCheckout?.(done.checkout);
+      const done = await runCheckout(client, ownerId, START_INSPECTION_CHECKOUT, { ...base, address: String(command.address ?? "").trim() || null, ...cardChoice(command) }, "startInspectionCheckout");
+      if (done.checkout.url) hooks.onCheckout?.(done.checkout);
       return done.payload;
     }
     case "balance_checkout": {
       // Paying the balance also accepts the quote. A job with nothing left to pay is confirmed outright.
-      const done = await runCheckout(client, ownerId, START_BALANCE_CHECKOUT, { ...base, version: Number(command.version) }, "startBalanceCheckout");
+      const done = await runCheckout(client, ownerId, START_BALANCE_CHECKOUT, { ...base, version: Number(command.version), ...cardChoice(command) }, "startBalanceCheckout");
       if (done.checkout.url) hooks.onCheckout?.(done.checkout);
       return done.payload;
     }
+    case "repay_card": {
+      // The provider repays a refund by card: a saved card answers at once, otherwise the secure checkout opens.
+      let result;
+      try { result = await client.mutate({ mutation: START_REPAYMENT_CHECKOUT as never, variables: { bookingId: current.id, ...cardChoice(command) }, context: scoped(ownerId), fetchPolicy: "no-cache" } as never); }
+      catch (error) { throw friendlyError(error); }
+      const out = (result.data as { startRepaymentCheckout?: { reference?: string | null; authorizationUrl?: string | null; outcome?: string | null } | null } | null)?.startRepaymentCheckout;
+      if (!out) throw new Error("The server did not confirm that change.");
+      if (out.outcome === "declined") throw new Error("Your card was declined. Choose another card or pay another way.");
+      if (out.authorizationUrl && /^https:\/\//.test(out.authorizationUrl)) hooks.onCheckout?.({ reference: out.reference ?? null, url: out.authorizationUrl, kind: "repayment" });
+      return reload(client, ownerId, current.id);
+    }
+    case "verify_repayment":
+      return runRaw(client, ownerId, VERIFY_REPAYMENT_CHARGE, { reference: String(command.reference ?? "") }, "verifyRepaymentCharge");
     case "verify_payment":
       // Ask the server (which asks Paystack) what happened; this is the only way a payment becomes "paid".
       return runRaw(client, ownerId, VERIFY_FLOW_PAYMENT, { reference: String(command.reference ?? "") }, "verifyFlowPayment");

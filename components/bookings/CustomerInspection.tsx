@@ -1,4 +1,5 @@
 import { View } from "react-native";
+import { PaymentChoice } from "@/components/payments/PaymentChoice";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Callout } from "@/components/Callout";
@@ -28,7 +29,7 @@ export function CustomerInspection(p:Props) {
     footer=<View style={bs.actions}><Button title="Continue" disabled={r.serviceMode==="onsite" && p.address.trim().length<8} onPress={()=>p.onStep("pay")}/>{secondary}</View>;
   } else if(step==="pay" && terms) {
     title="Initial deposit";subtitle="Confirm the visit before any repair work is booked.";
-    body=<><DetailCard quiet><AppText variant="label" color={Colors.primary}>Initial deposit</AppText><AppText variant="h1">{initial}</AppText><AppText variant="bodySmall" color={Colors.textSecondary}>{appointmentLabel(terms)}</AppText></DetailCard>{appointment}<Callout title="Pay using your card or bank transfer" message={`Non-refundable after the inspection. If you hire ${r.providerName.split(" ")[0]}, ${initial} is deducted from the final quote.`}/>{p.preview && <AppText variant="captionRegular" color={Colors.textSecondary}>The next screen simulates hosted checkout locally. No money is charged.</AppText>}</>;
+    body=<><DetailCard quiet><AppText variant="label" color={Colors.primary}>Initial deposit</AppText><AppText variant="h1">{initial}</AppText><AppText variant="bodySmall" color={Colors.textSecondary}>{appointmentLabel(terms)}</AppText></DetailCard>{appointment}<Callout title="Pay using your card or bank transfer" message={`Non-refundable after the inspection. If you hire ${r.providerName.split(" ")[0]}, ${initial} is deducted from the final quote.`}/>{p.preview && <AppText variant="captionRegular" color={Colors.textSecondary}>The next screen simulates hosted checkout locally. No money is charged.</AppText>}{r.source==="live"&&<PaymentChoice/>}</>;
     footer=<Button title="Confirm" loading={p.busy} onPress={p.onCheckout}/>;
   } else if(step==="payment" && r.payment) {
     title=r.payment.status==="failed"?"Payment unsuccessful":"Payment pending";subtitle="The inspection is confirmed only after the payment is verified.";

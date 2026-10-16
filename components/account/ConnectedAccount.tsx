@@ -18,6 +18,9 @@ import { areaError } from "@/lib/account/model";
 import { EDIT_PROFILE_MUTATION, UPDATE_MY_PROVIDER_PROFILE_MUTATION } from "@/lib/mutations";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { saveWorkPhotos } from "@/lib/provider/liveManage";
+import PaystackWebViewModal from "@/components/PaystackWebViewModal";
+import { loadCards, removeCard, SavedCard, startAddCard, verifyCardSetup } from "@/lib/payments/liveCards";
+import type { CardsApi } from "./LiveAccountContent";
 import { askDeletionCode, noticeDay, requestDeletion } from "@/lib/account/liveDeletion";
 import { loadPrefs, PrefKey, Prefs, savePref } from "@/lib/account/livePrefs";
 import { changeName, confirmCheck, confirmEmail, confirmNewPhone, sendEmailCode, sendNewPhoneCode, setProfilePaused, startCheck } from "@/lib/account/liveContact";
@@ -127,6 +130,30 @@ export function ConnectedAccountSettings(){
   const before=prefs;lock.current=true;setBusy(true);setError(undefined);setPrefs({...prefs,[key]:value});
   savePref(client,id,key,value).then(saved=>{if(stillOwn(id))setPrefs(saved);}).catch(e=>{if(stillOwn(id)){setPrefs(before);setError(e instanceof Error?e.message:"Couldn’t save that setting.");}}).finally(()=>{lock.current=false;if(stillOwn(id))setBusy(false);});
  };
+ // Saved cards: shown on the Payments page; adding one goes through Paystack's secure page and a small charge that is refunded.
+ const [cards,setCards]=useState<SavedCard[]>(),[cardsError,setCardsError]=useState<string>(),[addCheckout,setAddCheckout]=useState<{reference:string;url:string}>(),[removing,setRemoving]=useState<string>();
+ useEffect(()=>{
+  const id=data.ownerId;if((step!=="payments"&&step!=="add-card")||!id)return;
+  let live=true;setCardsError(undefined);
+  loadCards(client,id).then(list=>{if(live&&stillOwn(id))setCards(list);}).catch(e=>{if(live&&stillOwn(id))setCardsError(e instanceof Error?e.message:"Your saved cards could not be loaded.");});
+  return()=>{live=false;};
+ },[step,data.ownerId,client]);
+ const cardsApi:CardsApi={cards,error:cardsError,removing,
+  onAdd:()=>void deletionStep(async id=>{const started=await startAddCard(client,id);if(stillOwn(id))setAddCheckout(started);}).catch(()=>undefined),
+  onRemove:cardId=>void deletionStep(async id=>{setRemoving(cardId);try{const left=await removeCard(client,id,cardId);if(stillOwn(id)){setCards(left);toast.success("Card removed.");}}finally{setRemoving(undefined);}}).catch(()=>undefined),
+ };
+ const addDone=()=>{
+  const started=addCheckout,id=data.ownerId;setAddCheckout(undefined);if(!started||!id)return;
+  void deletionStep(async owner=>{
+   const result=await verifyCardSetup(client,owner,started.reference);if(!stillOwn(owner))return;
+   setCards(result.cards);
+   if(result.status==="done"&&result.saved){toast.success("Card saved. The small check charge is being refunded.");router.setParams({step:"payments"});}
+   else if(result.status==="done"){toast.info("That card works, but its bank doesn’t allow it to be saved. The small check charge is being refunded.");router.setParams({step:"payments"});}
+   else if(result.status==="pending")toast.info("We’re still confirming your card. Check the Payments page in a moment.");
+   else setError("The card wasn’t added. Nothing was kept.");
+  }).catch(()=>undefined);
+  void id;
+ };
  /** Run one deletion step: show the server's own sentence if it refuses, and keep the person on the screen. */
  const deletionStep=async(work:(id:string)=>Promise<void>)=>{
   const id=data.ownerId;if(!id||lock.current||!stillOwn(id))throw new Error("busy");
@@ -153,5 +180,5 @@ export function ConnectedAccountSettings(){
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
  const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;
- return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref} contact={contact} onWorkPhotos={{add:addWork,remove:removeWork}}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+ return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref} contact={contact} onWorkPhotos={{add:addWork,remove:removeWork}} cardsApi={cardsApi}/><PaystackWebViewModal visible={!!addCheckout} authorizationUrl={addCheckout?.url??""} onPaymentDone={addDone} onCancel={()=>setAddCheckout(undefined)}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }

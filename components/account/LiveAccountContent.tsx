@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
+import { cardLabel, SavedCard } from "@/lib/payments/liveCards";
 import { View, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { AppText } from "@/components/AppText";
@@ -9,7 +10,8 @@ import { VerificationCode } from "@/components/VerificationCode";
 import { AccountFrame, SettingsRow, ToggleRow } from "./AccountParts";
 import { PREF_ROWS, Prefs, PrefKey } from "@/lib/account/livePrefs";
 import { maskedEmail } from "@/lib/account/liveContact";
-import { Heading } from "@/components/bookings/Parts";
+import { ConfirmDialog, Heading } from "@/components/bookings/Parts";
+import { LogoLoader } from "@/components/LogoLoader";
 import { AccountReadSnapshot, LiveAccountStep } from "@/lib/account/liveAccount";
 import { AppMode } from "@/lib/appMode";
 import { customerPreferences, providerPreferences, areaError, emailAddress } from "@/lib/account/model";
@@ -31,12 +33,13 @@ function ResendCode({onResend,busy}:{onResend:()=>void;busy:boolean}){
  const left=Math.max(0,Math.ceil((until-now)/1000));
  return <View style={{gap:4}}><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{textAlign:"center"}}>{"Didn't get the code?"}</AppText><Pressable accessibilityRole="button" accessibilityLabel="Resend code" disabled={busy||left>0} onPress={()=>{onResend();setUntil(Date.now()+60_000);setNow(Date.now());}} hitSlop={{top:13,bottom:13}} style={{minHeight:18,justifyContent:"center"}}><AppText variant="captionEmphasis" color={busy||left>0?Colors.disabled:Colors.primary} style={{textAlign:"center"}}>{left?"Resend in 00:"+String(left).padStart(2,"0"):"Resend code"}</AppText></Pressable></View>;
 }
-export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion,prefs,onPref,contact,onWorkPhotos}:{
+export type CardsApi={cards?:SavedCard[];error?:string;removing?:string;onAdd:()=>void;onRemove:(id:string)=>void};
+export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion,prefs,onPref,contact,onWorkPhotos,cardsApi}:{
  step:LiveAccountStep;mode:AppMode;account:AccountReadSnapshot;preview?:boolean;busy?:boolean;error?:string;
  onBack:()=>void;onGo:(s:LiveAccountStep)=>void;onUnavailable:(what:string)=>void;onRecovery:()=>void;
  onSaveArea:(value:string)=>Promise<void>;onPhoto:(kind:"personal"|"avatar"|"banner")=>void;onSaveBio:(bio:string)=>Promise<void>;
  onOpen?:(target:string)=>void;onAskDeletionCode?:()=>Promise<void>;onRequestDeletion?:(code:string)=>Promise<void>;
- prefs?:Prefs;onPref?:(key:PrefKey,value:boolean)=>void;contact?:ContactActions;onWorkPhotos?:{add:()=>void;remove:(index:number)=>void};
+ prefs?:Prefs;onPref?:(key:PrefKey,value:boolean)=>void;contact?:ContactActions;onWorkPhotos?:{add:()=>void;remove:(index:number)=>void};cardsApi?:CardsApi;
 }) {
  const [code,setCode]=useState(""),[newPhone,setNewPhone]=useState(""),[resendAt,setResendAt]=useState(0),[tick,setTick]=useState(Date.now());
  useEffect(()=>{if(resendAt<=Date.now())return;const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[resendAt]);
@@ -44,7 +47,7 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
  useEffect(()=>{if(step==="phone-new")setNewPhone("");},[step]);
  const resendSeconds=Math.max(0,Math.ceil((resendAt-tick)/1000));
  const live=!!onRequestDeletion&&!!onAskDeletionCode;
- const [first,setFirst]=useState(account.firstName),[last,setLast]=useState(account.lastName),[email,setEmail]=useState(""),[area,setArea]=useState(account.area??""),[bio,setBio]=useState(account.providerBio??"");
+ const [confirmRemove,setConfirmRemove]=useState<string>(),[first,setFirst]=useState(account.firstName),[last,setLast]=useState(account.lastName),[email,setEmail]=useState(""),[area,setArea]=useState(account.area??""),[bio,setBio]=useState(account.providerBio??"");
  useEffect(()=>{setFirst(account.firstName);setLast(account.lastName);setEmail("");setArea(account.area??"");setBio(account.providerBio??"");},[account.id,account.firstName,account.lastName,account.area,account.providerBio]);
  let title="Your account",subtitle:string|undefined="Personal details and access for both roles.",body:ReactNode,footer:ReactNode,gap=20;
  const unavailable=(label:string)=><Button title={label} disabled={busy} onPress={()=>onUnavailable(label)}/>;
@@ -90,10 +93,10 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
   body=prefs&&onPref?<><View>{PREF_ROWS.map(p=><ToggleRow key={p.key} title={p.label} description={p.description} value={prefs[p.key]} disabled={busy||(p.key!=="pushNotifications"&&p.key!=="emailNotifications"&&!prefs.pushNotifications)} onChange={()=>onPref(p.key,!prefs[p.key])}/>)}</View><AppText variant="captionRegular" color={Colors.textSecondary}>Payout updates, security notices and anything about your account always reach you in your notification list, whatever you choose here.</AppText></>:<><Callout title="Preferences unavailable" message="Your notification settings could not be loaded. Account security and essential in-app updates stay accessible."/><View>{(mode==="provider"?providerPreferences:customerPreferences).map(p=><SettingsRow key={p.key} title={p.label} description={p.description} onPress={()=>onUnavailable("Notification preferences")}/>)}</View></>;
  }else if(step==="payments"){
   title="Payments";subtitle="Manage saved cards and view your payment records.";
-  body=<><Callout title="Saved cards unavailable" message="Your authorized payment cards could not be loaded. Try again later."/><View><SettingsRow title="Add payment card" description="Add another debit or credit card" icon="payment" forward="settingsForward" onPress={()=>onGo("add-card")}/><SettingsRow title="Payment history" description="Look up recent booking payments" icon="history" onPress={()=>onGo("payment-history")}/></View><Callout title="Protected payment · No extra fee" message="Pay through the connected secure checkout. Verified payments and release updates stay attached to your job."/><AppText variant="captionRegular" color={Colors.textSecondary}>Never share your card PIN or verification code in chat.</AppText></>;
+  body=<>{cardsApi?(cardsApi.error?<Callout tone="error" title="Saved cards unavailable" message={cardsApi.error}/>:!cardsApi.cards?<LogoLoader label="Loading your cards"/>:cardsApi.cards.length?<View style={{gap:8}}>{cardsApi.cards.map(c=><View key={c.id} style={{minHeight:64,paddingVertical:8,flexDirection:"row",alignItems:"center",gap:12,borderBottomWidth:1,borderBottomColor:Colors.border}}><View style={{flex:1,minWidth:0}}><AppText variant="labelSupport">{cardLabel(c)}</AppText>{(c.expired||c.bank)&&<AppText variant="bodySmall" color={c.expired?Colors.error:Colors.textSecondary}>{c.expired?"Expired":c.bank}</AppText>}</View><Button title="Remove" variant="outline" size="compact" loading={cardsApi.removing===c.id} disabled={!!cardsApi.removing} onPress={()=>setConfirmRemove(c.id)}/></View>)}</View>:<Callout title="No saved cards" message="Cards you choose to save at checkout, or add here, appear in this list."/>):<Callout title="Saved cards unavailable" message="Your authorized payment cards could not be loaded. Try again later."/>}<View><SettingsRow title="Add payment card" description="Add another debit or credit card" icon="payment" forward="settingsForward" onPress={()=>onGo("add-card")}/><SettingsRow title="Payment history" description="Look up recent booking payments" icon="history" onPress={()=>onGo("payment-history")}/></View><Callout title="Protected payment · No extra fee" message="Pay through the connected secure checkout. Verified payments and release updates stay attached to your job."/><AppText variant="captionRegular" color={Colors.textSecondary}>Never share your card PIN or verification code in chat.</AppText></>;
  }else if(step==="add-card"){
   title="Add payment card";subtitle="Add a card through the secure payment provider.";
-  body=<Callout title="Secure card authorization" message="Enter card details only through the payment provider’s secure checkout. Your card is saved after confirmed authorization."/>;footer=unavailable("Continue securely");
+  body=<><Callout title="Secure card authorization" message="Enter card details only through the payment provider’s secure checkout. Your card is saved after confirmed authorization."/>{cardsApi&&<Callout message="To check the card works, Paystack charges a small amount (₦50). It is refunded to the same card straight away."/>}</>;footer=cardsApi?<><Button title="Continue securely" loading={busy} onPress={cardsApi.onAdd}/>{cancel}</>:unavailable("Continue securely");
  }else if(step==="payment-history"||step==="reviews"){
   title=step==="reviews"?"Your reviews":"Payment history";subtitle=step==="reviews"?"Feedback you’ve shared after completed jobs.":"View payments made through KraftKonect.";
   body=<Callout title={title+" unavailable"} message="Your saved records could not be loaded. They have not been removed. Try again later."/>;
@@ -146,5 +149,5 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
   body=<Callout title={step==="delete"?"Deletion requires ownership verification":"Existing activity stays accessible"} message={step==="delete"?"A verified deletion request starts a 30-day notice and signs you out. Final deletion also requires settlement of open activity.":"Deactivation hides new public discovery. Existing jobs, messages, repayments and earnings stay with your account."}/>;
   footer=<>{unavailable(step==="delete"?"Continue to account verification":"Continue to deactivation")}{cancel}</>;
  }
- return <AccountFrame preview={preview} onBack={onBack} gap={gap} footer={footer&&<View style={{gap:8}}>{footer}</View>}><Heading title={title} subtitle={subtitle}/>{body}{error&&<Callout tone="error" message={error}/>}</AccountFrame>;
+ return <AccountFrame preview={preview} onBack={onBack} gap={gap} footer={footer&&<View style={{gap:8}}>{footer}</View>}><Heading title={title} subtitle={subtitle}/>{body}{error&&<Callout tone="error" message={error}/>}{confirmRemove&&cardsApi&&<ConfirmDialog title="Remove this card?" description="It will no longer be offered at checkout. You can add it again any time." onClose={()=>setConfirmRemove(undefined)}><Button title="Remove card" style={{backgroundColor:Colors.error}} onPress={()=>{const id=confirmRemove;setConfirmRemove(undefined);cardsApi.onRemove(id);}}/><Button title="Keep card" variant="outline" onPress={()=>setConfirmRemove(undefined)}/></ConfirmDialog>}</AccountFrame>;
 }

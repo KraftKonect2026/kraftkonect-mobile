@@ -1,4 +1,5 @@
 import { Pressable, View } from "react-native";
+import { PaymentChoice } from "@/components/payments/PaymentChoice";
 import { Image } from "expo-image";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
@@ -60,7 +61,7 @@ export function CustomerQuote(p:CustomerProps){
     footer=<Button title="Review payment" onPress={()=>p.onStep("payment-review")}/>;
   } else if(p.step==="payment-review"){
     title="Review protected payment";subtitle=r.serviceTitle+" · "+r.providerName;
-    body=<><DetailCard title="Payment breakdown"><DetailRow label="Final quote" value={money(q.total)}/><DetailRow label="Initial deposit credit" value={"− "+money(q.depositCredit)} valueColor={Colors.success}/><DetailRow label="Total due" value={money(q.remaining)} total/></DetailCard>{appointment}<Callout title="Protected payment" message={r.source==="sample"?"In this sample, service funds are held and released in stages during and at the end of the job. Live custody and releases still require the payment integration.":"Your payment is held securely and released to the provider in stages: materials when your booking is confirmed, and labour once you confirm the work is complete."}/></>;
+    body=<><DetailCard title="Payment breakdown"><DetailRow label="Final quote" value={money(q.total)}/><DetailRow label="Initial deposit credit" value={"− "+money(q.depositCredit)} valueColor={Colors.success}/><DetailRow label="Total due" value={money(q.remaining)} total/></DetailCard>{appointment}<Callout title="Protected payment" message={r.source==="sample"?"In this sample, service funds are held and released in stages during and at the end of the job. Live custody and releases still require the payment integration.":"Your payment is held securely and released to the provider in stages: materials when your booking is confirmed, and labour once you confirm the work is complete."}/>{r.source==="live"&&!!q.remaining&&<PaymentChoice/>}</>;
     footer=<View style={bs.actions}><Button title={q.remaining?"Pay "+money(q.remaining)+" & book":"Confirm booking · no balance due"} loading={p.busy} onPress={p.onCheckout}/><Button title="Return to bookings" variant="outline" onPress={p.onBookings}/></View>;
   } else if(p.step==="checkout"&&r.balancePayment){
     const failed=r.balancePayment.status==="failed";title=failed?"Payment unsuccessful":"Balance payment pending";subtitle="The repair is confirmed after the balance is verified.";

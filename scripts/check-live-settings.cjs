@@ -1,6 +1,6 @@
 // Fast checks for the account settings adapters (no backend needed).
 const assert = require("node:assert/strict"), load = require("./load-typescript.cjs");
-const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts"), report = load("lib/provider/liveReport.ts");
+const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts"), report = load("lib/provider/liveReport.ts"), cards = load("lib/payments/liveCards.ts");
 let count = 0;
 async function check(name, run) { await run(); count++; console.log("PASS " + name); }
 const client = result => { const calls = []; return { calls, query: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; }, mutate: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; } }; };
@@ -113,6 +113,28 @@ const all = (over = {}) => ({ bookingUpdates: true, newMessages: true, promotion
     await assert.rejects(report.loadReport(client({ myEarningsReport: { ...good, netReleasedMinor: 1 } }), "u1", "Year", 0), /did not add up/);
     await assert.rejects(report.loadReport(client({ myEarningsReport: null }), "u1", "Year", 0), /could not be read/);
     await assert.rejects(report.loadReport(client(apollo(403, "Only providers have an earnings report.")), "u1", "Year", 0), /Only providers/);
+  });
+  await check("Saved cards: only brand, last four digits and expiry are read; adding opens only a secure address; removal returns the server's list", async () => {
+    const raw = { id: "c1", brand: "visa", last4: "4081", expMonth: "2", expYear: "2030", bank: "TEST BANK", expired: false, authorizationCode: "AUTH_SECRET" };
+    const list = cards.parseCards([raw]);
+    assert.deepEqual(list[0], { id: "c1", brand: "visa", last4: "4081", expMonth: "2", expYear: "2030", bank: "TEST BANK", expired: false });
+    assert.equal(cards.cardLabel(list[0]), "Visa •••• 4081 · 02/30");
+    assert.equal(cards.cardLabel({ ...list[0], brand: null, expMonth: null }), "Card •••• 4081");
+    for (const bad of [null, [{}], [{ id: "x", last4: "12" }], [{ id: "", last4: "1234" }]]) assert.throws(() => cards.parseCards(bad));
+    const c = client({ mySavedCards: [raw] });
+    assert.equal((await cards.loadCards(c, "u1"))[0].last4, "4081"); assert.equal(c.calls[0].context.accountOwnerId, "u1");
+    assert.deepEqual(await cards.startAddCard(client({ startAddCard: { reference: "KK-CRD-1", authorizationUrl: "https://checkout.paystack.test/KK-CRD-1" } }), "u1"), { reference: "KK-CRD-1", url: "https://checkout.paystack.test/KK-CRD-1" });
+    await assert.rejects(cards.startAddCard(client({ startAddCard: { reference: "KK-CRD-1", authorizationUrl: "http://insecure.test" } }), "u1"), /secure card page/);
+    await assert.rejects(cards.startAddCard(client(apollo(409, "You can keep up to 5 cards. Remove one to add another.")), "u1"), /up to 5 cards/);
+    const done = await cards.verifyCardSetup(client({ verifyCardSetup: { saved: true, status: "done", cards: [raw] } }), "u1", "KK-CRD-1");
+    assert.deepEqual([done.saved, done.status, done.cards.length], [true, "done", 1]);
+    await assert.rejects(cards.verifyCardSetup(client({ verifyCardSetup: { saved: true, status: "weird", cards: [] } }), "u1", "r"), /did not confirm/);
+    assert.deepEqual(await cards.removeCard(client({ removeSavedCard: [] }), "u1", "c1"), []);
+    await assert.rejects(cards.removeCard(client(apollo(404, "That card was not found.")), "u1", "zz"), /not found/);
+    cards.paymentChoice.set({ cardId: "c1", saveCard: true });
+    assert.deepEqual(cards.paymentChoice.get(), { cardId: "c1", saveCard: false }, "saving only applies to a new card");
+    cards.paymentChoice.set({ cardId: null, saveCard: true }); assert.equal(cards.paymentChoice.get().saveCard, true);
+    cards.paymentChoice.reset(); assert.deepEqual(cards.paymentChoice.get(), { cardId: null, saveCard: false });
   });
   console.log(count + " live settings checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
