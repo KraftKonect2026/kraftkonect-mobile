@@ -41,8 +41,11 @@ function publicImage(value: unknown) {
 export function ownedLiveConversations(ownerId: string, response: unknown): LiveConversation[] {
   if (!ownerId || !Array.isArray(response)) throw new Error("Your conversations could not be loaded.");
   const seen = new Set<string>();
-  return response.map(value => {
+  return response.flatMap(value => {
     const row = record(value), conversationId = id(row.id), customerId = id(row.customerId), providerId = id(row.providerId);
+    // A conversation with yourself (an older version of the app allowed messaging your own profile) has nobody to talk to.
+    // It is left out rather than blocking every other conversation.
+    if (customerId === providerId && customerId === ownerId) return [];
     if (customerId === providerId || (ownerId !== customerId && ownerId !== providerId) || seen.has(conversationId)) throw new Error("The conversation does not match this account.");
     seen.add(conversationId);
     const other = record(row.otherParticipant), recipientId = ownerId === customerId ? providerId : customerId;
@@ -50,8 +53,8 @@ export function ownedLiveConversations(ownerId: string, response: unknown): Live
     const unread = row.unreadCount;
     if (!Number.isSafeInteger(unread) || (unread as number) < 0) throw new Error("The unread count could not be confirmed.");
     const latest = text(row.lastMessage, 10000);
-    return { id: conversationId, ownerId, recipientId, name: text(other.name, 200) ?? "Participant", avatarUrl: publicImage(other.avatar),
-      service: "Service context unavailable", unread: unread as number, last: latest ? { text: latest, at: timestamp(row.lastMessageAt) } : undefined };
+    return [{ id: conversationId, ownerId, recipientId, name: text(other.name, 200) ?? "Participant", avatarUrl: publicImage(other.avatar),
+      service: "Service context unavailable", unread: unread as number, last: latest ? { text: latest, at: timestamp(row.lastMessageAt) } : undefined }];
   });
 }
 
