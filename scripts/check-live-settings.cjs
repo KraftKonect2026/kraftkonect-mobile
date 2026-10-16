@@ -1,6 +1,6 @@
 // Fast checks for the account settings adapters (no backend needed).
 const assert = require("node:assert/strict"), load = require("./load-typescript.cjs");
-const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts");
+const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts"), report = load("lib/provider/liveReport.ts");
 let count = 0;
 async function check(name, run) { await run(); count++; console.log("PASS " + name); }
 const client = result => { const calls = []; return { calls, query: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; }, mutate: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; } }; };
@@ -98,6 +98,21 @@ const all = (over = {}) => ({ bookingUpdates: true, newMessages: true, promotion
     assert.deepEqual(a.calls[0].variables, { available: true, days: [1, 2] });
     assert.deepEqual(await manage.saveWorkPhotos(client({ saveMyWorkPhotos: ["https://res.cloudinary.com/x/a.jpg"] }), "u1", ["https://res.cloudinary.com/x/a.jpg"]), ["https://res.cloudinary.com/x/a.jpg"]);
     await assert.rejects(manage.saveWorkPhotos(client(apollo(400, "Add up to 12 photos.")), "u1", []), /up to 12/);
+  });
+  await check("The earnings report asks the server for exactly the chosen period and refuses figures that do not add up", async () => {
+    const good = { labourMinor: 650000, materialsMinor: 300000, inspectionMinor: 0, netReleasedMinor: 950000, grossPaidMinor: 1000000, feeMinor: 50000, jobsCount: 1 };
+    const c = client({ myEarningsReport: good });
+    const r = await report.loadReport(c, "u1", "Month", 0, new Date(2026, 2, 15));
+    assert.deepEqual([r.netReleased, r.fee, r.jobs, r.label], [950000, 50000, 1, "March 2026"]);
+    assert.deepEqual(c.calls[0].variables, { from: new Date(2026, 2, 1).toISOString(), to: new Date(2026, 3, 1).toISOString() });
+    assert.equal(c.calls[0].context.accountOwnerId, "u1");
+    const prev = client({ myEarningsReport: good }); await report.loadReport(prev, "u1", "Month", -1, new Date(2026, 2, 15));
+    assert.equal(prev.calls[0].variables.from, new Date(2026, 1, 1).toISOString());
+    const all = client({ myEarningsReport: good }); await report.loadReport(all, "u1", "All time", 0);
+    assert.deepEqual(all.calls[0].variables, {});
+    await assert.rejects(report.loadReport(client({ myEarningsReport: { ...good, netReleasedMinor: 1 } }), "u1", "Year", 0), /did not add up/);
+    await assert.rejects(report.loadReport(client({ myEarningsReport: null }), "u1", "Year", 0), /could not be read/);
+    await assert.rejects(report.loadReport(client(apollo(403, "Only providers have an earnings report.")), "u1", "Year", 0), /Only providers/);
   });
   console.log(count + " live settings checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

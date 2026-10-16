@@ -1,18 +1,21 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Callout } from "@/components/Callout";
 import { Input } from "@/components/Input";
 import { LogoLoader } from "@/components/LogoLoader";
 import { SelectionChip } from "@/components/SelectionChip";
 import { DetailCard, DetailRow, Heading, bs } from "@/components/bookings/Parts";
+import { ReportPeriod } from "@/lib/bookings/finance";
+import { EarningsReport } from "@/lib/provider/liveReport";
 import { money, parseMoney } from "@/lib/bookings/model";
 import { LiveFinanceStep, ProviderFinanceRead, recordedPayout, recordedStatus } from "@/lib/provider/liveFinance";
 import { payoutAmountError, payoutStatusLabel, PayoutBank, WalletPayout } from "@/lib/provider/livePayouts";
 import { AmountCard, FinanceFrame, FinanceRow, SmallBalance } from "./FinanceScreens";
 import Colors from "@/constants/colors";
 
-export type PayoutActions={loadBanks:()=>Promise<{name:string;code:string}[]>;resolve:(bankCode:string,accountNumber:string)=>Promise<string>;saveBank:(bankCode:string,accountNumber:string)=>Promise<PayoutBank>;requestPayout:(amountMinor:number)=>Promise<WalletPayout>;refresh:()=>Promise<void>|void};
+export type PayoutActions={loadBanks:()=>Promise<{name:string;code:string}[]>;resolve:(bankCode:string,accountNumber:string)=>Promise<string>;saveBank:(bankCode:string,accountNumber:string)=>Promise<PayoutBank>;requestPayout:(amountMinor:number)=>Promise<WalletPayout>;loadReport:(period:ReportPeriod,offset:number)=>Promise<EarningsReport>;refresh:()=>Promise<void>|void};
 export function LiveFinanceContent({snapshot,step,payoutId,loading,error,onRetry,onBack,onGo,onUnavailable,onSetup,preview=false,actions}:{
  snapshot?:ProviderFinanceRead;step:LiveFinanceStep;payoutId?:string;loading:boolean;error?:string;onRetry:()=>void;onBack:()=>void;onGo:(step:LiveFinanceStep,id?:string)=>void;onUnavailable:(action:string)=>void;onSetup:()=>void;preview?:boolean;actions?:PayoutActions;
 }){
@@ -61,7 +64,7 @@ export function LiveFinanceContent({snapshot,step,payoutId,loading,error,onRetry
     }else if(step==="repayments"){
       body=o.repayments.length?<View style={{gap:20}}>{o.repayments.map(r=><FinanceRow key={r.bookingId} forward={false} title={"Booking "+(r.bookingRef??r.bookingId.slice(0,8))} right={money(r.outstanding)} description={r.outstanding>0?"Owed "+money(r.outstanding)+" of "+money(r.due)+(r.deadline?" · by "+new Date(r.deadline).toLocaleString("en-NG",{timeZone:"Africa/Lagos"}):""):"Settled · "+money(r.due)}/>)}</View>:<Callout title="Nothing to repay" message="If a customer is refunded for money you already received, it shows here."/>;
     }else{
-      body=<Callout title="Report unavailable" message="Earnings reports are coming in a later update."/>;
+      body=<LiveReport load={actions.loadReport} onActivity={()=>onGo("activity")}/>;
     }
   }
   else if(step==="earnings"){
@@ -93,4 +96,28 @@ export function LiveFinanceContent({snapshot,step,payoutId,loading,error,onRetry
     title="Material repayments";body=<Callout title="Repayments unavailable" message="Your outstanding and settled repayments could not be loaded. They have not been cleared."/>;
   }
   return <FinanceFrame preview={preview} onBack={onBack} footer={footer}><Heading title={title}/>{body}{snapshot&&!loading&&snapshot.errors.length>0&&<><Callout tone="error" message={snapshot.errors.join(" ")}/><Button title="Refresh records" variant="outline" onPress={onRetry}/></>}</FinanceFrame>;
+}
+
+const PERIODS:ReportPeriod[]=["Week","Month","Year","All time"];
+/** Money released to the provider in a week, month, year or ever, as the server added it up. */
+function LiveReport({load,onActivity}:{load:(period:ReportPeriod,offset:number)=>Promise<EarningsReport>;onActivity:()=>void}){
+  const [period,setPeriod]=useState<ReportPeriod>("Month"),[offset,setOffset]=useState(0),[report,setReport]=useState<EarningsReport>(),[problem,setProblem]=useState<string>(),[tries,setTries]=useState(0),loadRef=useRef(load);loadRef.current=load;
+  useEffect(()=>{let alive=true;setReport(undefined);setProblem(undefined);loadRef.current(period,offset).then(r=>{if(alive)setReport(r);}).catch(e=>{if(alive)setProblem(e instanceof Error?e.message:"Your earnings report could not be loaded.");});return()=>{alive=false;};},[period,offset,tries]);
+  return <>
+    <View style={[bs.row,{gap:8,flexWrap:"wrap"}]}>{PERIODS.map(v=><SelectionChip key={v} label={v} selected={period===v} onPress={()=>{setPeriod(v);setOffset(0);}} style={{paddingHorizontal:8}}/>)}</View>
+    {period!=="All time"&&<View style={[bs.row,{gap:8}]}><Button title="Previous" variant="outline" size="compact" onPress={()=>setOffset(offset-1)}/><AppText variant="label" style={{flex:1,textAlign:"center"}}>{report?.label??"…"}</AppText><Button title="Next" variant="outline" size="compact" disabled={offset>=0} onPress={()=>setOffset(offset+1)}/></View>}
+    {problem?<><Callout tone="error" message={problem}/><Button title="Try again" onPress={()=>setTries(tries+1)}/></>:!report?<LogoLoader label="Loading your report"/>:<>
+      <AmountCard label="Net released" value={report.netReleased} caption={report.jobs?report.jobs+" job"+(report.jobs>1?"s":"")+" · after KraftKonect fees.":"Nothing was released in this period."}/>
+      <DetailCard quiet backgroundColor={Colors.controlQuiet} title="Released payment breakdown">
+        <DetailRow label="Net workmanship" value={money(report.labour)}/>
+        <DetailRow label="Net materials funds" value={money(report.materials)}/>
+        {report.inspection>0&&<DetailRow label="Inspection fees" value={money(report.inspection)}/>}
+        <DetailRow label="Net released" value={money(report.netReleased)} total/>
+        <DetailRow label="Customers paid" value={money(report.grossPaid)}/>
+        <DetailRow label="KraftKonect booking fee" value={"− "+money(report.fee)}/>
+      </DetailCard>
+      <Callout message="Refunds taken back from your balance are not subtracted here. They appear in Payment activity."/>
+      <FinanceRow title="Payment activity" description="View the individual payment records." onPress={onActivity}/>
+    </>}
+  </>;
 }

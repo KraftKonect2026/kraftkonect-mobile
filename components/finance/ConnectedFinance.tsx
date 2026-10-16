@@ -7,6 +7,8 @@ import { USER_PROFILE_QUERY, MY_PROVIDER_PROFILE_QUERY, MY_AVAILABLE_BALANCE_QUE
 import { loadBanks, PAYOUT_OVERVIEW_QUERY, requestPayout, resolveAccountName, saveBankAccount } from "@/lib/provider/livePayouts";
 import { useApolloClient } from "@apollo/client";
 import { liveFinanceStep, readOwnedProviderFinance } from "@/lib/provider/liveFinance";
+import { ReportPeriod } from "@/lib/bookings/finance";
+import { loadReport } from "@/lib/provider/liveReport";
 import { LiveFinanceContent } from "./LiveFinanceContent";
 import { ProviderServiceBoundary } from "@/components/provider/ConnectedProviderManagement";
 import Colors from "@/constants/colors";
@@ -28,6 +30,6 @@ function OwnedFinance(){
   const params=useLocalSearchParams<{step?:string;payoutId?:string}>(),router=useRouter(),data=useOwnedProviderRead(readFinance),[unavailable,setUnavailable]=useState<string>(),client=useApolloClient();
   if(!data.signedIn)return <Redirect href="/sign-in"/>;
   const step=liveFinanceStep(params.step),ownerId=data.ownerId;
-  const actions=ownerId?{loadBanks:()=>loadBanks(client,ownerId,BANKS_QUERY),resolve:(code:string,number:string)=>resolveAccountName(client,ownerId,RESOLVE_BANK_ACCOUNT_QUERY,code,number),saveBank:(code:string,number:string)=>saveBankAccount(client,ownerId,code,number),requestPayout:(amount:number)=>requestPayout(client,ownerId,amount),refresh:()=>data.refresh()}:undefined;
+  const actions=ownerId?{loadBanks:()=>loadBanks(client,ownerId,BANKS_QUERY),resolve:(code:string,number:string)=>resolveAccountName(client,ownerId,RESOLVE_BANK_ACCOUNT_QUERY,code,number),saveBank:(code:string,number:string)=>saveBankAccount(client,ownerId,code,number),requestPayout:(amount:number)=>requestPayout(client,ownerId,amount),refresh:()=>data.refresh(),loadReport:(period:ReportPeriod,offset:number)=>loadReport(client,ownerId,period,offset)}:undefined;
   return <View style={{flex:1,backgroundColor:Colors.surface}}><LiveFinanceContent snapshot={data.data} step={step} payoutId={typeof params.payoutId==="string"?params.payoutId:undefined} loading={data.loading} error={data.error} onRetry={()=>void data.refresh()} onBack={()=>{if(step!=="earnings")router.setParams({step:"earnings",payoutId:""});else router.replace("/provider/(tabs)/profile");}} onGo={(step,payoutId)=>router.setParams({step,payoutId:payoutId??""})} onSetup={()=>router.push("/provider-onboarding/welcome")} onUnavailable={setUnavailable} actions={actions}/>{unavailable&&<ProviderServiceBoundary action={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }
