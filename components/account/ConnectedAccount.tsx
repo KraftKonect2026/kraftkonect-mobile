@@ -18,6 +18,7 @@ import { areaError } from "@/lib/account/model";
 import { EDIT_PROFILE_MUTATION, UPDATE_MY_PROVIDER_PROFILE_MUTATION } from "@/lib/mutations";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { askDeletionCode, noticeDay, requestDeletion } from "@/lib/account/liveDeletion";
+import { loadPrefs, PrefKey, Prefs, savePref } from "@/lib/account/livePrefs";
 import { useToast } from "@/lib/toast";
 import { useAppDispatch, useAppSelector, store } from "@/store";
 import { selectActiveMode, setActiveMode, signOut, updateUser } from "@/store/authSlice";
@@ -70,6 +71,19 @@ export function ConnectedAccountSettings(){
  };
  const saveBio=async(bio:string)=>{const id=data.ownerId,providerId=data.snapshot?.providerId;if(!id||!providerId||lock.current||!stillOwn(id))return;if(!data.accountLoaded){setUnavailable("Introduction update");return;}if(bio.trim().length<10||bio.length>2000){setError("Enter an introduction of 10 to 2,000 characters.");return;}lock.current=true;setBusy(true);setError(undefined);try{const result=await editProvider({variables:{input:{bio:bio.trim()}},context:{accountOwnerId:id}});if(!stillOwn(id))return;if(result.data?.updateMyProviderProfile?.id!==providerId||result.data.updateMyProviderProfile.bio!==bio.trim())throw new Error("The introduction update was not confirmed.");await data.refresh();}catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save the introduction.");}finally{lock.current=false;if(stillOwn(id))setBusy(false);}};
  const pinId=useRef<string|undefined>(undefined);
+ const [prefs,setPrefs]=useState<Prefs>();
+ // The settings screen shows what the server holds; each switch saves straight away and goes back if the save fails.
+ useEffect(()=>{
+  const id=data.ownerId;if(step!=="preferences"||!id)return;
+  let live=true;setPrefs(undefined);
+  loadPrefs(client,id).then(p=>{if(live&&stillOwn(id))setPrefs(p);}).catch(e=>{if(live&&stillOwn(id))setError(e instanceof Error?e.message:"Your notification settings could not be loaded.");});
+  return()=>{live=false;};
+ },[step,data.ownerId,client]);
+ const changePref=(key:PrefKey,value:boolean)=>{
+  const id=data.ownerId;if(!id||!prefs||lock.current||!stillOwn(id))return;
+  const before=prefs;lock.current=true;setBusy(true);setError(undefined);setPrefs({...prefs,[key]:value});
+  savePref(client,id,key,value).then(saved=>{if(stillOwn(id))setPrefs(saved);}).catch(e=>{if(stillOwn(id)){setPrefs(before);setError(e instanceof Error?e.message:"Couldn’t save that setting.");}}).finally(()=>{lock.current=false;if(stillOwn(id))setBusy(false);});
+ };
  /** Run one deletion step: show the server's own sentence if it refuses, and keep the person on the screen. */
  const deletionStep=async(work:(id:string)=>Promise<void>)=>{
   const id=data.ownerId;if(!id||lock.current||!stillOwn(id))throw new Error("busy");
@@ -90,5 +104,5 @@ export function ConnectedAccountSettings(){
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
  const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;
- return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+ return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }

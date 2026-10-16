@@ -6,7 +6,8 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Callout } from "@/components/Callout";
 import { VerificationCode } from "@/components/VerificationCode";
-import { AccountFrame, SettingsRow } from "./AccountParts";
+import { AccountFrame, SettingsRow, ToggleRow } from "./AccountParts";
+import { PREF_ROWS, Prefs, PrefKey } from "@/lib/account/livePrefs";
 import { Heading } from "@/components/bookings/Parts";
 import { AccountReadSnapshot, LiveAccountStep } from "@/lib/account/liveAccount";
 import { AppMode } from "@/lib/appMode";
@@ -15,11 +16,12 @@ import { maskedPhone, validName } from "@/lib/onboarding/model";
 import { ProfilePhotos, WorkPhotos } from "@/components/onboarding/MediaFields";
 import Colors from "@/constants/colors";
 
-export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion}:{
+export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion,prefs,onPref}:{
  step:LiveAccountStep;mode:AppMode;account:AccountReadSnapshot;preview?:boolean;busy?:boolean;error?:string;
  onBack:()=>void;onGo:(s:LiveAccountStep)=>void;onUnavailable:(what:string)=>void;onRecovery:()=>void;
  onSaveArea:(value:string)=>Promise<void>;onPhoto:(kind:"personal"|"avatar"|"banner")=>void;onSaveBio:(bio:string)=>Promise<void>;
  onOpen?:(target:string)=>void;onAskDeletionCode?:()=>Promise<void>;onRequestDeletion?:(code:string)=>Promise<void>;
+ prefs?:Prefs;onPref?:(key:PrefKey,value:boolean)=>void;
 }) {
  const [code,setCode]=useState(""),[resendAt,setResendAt]=useState(0),[tick,setTick]=useState(Date.now());
  useEffect(()=>{if(resendAt<=Date.now())return;const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[resendAt]);
@@ -53,7 +55,7 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
   if(step==="area")footer=<><Button title="Use this location" loading={busy} disabled={!!areaError(area)} onPress={()=>void onSaveArea(area)}/>{cancel}</>;
  }else if(step==="preferences"){
   title="Notifications";subtitle="Choose the push notifications you receive.";
-  body=<><Callout title="Preferences unavailable" message="Your notification settings could not be loaded. Account security and essential in-app updates stay accessible."/><View>{(mode==="provider"?providerPreferences:customerPreferences).map(p=><SettingsRow key={p.key} title={p.label} description={p.description} onPress={()=>onUnavailable("Notification preferences")}/>)}</View></>;
+  body=prefs&&onPref?<><View>{PREF_ROWS.map(p=><ToggleRow key={p.key} title={p.label} description={p.description} value={prefs[p.key]} disabled={busy||(p.key!=="pushNotifications"&&p.key!=="emailNotifications"&&!prefs.pushNotifications)} onChange={()=>onPref(p.key,!prefs[p.key])}/>)}</View><AppText variant="captionRegular" color={Colors.textSecondary}>Payout updates, security notices and anything about your account always reach you in your notification list, whatever you choose here.</AppText></>:<><Callout title="Preferences unavailable" message="Your notification settings could not be loaded. Account security and essential in-app updates stay accessible."/><View>{(mode==="provider"?providerPreferences:customerPreferences).map(p=><SettingsRow key={p.key} title={p.label} description={p.description} onPress={()=>onUnavailable("Notification preferences")}/>)}</View></>;
  }else if(step==="payments"){
   title="Payments";subtitle="Manage saved cards and view your payment records.";
   body=<><Callout title="Saved cards unavailable" message="Your authorized payment cards could not be loaded. Try again later."/><View><SettingsRow title="Add payment card" description="Add another debit or credit card" icon="payment" forward="settingsForward" onPress={()=>onGo("add-card")}/><SettingsRow title="Payment history" description="Look up recent booking payments" icon="history" onPress={()=>onGo("payment-history")}/></View><Callout title="Protected payment · No extra fee" message="Pay through the connected secure checkout. Verified payments and release updates stay attached to your job."/><AppText variant="captionRegular" color={Colors.textSecondary}>Never share your card PIN or verification code in chat.</AppText></>;
