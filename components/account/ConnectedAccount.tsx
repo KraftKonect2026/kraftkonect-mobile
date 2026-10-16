@@ -19,6 +19,9 @@ import { EDIT_PROFILE_MUTATION, UPDATE_MY_PROVIDER_PROFILE_MUTATION } from "@/li
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
 import { askDeletionCode, noticeDay, requestDeletion } from "@/lib/account/liveDeletion";
 import { loadPrefs, PrefKey, Prefs, savePref } from "@/lib/account/livePrefs";
+import { changeName, confirmCheck, confirmEmail, confirmNewPhone, sendEmailCode, sendNewPhoneCode, setProfilePaused, startCheck } from "@/lib/account/liveContact";
+import { normalizedPhone } from "@/lib/onboarding/model";
+import type { ContactActions } from "./LiveAccountContent";
 import { useToast } from "@/lib/toast";
 import { useAppDispatch, useAppSelector, store } from "@/store";
 import { selectActiveMode, setActiveMode, signOut, updateUser } from "@/store/authSlice";
@@ -71,6 +74,34 @@ export function ConnectedAccountSettings(){
  };
  const saveBio=async(bio:string)=>{const id=data.ownerId,providerId=data.snapshot?.providerId;if(!id||!providerId||lock.current||!stillOwn(id))return;if(!data.accountLoaded){setUnavailable("Introduction update");return;}if(bio.trim().length<10||bio.length>2000){setError("Enter an introduction of 10 to 2,000 characters.");return;}lock.current=true;setBusy(true);setError(undefined);try{const result=await editProvider({variables:{input:{bio:bio.trim()}},context:{accountOwnerId:id}});if(!stillOwn(id))return;if(result.data?.updateMyProviderProfile?.id!==providerId||result.data.updateMyProviderProfile.bio!==bio.trim())throw new Error("The introduction update was not confirmed.");await data.refresh();}catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save the introduction.");}finally{lock.current=false;if(stillOwn(id))setBusy(false);}};
  const pinId=useRef<string|undefined>(undefined);
+ const [hasProof,setHasProof]=useState(false);
+ const pin=useRef<string|undefined>(undefined),proof=useRef<string|undefined>(undefined),after=useRef<"phone-new"|"email">("phone-new"),newPhone=useRef<string|undefined>(undefined);
+ // A confirmation only lasts for one change: starting fresh from the account page or the phone page drops it.
+ useEffect(()=>{if(step==="details"||step==="phone"){pin.current=undefined;proof.current=undefined;setHasProof(false);}},[step]);
+ const finish=async(message:string)=>{pin.current=undefined;proof.current=undefined;setHasProof(false);await data.refresh();toast.success(message);router.setParams({step:"details"});};
+ const contact:ContactActions={
+  hasProof,
+  sendCheck:then=>deletionStep(async id=>{pin.current=await startCheck(client,id);after.current=then;}),
+  confirmCheck:code=>deletionStep(async id=>{if(!pin.current)throw new Error("Ask for a code first.");proof.current=await confirmCheck(client,id,pin.current,code);setHasProof(true);router.setParams({step:after.current});}),
+  sendPhone:value=>deletionStep(async id=>{
+   const phone=normalizedPhone(value);if(!phone)throw new Error("Enter a valid Nigerian mobile number.");
+   if(!proof.current)throw new Error("Confirm your current number first.");
+   await sendNewPhoneCode(client,id,proof.current,phone);newPhone.current=phone;
+  }),
+  confirmPhone:code=>deletionStep(async id=>{
+   if(!proof.current)throw new Error("Confirm your current number first.");
+   await confirmNewPhone(client,id,proof.current,code);
+   if(stillOwn(id)){if(newPhone.current)dispatch(updateUser({phone:newPhone.current}));await finish("Phone number updated.");}
+  }),
+  sendEmail:value=>deletionStep(async id=>{await sendEmailCode(client,id,value,proof.current);}),
+  confirmEmail:code=>deletionStep(async id=>{await confirmEmail(client,id,code);if(stillOwn(id))await finish("Recovery email saved.");}),
+  saveName:(first,last)=>deletionStep(async id=>{
+   const result=await changeName(client,id,first,last);if(!stillOwn(id))return;
+   if(result.applied){dispatch(updateUser({name:result.name}));await finish("Name updated.");}
+   else{await finish("Sent for review.");toast.info("Your name stays the same until support checks it against your ID. Reference "+(result.reference??"")+".");}
+  }),
+  setPaused:paused=>deletionStep(async id=>{await setProfilePaused(client,id,paused);if(stillOwn(id))await finish(paused?"Provider profile paused.":"Provider profile is live again.");}),
+ };
  const [prefs,setPrefs]=useState<Prefs>();
  // The settings screen shows what the server holds; each switch saves straight away and goes back if the save fails.
  useEffect(()=>{
@@ -104,5 +135,5 @@ export function ConnectedAccountSettings(){
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
  const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;
- return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+ return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref} contact={contact}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }
