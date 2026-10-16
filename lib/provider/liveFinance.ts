@@ -1,9 +1,10 @@
 import { accountReadSnapshot } from "@/lib/account/liveAccount";
+import { parseOverview, PayoutOverview } from "./livePayouts";
 
 export type RecordedBank={bankName:string;accountName:string;last4:string};
 export type RecordedPayout={id:string;amount:number;currency:"NGN";status:string;at?:string};
-export type ProviderFinanceRead={ownerId:string;providerId?:string;setupNeeded:boolean;reportedBalance?:number;payouts?:RecordedPayout[];bank?:RecordedBank|null;errors:string[]};
-export const liveFinanceSteps=["earnings","activity","report","repayments","banks","bank","amount","payout"] as const;
+export type ProviderFinanceRead={ownerId:string;providerId?:string;setupNeeded:boolean;reportedBalance?:number;payouts?:RecordedPayout[];bank?:RecordedBank|null;overview?:PayoutOverview;errors:string[]};
+export const liveFinanceSteps=["earnings","activity","report","repayments","banks","choose-bank","bank","amount","review","payout"] as const;
 export type LiveFinanceStep=typeof liveFinanceSteps[number];
 export function liveFinanceStep(value:unknown):LiveFinanceStep{return typeof value==="string"&&(liveFinanceSteps as readonly string[]).includes(value)?value as LiveFinanceStep:"earnings";}
 function object(value:unknown){if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("The financial record could not be loaded.");return value as Record<string,unknown>;}
@@ -31,16 +32,17 @@ export function recordedStatus(payout:RecordedPayout){
   return (known[payout.status]??"Status unavailable")+" · receipt unavailable";
 }
 /** The owned read frame may display existing records; it never grants new payout authorization. */
-export async function readOwnedProviderFinance(ownerId:string,reader:{me:()=>Promise<unknown>;profile:()=>Promise<unknown>;balance:()=>Promise<unknown>;payouts:()=>Promise<unknown>;bank:()=>Promise<unknown>;isCurrent:()=>boolean}):Promise<ProviderFinanceRead>{
+export async function readOwnedProviderFinance(ownerId:string,reader:{me:()=>Promise<unknown>;profile:()=>Promise<unknown>;balance:()=>Promise<unknown>;payouts:()=>Promise<unknown>;bank:()=>Promise<unknown>;overview?:()=>Promise<unknown>;isCurrent:()=>boolean}):Promise<ProviderFinanceRead>{
   const current=()=>{if(!reader.isCurrent())throw new Error("The signed-in identity changed. Refresh earnings.");};
   current();const [me,profile]=await Promise.all([reader.me(),reader.profile()]);current();accountReadSnapshot(ownerId,me);
   if(profile===null)return {ownerId,setupNeeded:true,errors:[]};
   const providerId=identifier(object(profile).id);
-  const reads=await Promise.allSettled([reader.balance(),reader.payouts(),reader.bank()]);current();
+  const reads=await Promise.allSettled([reader.balance(),reader.payouts(),reader.bank(),reader.overview?reader.overview():Promise.resolve(undefined)]);current();
   const snapshot:ProviderFinanceRead={ownerId,providerId,setupNeeded:false,errors:[]};
   const apply=(result:PromiseSettledResult<unknown>,label:string,install:(value:unknown)=>void)=>{try{if(result.status!=="fulfilled")throw new Error(label);install(result.value);}catch{snapshot.errors.push(label);}};
   apply(reads[0],"Your account balance could not be loaded.",value=>{snapshot.reportedBalance=recordedBalance(value);});
   apply(reads[1],"Your saved payout activity could not be loaded.",value=>{snapshot.payouts=recordedPayouts(value);});
   apply(reads[2],"Your saved payout account could not be loaded.",value=>{snapshot.bank=recordedBank(value);});
+  if(reader.overview)apply(reads[3],"Your wallet and payout records could not be loaded.",value=>{snapshot.overview=parseOverview(value);});
   return snapshot;
 }
