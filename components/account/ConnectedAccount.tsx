@@ -17,6 +17,8 @@ import { liveAccountStep, LiveAccountStep, matchedAvatarUpdate, sameAccountSessi
 import { areaError } from "@/lib/account/model";
 import { EDIT_PROFILE_MUTATION, UPDATE_MY_PROVIDER_PROFILE_MUTATION } from "@/lib/mutations";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { askDeletionCode, noticeDay, requestDeletion } from "@/lib/account/liveDeletion";
+import { useToast } from "@/lib/toast";
 import { useAppDispatch, useAppSelector, store } from "@/store";
 import { selectActiveMode, setActiveMode, signOut, updateUser } from "@/store/authSlice";
 import { AppMode } from "@/lib/appMode";
@@ -46,7 +48,7 @@ export function ConnectedAccountHub({mode}:{mode:AppMode}) {
 function UnavailableSheet({title,onClose}:{title:string;onClose:()=>void}){return <Sheet title={title+" unavailable"} showClose onClose={onClose}><Callout message="This service could not be connected. Your saved account and activity are kept. Please try again later."/><Button title="Done" onPress={onClose}/></Sheet>;}
 
 export function ConnectedAccountSettings(){
- const router=useRouter(),dispatch=useAppDispatch(),data=useAccountRead(),mode=useAppSelector(selectActiveMode),params=useLocalSearchParams<{step?:string}>(),step=liveAccountStep(params.step);
+ const router=useRouter(),dispatch=useAppDispatch(),client=useApolloClient(),toast=useToast(),data=useAccountRead(),mode=useAppSelector(selectActiveMode),params=useLocalSearchParams<{step?:string}>(),step=liveAccountStep(params.step);
  const [editPhoto]=useMutation(EDIT_PROFILE_MUTATION),[editProvider]=useMutation(UPDATE_MY_PROVIDER_PROFILE_MUTATION);
  const [busy,setBusy]=useState(false),[error,setError]=useState<string>(),[unavailable,setUnavailable]=useState<string>(),[savedArea,setSavedArea]=useState<{id:string;label:string}>();
  const alive=useRef(true),lock=useRef(false);useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
@@ -67,8 +69,26 @@ export function ConnectedAccountSettings(){
   finally{lock.current=false;if(stillOwn(id))setBusy(false);}
  };
  const saveBio=async(bio:string)=>{const id=data.ownerId,providerId=data.snapshot?.providerId;if(!id||!providerId||lock.current||!stillOwn(id))return;if(!data.accountLoaded){setUnavailable("Introduction update");return;}if(bio.trim().length<10||bio.length>2000){setError("Enter an introduction of 10 to 2,000 characters.");return;}lock.current=true;setBusy(true);setError(undefined);try{const result=await editProvider({variables:{input:{bio:bio.trim()}},context:{accountOwnerId:id}});if(!stillOwn(id))return;if(result.data?.updateMyProviderProfile?.id!==providerId||result.data.updateMyProviderProfile.bio!==bio.trim())throw new Error("The introduction update was not confirmed.");await data.refresh();}catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save the introduction.");}finally{lock.current=false;if(stillOwn(id))setBusy(false);}};
+ const pinId=useRef<string|undefined>(undefined);
+ /** Run one deletion step: show the server's own sentence if it refuses, and keep the person on the screen. */
+ const deletionStep=async(work:(id:string)=>Promise<void>)=>{
+  const id=data.ownerId;if(!id||lock.current||!stillOwn(id))throw new Error("busy");
+  lock.current=true;setBusy(true);setError(undefined);
+  try{await work(id);}catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Something went wrong. Please try again.");throw e;}
+  finally{lock.current=false;if(stillOwn(id))setBusy(false);}
+ };
+ const askCode=()=>deletionStep(async id=>{pinId.current=await askDeletionCode(client,id);});
+ const confirmDeletion=(code:string)=>deletionStep(async id=>{
+  if(!pinId.current)throw new Error("Ask for a code first.");
+  const result=await requestDeletion(client,id,pinId.current,code);
+  // The server has locked the account: leave, as it would anyway.
+  dispatch(signOut());try{await client.clearStore();}catch{/* signed out regardless */}
+  toast.info("Deletion requested. Your account will be deleted on "+noticeDay(result.noticeEndsAt)+" unless you contact support first.");
+  router.replace("/sign-in");
+ });
+ const open=(target:string)=>{if(target==="bookings")router.push(mode==="provider"?"/provider/(tabs)/jobs":"/(app)/(tabs)/bookings");};
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
  const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;
- return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+ return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }

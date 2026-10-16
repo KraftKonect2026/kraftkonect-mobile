@@ -33,6 +33,7 @@
     "check:live-flow": "node scripts/check-live-flow.cjs",
     "check:live-payouts": "node scripts/check-live-payouts.cjs",
     "check:live-recovery": "node scripts/check-live-recovery.cjs",
+    "check:live-deletion": "node scripts/check-live-deletion.cjs",
     "lint": "expo lint",
     "build:preview": "eas build --platform all --profile preview --non-interactive",
     "build:production": "eas build --platform all --profile production --non-interactive",

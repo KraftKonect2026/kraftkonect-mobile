@@ -5,6 +5,7 @@ import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Callout } from "@/components/Callout";
+import { VerificationCode } from "@/components/VerificationCode";
 import { AccountFrame, SettingsRow } from "./AccountParts";
 import { Heading } from "@/components/bookings/Parts";
 import { AccountReadSnapshot, LiveAccountStep } from "@/lib/account/liveAccount";
@@ -14,11 +15,17 @@ import { maskedPhone, validName } from "@/lib/onboarding/model";
 import { ProfilePhotos, WorkPhotos } from "@/components/onboarding/MediaFields";
 import Colors from "@/constants/colors";
 
-export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio}:{
+export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion}:{
  step:LiveAccountStep;mode:AppMode;account:AccountReadSnapshot;preview?:boolean;busy?:boolean;error?:string;
  onBack:()=>void;onGo:(s:LiveAccountStep)=>void;onUnavailable:(what:string)=>void;onRecovery:()=>void;
  onSaveArea:(value:string)=>Promise<void>;onPhoto:(kind:"personal"|"avatar"|"banner")=>void;onSaveBio:(bio:string)=>Promise<void>;
+ onOpen?:(target:string)=>void;onAskDeletionCode?:()=>Promise<void>;onRequestDeletion?:(code:string)=>Promise<void>;
 }) {
+ const [code,setCode]=useState(""),[resendAt,setResendAt]=useState(0),[tick,setTick]=useState(Date.now());
+ useEffect(()=>{if(resendAt<=Date.now())return;const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[resendAt]);
+ useEffect(()=>{if(step!=="delete-code")setCode("");},[step]);
+ const resendSeconds=Math.max(0,Math.ceil((resendAt-tick)/1000));
+ const live=!!onRequestDeletion&&!!onAskDeletionCode;
  const [first,setFirst]=useState(account.firstName),[last,setLast]=useState(account.lastName),[email,setEmail]=useState(""),[area,setArea]=useState(account.area??""),[bio,setBio]=useState(account.providerBio??"");
  useEffect(()=>{setFirst(account.firstName);setLast(account.lastName);setEmail("");setArea(account.area??"");setBio(account.providerBio??"");},[account.id,account.firstName,account.lastName,account.area,account.providerBio]);
  let title="Your account",subtitle:string|undefined="Personal details and access for both roles.",body:ReactNode,footer:ReactNode,gap=20;
@@ -66,6 +73,22 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
   title="Provider profile";subtitle="The information customers see about your work.";
   body=<><ProfilePhotos banner={account.providerBanner??""} avatar={account.providerAvatar??""} disabled={busy} onPhoto={kind=>{if(kind==="avatar"||kind==="banner")onPhoto(kind);}}/><Input label="Business or display name" value="" placeholder="Unavailable" editable={false}/><Input label="Short introduction" value={bio} onChangeText={setBio} maxLength={2000} multiline editable={!busy}/><WorkPhotos photos={[]} onAdd={()=>onUnavailable("Work photos")} onRemove={()=>{}}/><AppText variant="captionRegular" color={Colors.textSecondary}>Your public business name and work photos could not be loaded.</AppText></>;
   footer=<Button title="Save changes" loading={busy} disabled={!account.providerId||bio.trim().length<10} onPress={()=>void onSaveBio(bio)}/>;
+ }else if(live&&step==="delete"){
+  title="Delete your account";subtitle="Your account enters a 30-day notice period before final deletion.";
+  body=<><Callout title="One account, both roles" message="Deleting your account removes access to both customer and provider features." tone="error"/><View style={{gap:20}}><SettingsRow title="Your profile and services" description="Your profile is hidden when you submit. It is removed at final deletion."/><SettingsRow title="Your personal information" description="Your name, phone, email, photos, bank details and addresses are deleted after the notice period."/></View><AppText variant="bodySmall" color={Colors.textSecondary}>Some transaction, dispute or security records are kept where required, without your name.</AppText></>;
+  footer=<><Button title="Continue" disabled={busy} onPress={()=>onGo("delete-activity")}/>{cancel}</>;
+ }else if(live&&step==="delete-activity"){
+  title="Active jobs & payments";subtitle="What happens to your open work when you request deletion.";
+  body=<><Callout title="Open jobs end right away" message="Every job still open is cancelled when you submit. Anything already paid goes to KraftKonect support for a refund decision, the same as any cancellation."/><View style={{gap:12}}><SettingsRow title="Customers are refunded" description="For jobs you were providing, the customer’s paid balance is reviewed for refund."/><SettingsRow title="Money you hold" description="Earnings in your wallet are paid to your saved bank account once the notice ends. Money you must return for a refund is taken first."/></View><AppText variant="captionRegular" color={Colors.textSecondary}>Final deletion waits until jobs, refunds, repayments and payouts are settled. Support will tell you if anything is holding it up.</AppText><Button title="Review my bookings" variant="outline" onPress={()=>onOpen?.("bookings")}/></>;
+  footer=<><Button title="Continue with deletion" disabled={busy} onPress={()=>onGo("delete-confirm")}/>{cancel}</>;
+ }else if(live&&step==="delete-confirm"){
+  title="Request account deletion?";subtitle="Your 30-day notice starts when you submit.";
+  body=<><Callout title="30-day notice · both roles" tone="error" message="You will be signed out and your profile hidden straight away. Your account is deleted after 30 days once everything is settled."/><AppText variant="body" color={Colors.textSecondary}>{"We’ll text a 6-digit code to "+(account.phone?maskedPhone(account.phone):"your phone")+" to confirm it is you."}</AppText><AppText variant="labelSupport">Once deletion is complete, this account cannot be restored.</AppText></>;
+  footer=<><Button title="Send me a code" loading={busy} style={{backgroundColor:Colors.error}} onPress={()=>void onAskDeletionCode!().then(()=>{setResendAt(Date.now()+60_000);setTick(Date.now());onGo("delete-code");}).catch(()=>undefined)}/><Button title="Keep my account" variant="outline" disabled={busy} onPress={()=>onGo("details")}/></>;
+ }else if(live&&step==="delete-code"){
+  title="Enter your code";subtitle="Enter the 6-digit code we sent to confirm.";
+  body=<><VerificationCode value={code} onChange={setCode} disabled={busy}/><View style={{gap:4}}><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{textAlign:"center"}}>{"Didn't get the code?"}</AppText><Pressable accessibilityRole="button" accessibilityLabel="Resend code" disabled={busy||resendSeconds>0} onPress={()=>void onAskDeletionCode!().then(()=>{setResendAt(Date.now()+60_000);setTick(Date.now());}).catch(()=>undefined)} hitSlop={{top:13,bottom:13}} style={{minHeight:18,justifyContent:"center"}}><AppText variant="captionEmphasis" color={busy||resendSeconds>0?Colors.disabled:Colors.primary} style={{textAlign:"center"}}>{resendSeconds?"Resend in 00:"+String(resendSeconds).padStart(2,"0"):"Resend code"}</AppText></Pressable></View></>;
+  footer=<><Button title="Request account deletion" loading={busy} disabled={code.length!==6} style={{backgroundColor:Colors.error}} onPress={()=>void onRequestDeletion!(code).catch(()=>setCode(""))}/><Button title="Keep my account" variant="outline" disabled={busy} onPress={()=>onGo("details")}/></>;
  }else{
   title=step==="delete"?"Delete your account":"Deactivate provider profile";subtitle=step==="delete"?"Understand what happens before you continue.":"Pause providing services while keeping your account.";
   body=<Callout title={step==="delete"?"Deletion requires ownership verification":"Existing activity stays accessible"} message={step==="delete"?"A verified deletion request starts a 30-day notice and signs you out. Final deletion also requires settlement of open activity.":"Deactivation hides new public discovery. Existing jobs, messages, repayments and earnings stay with your account."}/>;

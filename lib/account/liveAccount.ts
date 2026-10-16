@@ -25,6 +25,6 @@ export function accountReadSnapshot(ownerId:string,me:unknown,provider?:unknown,
 export function matchedAvatarUpdate(ownerId:string,response:unknown,requestedUrl:string):Partial<User> {
  const result=object(response);if(result.id!==ownerId||result.avatarUrl!==requestedUrl||!imageUrl(requestedUrl))throw new Error("The photo update was not confirmed for this account.");return {avatarUrl:requestedUrl};
 }
-export const liveAccountSteps=["details","profile-details","provider-profile","name","phone","email","privacy","area","preferences","payments","add-card","payment-history","reviews","help","legal","delete","deactivate"] as const;
+export const liveAccountSteps=["details","profile-details","provider-profile","name","phone","email","privacy","area","preferences","payments","add-card","payment-history","reviews","help","legal","delete","delete-activity","delete-confirm","delete-code","deactivate"] as const;
 export type LiveAccountStep=typeof liveAccountSteps[number];
 export function liveAccountStep(value:unknown):LiveAccountStep{return typeof value==="string"&&(liveAccountSteps as readonly string[]).includes(value)?value as LiveAccountStep:"details";}
