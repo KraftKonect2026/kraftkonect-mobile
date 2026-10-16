@@ -361,6 +361,7 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
   if (!ready) return <OnboardingFrame title="Your setup" onBack={back} previewBar={previewBar}><LogoLoader label="Restoring your progress" /></OnboardingFrame>;
   return <View style={styles.screen}>
     <OnboardingScreen step={safeStep} draft={draft} update={update} onBack={back} onNext={() => { void next(); }}
+      onEmailSignIn={!effectivePreview && initialStep === "sign-in" ? () => router.push("/email-sign-in" as never) : undefined}
       testLoginAvailable={__DEV__ && !effectivePreview && initialStep === "sign-in"}
       localTest={__DEV__ && !effectivePreview && (step === "sign-in" ? isTestLoginPhone(draft.phone, __DEV__) : !!challenge?.testLogin)}
       onGo={go} onRole={mode => { update({ mode }); go("phone"); }} onHome={home} onLocation={() => { void locate(); }}

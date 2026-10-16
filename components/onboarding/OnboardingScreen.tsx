@@ -27,6 +27,8 @@ export type OnboardingScreenProps = {
   recoveryEmail: string; setRecoveryEmail: (value: string) => void; recoveryName: string; setRecoveryName: (value: string) => void;
   idReady: boolean; selfieReady: boolean; onIdentity: (kind: "id" | "selfie") => void;
   testLoginAvailable?: boolean; localTest?: boolean;
+  /** Offered on the phone sign-in: sign in with an email and password instead. */
+  onEmailSignIn?: () => void;
 };
 export function OnboardingScreen(p: OnboardingScreenProps) {
   const { step, draft: d, busy } = p;
@@ -55,6 +57,7 @@ export function OnboardingScreen(p: OnboardingScreenProps) {
         <View style={styles.sms}><AppText variant="footnote" style={{ width: 38, textAlign: "center" }}>SMS</AppText><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{ flex: 1 }}>We’ll send a 6-digit verification code.</AppText></View>}
         {__DEV__ && p.testLoginAvailable ? <Callout title="Local test account" message={"Enter " + testLoginFieldPhone + " and use code " + testLoginCode + ". Opens sample data in development only. No SMS is sent."} /> : null}</>;
       actions = <>{next(step === "sign-in" ? "Send code" : "Continue", !!normalizedPhone(d.phone))}
+        {step === "sign-in" && p.onEmailSignIn ? <TextAction title="Use email and password instead" onPress={p.onEmailSignIn} disabled={busy} /> : null}
         {step === "sign-in" ? <TextAction title="New to KraftKonect? Get started" onPress={() => p.onGo("role")} /> : null}</>; break;
     case "sign-in-code":
     case "phone-code":

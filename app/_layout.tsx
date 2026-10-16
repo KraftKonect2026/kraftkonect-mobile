@@ -79,7 +79,11 @@ function RootLayoutNav() {
       <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen name="legacy-sign-in" />
         <Stack.Screen name="legacy-sign-up" />
+        <Stack.Screen name="email-sign-in" />
+        <Stack.Screen name="email-sign-up" />
       </Stack.Protected>
+      <Stack.Screen name="email-verify" />
+      <Stack.Screen name="forgot-password/index" />
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(app)" />
         <Stack.Screen name="provider" />

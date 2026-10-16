@@ -1,6 +1,6 @@
 // Fast checks for the account settings adapters (no backend needed).
 const assert = require("node:assert/strict"), load = require("./load-typescript.cjs");
-const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts"), report = load("lib/provider/liveReport.ts"), cards = load("lib/payments/liveCards.ts"), history = load("lib/account/liveHistory.ts");
+const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts"), report = load("lib/provider/liveReport.ts"), cards = load("lib/payments/liveCards.ts"), history = load("lib/account/liveHistory.ts"), emailAuth = load("lib/account/liveEmailAuth.ts");
 let count = 0;
 async function check(name, run) { await run(); count++; console.log("PASS " + name); }
 const client = result => { const calls = []; return { calls, query: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; }, mutate: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; } }; };
@@ -148,6 +148,42 @@ const all = (over = {}) => ({ bookingUpdates: true, newMessages: true, promotion
     assert.equal((await history.loadReviews(client({ myReviews: [rev] }), "u1"))[0].providerName, "Pat");
     for (const bad of [null, [{ ...rev, rating: 9 }], [{ ...rev, rating: 3.5 }], [{ ...rev, text: 5 }]]) assert.throws(() => history.parseReviews(bad));
     await assert.rejects(history.loadPayments(client(apollo(401, "Not authenticated")), "u1"), /Not authenticated/);
+  });
+  await check("Email sign-in: input is checked before sending, sessions need both tokens, and the server's own refusals are shown", async () => {
+    const user = { id: "u1", email: "ada@example.com", name: "Ada", emailVerified: true };
+    const c = client({ signIn: { accessToken: "a", refreshToken: "r", user } });
+    const s = await emailAuth.signInWithEmail(c, "  ADA@Example.com ", "secret-pass");
+    assert.deepEqual([s.emailVerified, s.user.id, c.calls[0].variables], [true, "u1", { email: "ada@example.com", password: "secret-pass" }]);
+    const unverified = await emailAuth.signInWithEmail(client({ signIn: { accessToken: "a", refreshToken: "r", user: { ...user, emailVerified: false } } }), "ada@example.com", "x");
+    assert.equal(unverified.emailVerified, false);
+    assert.equal((await emailAuth.signInWithEmail(client({ signIn: { accessToken: "a", refreshToken: "r", user: { id: "u2", email: "b@example.com", metadata: { email_verified: true } } } }), "b@example.com", "x")).emailVerified, true);
+    await assert.rejects(emailAuth.signInWithEmail(c, "not-an-email", "x"), /valid email/);
+    await assert.rejects(emailAuth.signInWithEmail(c, "ada@example.com", ""), /Enter your password/);
+    for (const bad of [null, {}, { accessToken: "a", refreshToken: "", user }, { accessToken: "a", refreshToken: "r", user: null }]) await assert.rejects(emailAuth.signInWithEmail(client({ signIn: bad }), "ada@example.com", "x"), /did not confirm/);
+    await assert.rejects(emailAuth.signInWithEmail(client(apollo(401, "Invalid email or password")), "ada@example.com", "x"), /Invalid email or password/);
+    await assert.rejects(emailAuth.signInWithEmail(client(apollo(429, "Too many sign-in attempts. Try again in 15 minutes, or reset your password.")), "ada@example.com", "x"), /Too many sign-in attempts/);
+    assert.equal(emailAuth.passwordError("short"), "Use at least 8 characters."); assert.equal(emailAuth.passwordError("x".repeat(73)), "Use at most 72 characters."); assert.equal(emailAuth.passwordError("long enough"), undefined);
+  });
+  await check("Email sign-up, code confirmation and password reset send exactly what the server expects", async () => {
+    const up = client({ signUp: { accessToken: "a", refreshToken: "r", user: { id: "u1", email: "ada@example.com" } } });
+    const s = await emailAuth.signUpWithEmail(up, { name: " Ada Obi ", email: " Ada@Example.com", password: "long enough" });
+    assert.deepEqual(up.calls[0].variables, { name: "Ada Obi", email: "ada@example.com", password: "long enough" }); assert.equal(s.emailVerified, false);
+    await assert.rejects(emailAuth.signUpWithEmail(up, { name: "A", email: "ada@example.com", password: "long enough" }), /Enter your name/);
+    await assert.rejects(emailAuth.signUpWithEmail(up, { name: "Ada", email: "ada@example.com", password: "short" }), /at least 8/);
+    await assert.rejects(emailAuth.signUpWithEmail(client(apollo(409, "This email is already in use. Please sign in instead.")), { name: "Ada", email: "ada@example.com", password: "long enough" }), /already in use/);
+    const v = client({ verifyEmail: { accessToken: "a", refreshToken: "r", user: { id: "u1", email: "ada@example.com" } } });
+    assert.equal((await emailAuth.verifyEmailCode(v, "ADA@example.com", "123456")).emailVerified, true); assert.deepEqual(v.calls[0].variables, { email: "ada@example.com", otp: "123456" });
+    await assert.rejects(emailAuth.verifyEmailCode(v, "ada@example.com", "12345"), /6-digit/);
+    await emailAuth.resendEmailCode(client({ resendOtp: { success: true } }), "ada@example.com");
+    await assert.rejects(emailAuth.resendEmailCode(client({ resendOtp: { success: false } }), "ada@example.com"), /new code/);
+    const ask = client({ requestPasswordReset: true }); await emailAuth.askPasswordReset(ask, " Ada@Example.com "); assert.deepEqual(ask.calls[0].variables, { email: "ada@example.com" });
+    await assert.rejects(emailAuth.askPasswordReset(ask, "nope"), /valid email/);
+    const reset = client({ resetPassword: true }); await emailAuth.resetPassword(reset, "ada@example.com", "123456", "brand new pass");
+    assert.deepEqual(reset.calls[0].variables, { email: "ada@example.com", code: "123456", newPassword: "brand new pass" });
+    await assert.rejects(emailAuth.resetPassword(reset, "ada@example.com", "12", "brand new pass"), /6-digit/);
+    await assert.rejects(emailAuth.resetPassword(reset, "ada@example.com", "123456", "short"), /at least 8/);
+    await assert.rejects(emailAuth.resetPassword(client({ resetPassword: false }), "ada@example.com", "123456", "brand new pass"), /did not confirm/);
+    await assert.rejects(emailAuth.resetPassword(client(apollo(400, "That code is not right or has expired. Ask for a new one.")), "ada@example.com", "123456", "brand new pass"), /not right or has expired/);
   });
   console.log(count + " live settings checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
