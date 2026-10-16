@@ -89,7 +89,7 @@ function fakeClient(result) {
   });
   await check("Steps the app does not support yet are refused before any server call", async () => {
     const c = fakeClient({});
-    for (const type of ["payment", "balance_payment", "ledger_snapshot", "start_work", "finish_work", "confirm_work", "cancel_paid", "report", "submit_review", "recover_materials", "refund_update", "sample_wallet_credit"]) {
+    for (const type of ["payment", "balance_payment", "cancel_paid", "report", "submit_review", "recover_materials", "refund_update", "sample_wallet_credit"]) {
       await assert.rejects(flow.runFlowCommand(c, "c1", "customer", base(), { type }), /not available in this version/, type);
     }
     assert.equal(c.calls.length, 0, "no request reached the server");
@@ -164,6 +164,49 @@ function fakeClient(result) {
     assert.equal(flow.friendlyError(null).message, "Something went wrong. Please try again.");
     // and a command that hits a conflict surfaces the server's sentence (this is what triggers the screen's refresh)
     await assert.rejects(flow.runFlowCommand(fakeClient(apollo(409, "This request changed. Refresh and try again.")), "u2", "provider", base(), { type: "complete_inspection", findings: "x".repeat(12) }), /This request changed/);
+  });
+  const workJob = (over = {}) => base({
+    stage: "work_scheduled", status: "confirmed", depositVerified: true,
+    depositPayment: { reference: "KK-DEP-1", status: "verified", amountMinor: 500000, termsVersion: 1, quoteVersion: null },
+    balancePayment: { reference: "KK-BAL-1", status: "verified", amountMinor: 8500000, termsVersion: null, quoteVersion: 1 },
+    quote: quote({ status: "accepted" }), acceptedQuote: quote({ status: "accepted" }), workDate: "2030-01-09", workTime: "09:00", address: "12 Admiralty Way",
+    settlement: { grossMinor: 9000000, feeMinor: 450000, netMinor: 8550000, releasedMinor: 4475000, labourTotalMinor: 4075000, labourReleasedMinor: 0 }, updatedAt: "2030-01-09T08:00:00.000Z", ...over,
+  });
+  await check("Work in progress and review map to the app's own stages and statuses", () => {
+    const r = flow.flowToRecord(workJob({ stage: "work_review", workStartedAt: "2030-01-09T09:05:00Z", workFinishedAt: "2030-01-09T12:00:00Z", workFinishedEventId: "w-fin" }));
+    assert.equal(model.balanceVerified(r), true); assert.equal(model.completedByCustomer(r), false);
+    assert.equal(r.workFinishedEventId, "w-fin"); assert.equal(model.statusFor(r), "Awaiting customer confirmation");
+    assert.deepEqual(r.events.map(e => e.type), ["start_work", "finish_work"]);
+  });
+  await check("Labour stays pending until the customer confirms; materials are shown as released", () => {
+    const r = flow.flowToRecord(workJob({ stage: "work_review", workFinishedEventId: "w-fin", workFinishedAt: "2030-01-09T12:00:00Z" }));
+    assert.deepEqual([r.ledger.gross, r.ledger.fee, r.ledger.net], [9000000, 450000, 8550000]);
+    assert.deepEqual([r.ledger.materialsNet, r.ledger.labourNet, r.ledger.materialsReleased, r.ledger.labourReleased], [4475000, 4075000, 4475000, 0]);
+    assert.equal(r.ledger.labourReleaseStatus, "processing");
+    assert.equal(require("./load-typescript.cjs")("lib/bookings/quotes.ts").ledgerError(r, r.ledger), null, "the app's own ledger audit accepts the server's figures");
+  });
+  await check("A confirmed job is complete with proof, and the labour shows as credited", () => {
+    const r = flow.flowToRecord(workJob({
+      stage: "completed", status: "completed", workStartedAt: "2030-01-09T09:05:00Z", workFinishedAt: "2030-01-09T12:00:00Z", workFinishedEventId: "w-fin",
+      completedAt: "2030-01-09T13:00:00Z", completionId: "w-done",
+      settlement: { grossMinor: 9000000, feeMinor: 450000, netMinor: 8550000, releasedMinor: 8550000, labourTotalMinor: 4075000, labourReleasedMinor: 4075000 },
+    }));
+    assert.equal(model.completedByCustomer(r), true); assert.equal(model.sectionFor(r), "completed");
+    assert.deepEqual([r.ledger.labourReleased, r.ledger.labourReleaseStatus], [4075000, "credited"]);
+    assert.equal(require("./load-typescript.cjs")("lib/bookings/quotes.ts").ledgerError(r, r.ledger), null);
+  });
+  await check("Start, finish and confirm go to the server with the booking revision and the exact finished work", async () => {
+    const s = fakeClient({ startWork: workJob() }), f = fakeClient({ finishWork: workJob() }), c = fakeClient({ confirmWork: workJob() });
+    await flow.runFlowCommand(s, "u2", "provider", workJob(), { type: "start_work" });
+    await flow.runFlowCommand(f, "u2", "provider", workJob(), { type: "finish_work" });
+    await flow.runFlowCommand(c, "c1", "customer", workJob({ stage: "work_review" }), { type: "confirm_work", workEventId: "w-fin" });
+    assert.deepEqual(s.calls[0].variables, { bookingId: "b1", revision: 3 }); assert.deepEqual(f.calls[0].variables, { bookingId: "b1", revision: 3 });
+    assert.deepEqual(c.calls[0].variables, { bookingId: "b1", revision: 3, workEventId: "w-fin" });
+  });
+  await check("The app never writes the ledger or wallet; those preview-only steps do nothing live", async () => {
+    const c = fakeClient({}), cur = workJob();
+    for (const type of ["ledger_snapshot", "wallet_snapshot"]) assert.equal(await flow.runFlowCommand(c, "c1", "customer", cur, { type }), cur);
+    assert.equal(c.calls.length, 0);
   });
   console.log(count + " live request-flow checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -10,7 +10,7 @@
 import { ApolloClient, gql } from "@apollo/client";
 import type { RequestDraft, RequestReceipt } from "@/lib/discovery/model";
 import type {
-  BalancePayment, BookingListItem, BookingRecord, BookingRole, BookingStage, DateProposal, FinalQuote, Payment,
+  BalancePayment, BookingLedger, BookingListItem, BookingRecord, BookingRole, BookingStage, DateProposal, FinalQuote, Payment,
 } from "./model";
 import { parseMoney, sampleListItem } from "./model";
 
@@ -28,7 +28,8 @@ export const FLOW_BOOKING_FRAGMENT = gql`
     inspectionDate inspectionTime address findings
     quote { ${QUOTE_FIELDS} }
     acceptedQuote { ${QUOTE_FIELDS} }
-    workDate workTime
+    workDate workTime workStartedAt workFinishedAt workFinishedEventId completedAt completionId
+    settlement { grossMinor feeMinor netMinor releasedMinor labourTotalMinor labourReleasedMinor }
     dateProposal { id purpose date time by version status }
     cancelledBy cancelReason conversationId createdAt updatedAt
   }
@@ -53,6 +54,9 @@ export const DECLINE_REQUEST = mutation("DeclineRequest", "$bookingId: ID!, $rev
 export const CANCEL_REQUEST = mutation("CancelRequest", "$bookingId: ID!, $revision: Int!, $reason: String!", "cancelRequest(bookingId: $bookingId, revision: $revision, reason: $reason)");
 export const COMPLETE_INSPECTION = mutation("CompleteInspection", "$bookingId: ID!, $revision: Int!, $findings: String!", "completeInspection(bookingId: $bookingId, revision: $revision, findings: $findings)");
 export const SEND_FINAL_QUOTE = mutation("SendFinalQuote", "$bookingId: ID!, $revision: Int!, $input: FlowQuoteInput!", "sendFinalQuote(bookingId: $bookingId, revision: $revision, input: $input)");
+export const START_WORK = mutation("StartWork", "$bookingId: ID!, $revision: Int!", "startWork(bookingId: $bookingId, revision: $revision)");
+export const FINISH_WORK = mutation("FinishWork", "$bookingId: ID!, $revision: Int!", "finishWork(bookingId: $bookingId, revision: $revision)");
+export const CONFIRM_WORK = mutation("ConfirmWork", "$bookingId: ID!, $revision: Int!, $workEventId: ID!", "confirmWork(bookingId: $bookingId, revision: $revision, workEventId: $workEventId)");
 export const ACCEPT_FINAL_QUOTE = mutation("AcceptFinalQuote", "$bookingId: ID!, $revision: Int!, $version: Int!", "acceptFinalQuote(bookingId: $bookingId, revision: $revision, version: $version)");
 const checkoutMutation = (name: string, args: string, call: string) => gql`
   mutation ${name}(${args}) { ${call} { reference authorizationUrl booking { ...FlowBookingFields } } }
@@ -76,8 +80,10 @@ export type FlowBookingPayload = {
   depositVerified: boolean; depositPayment?: PayloadPayment | null; balancePayment?: PayloadPayment | null;
   inspectionDate?: string | null; inspectionTime?: string | null; address?: string | null; findings?: string | null;
   quote?: PayloadQuote | null; acceptedQuote?: PayloadQuote | null; workDate?: string | null; workTime?: string | null;
+  workStartedAt?: string | null; workFinishedAt?: string | null; workFinishedEventId?: string | null; completedAt?: string | null; completionId?: string | null;
+  settlement?: { grossMinor: number; feeMinor: number; netMinor: number; releasedMinor: number; labourTotalMinor: number; labourReleasedMinor: number } | null;
   dateProposal?: { id: string; purpose: string; date: string; time: string; by: string; version: number; status: string } | null;
-  cancelledBy?: string | null; cancelReason?: string | null; conversationId?: string | null;
+  cancelledBy?: string | null; cancelReason?: string | null; conversationId?: string | null; updatedAt?: string | null;
 };
 
 const STAGES: BookingStage[] = ["request", "response", "inspection_scheduled", "inspection_complete", "quote_sent", "work_scheduled", "work_in_progress", "work_review", "completed"];
@@ -114,6 +120,28 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
   const noBalance: BalancePayment | undefined = !bal && accepted && accepted.remaining === 0 && confirmedStage
     ? { reference: "no-balance:" + f.id, bookingId: f.id, quoteVersion: accepted.version, purpose: "balance", amount: 0, currency: "NGN", status: "verified" }
     : undefined;
+  const verifiedBalance = balancePayment ?? noBalance;
+  const events: BookingRecord["events"] = [];
+  if (f.workStartedAt) events.push({ id: "start:" + f.id, type: "start_work", revision: f.revision, at: f.workStartedAt, actor: "provider" });
+  if (f.workFinishedEventId) events.push({ id: f.workFinishedEventId, type: "finish_work", revision: f.revision, at: f.workFinishedAt ?? undefined, actor: "provider" });
+  if (f.completionId) events.push({ id: f.completionId, type: "confirm_work", revision: f.revision, at: f.completedAt ?? undefined, actor: "customer" });
+  const completion: BookingRecord["completion"] = f.completionId && f.workFinishedEventId && accepted
+    ? { id: f.completionId, customerId: f.customerId, workEventId: f.workFinishedEventId, quoteVersion: accepted.version, at: f.completedAt ?? "" }
+    : undefined;
+  // What the server has really posted: materials are available once the balance clears, labour once the customer confirms.
+  const s = f.settlement;
+  const ledger: BookingLedger | undefined = s && payment && verifiedBalance?.status === "verified"
+    ? (() => {
+        const labourNet = s.labourTotalMinor, materialsNet = s.netMinor - labourNet;
+        const labourDone = s.labourReleasedMinor >= labourNet;
+        return {
+          id: "ledger:" + f.id, bookingId: f.id, quoteVersion: accepted?.version ?? 0, depositReference: payment.reference, balanceReference: verifiedBalance.reference, currency: "NGN" as const,
+          gross: s.grossMinor, fee: s.feeMinor, net: s.netMinor, materialsNet, labourNet, materialsReleased: materialsNet, labourReleased: s.labourReleasedMinor,
+          status: "credited" as const, labourReleaseStatus: labourDone ? ("credited" as const) : ("processing" as const),
+          materialsCreditedAt: f.updatedAt ?? undefined, labourCreditedAt: labourDone ? f.completedAt ?? undefined : undefined, source: "sample-snapshot" as const,
+        };
+      })()
+    : undefined;
   const p = f.dateProposal;
   const dateProposal: DateProposal | undefined = p && p.status === "proposed"
     ? { id: p.id, version: p.version, purpose: p.purpose === "work" ? "work" : "inspection", status: "proposed", by: asRole(p.by), date: p.date, time: p.time }
@@ -133,8 +161,9 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
     balancePayment: balancePayment ?? noBalance, balancePaymentReference: (balancePayment ?? noBalance)?.status === "verified" ? (balancePayment ?? noBalance)!.reference : undefined,
     inspectionAppointment: f.inspectionDate && f.inspectionTime ? { date: f.inspectionDate, time: f.inspectionTime } : undefined,
     workAppointment: f.workDate && f.workTime ? { date: f.workDate, time: f.workTime } : undefined,
-    dateProposal,
-    commands: [], events: [], messages: [],
+    dateProposal, ledger, completion,
+    workStartedAt: f.workStartedAt ?? undefined, workFinishedAt: f.workFinishedAt ?? undefined, workFinishedEventId: f.workFinishedEventId ?? undefined,
+    commands: [], events, messages: [],
   };
 }
 
@@ -248,6 +277,15 @@ export async function runFlowCommand(
       return runRaw(client, ownerId, PROPOSE_DATE, { ...base, purpose: String(command.purpose), date: String(command.date), time: String(command.time) }, "proposeDate");
     case "respond_date":
       return runRaw(client, ownerId, RESPOND_TO_DATE_PROPOSAL, { ...base, proposalId: String(command.proposalId), accept: !!command.accept }, "respondToDateProposal");
+    case "start_work":
+      return runRaw(client, ownerId, START_WORK, base, "startWork");
+    case "finish_work":
+      return runRaw(client, ownerId, FINISH_WORK, base, "finishWork");
+    case "confirm_work":
+      return runRaw(client, ownerId, CONFIRM_WORK, { ...base, workEventId: String(command.workEventId ?? "") }, "confirmWork");
+    case "ledger_snapshot":
+    case "wallet_snapshot":
+      return current; // the server posts the ledger and wallet itself; the app never writes them
     case "mark_messages_read":
       return current; // messages live in the Messages tab, which tracks its own read state
     case "message":
