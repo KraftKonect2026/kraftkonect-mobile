@@ -89,7 +89,7 @@ function fakeClient(result) {
   });
   await check("Steps the app does not support yet are refused before any server call", async () => {
     const c = fakeClient({});
-    for (const type of ["payment", "balance_payment", "report", "submit_review", "refund_update", "sample_wallet_credit"]) {
+    for (const type of ["payment", "balance_payment", "submit_review", "refund_update", "sample_wallet_credit"]) {
       await assert.rejects(flow.runFlowCommand(c, "c1", "customer", base(), { type }), /not available in this version/, type);
     }
     assert.equal(c.calls.length, 0, "no request reached the server");
@@ -237,6 +237,39 @@ function fakeClient(result) {
     const cur = workJob(); assert.equal(await flow.runFlowCommand(r, "u2", "provider", cur, { type: "authorize_repayment" }), cur);
     for (const type of ["repayment_checkout", "refund_update"]) await assert.rejects(flow.runFlowCommand(r, "u2", "provider", cur, { type }), /not available in this version/, type);
     await assert.rejects(flow.runFlowCommand(r, "u2", "provider", cur, { type: "recover_materials", method: "automatic", amount: 1 }), /not available in this version/);
+  });
+  const caseOf = (over = {}) => ({ id: "k1", reference: "KK-ISS-4F7Q2K", bookingId: "b1", reporter: "customer", category: "Work quality", description: "The pipe still leaks after the repair.", when: "Today", help: "Send someone", photoUrl: null, status: "received", outcome: null, unread: false, messages: [], ...over });
+  await check("Support cases map to what the report, case and chat screens show", () => {
+    const r = flow.flowToRecord(workJob({ supportCases: [
+      caseOf({ photoUrl: "https://res.cloudinary.com/x/y.jpg", status: "under_review", unread: true, messages: [{ id: "m1", sender: "reporter", text: "Still leaking", attachmentUrl: null, at: "2030-01-09T10:00:00Z" }, { id: "m2", sender: "support", text: "On it", at: "2030-01-09T11:00:00Z" }] }),
+      caseOf({ id: "k2", status: "resolved", outcome: "Fixed on site." }),
+    ] }));
+    const [a, b] = r.supportCases;
+    assert.deepEqual([a.reference, a.status, a.reporter, a.unread, a.photo.uri], ["KK-ISS-4F7Q2K", "under_review", "customer", true, "https://res.cloudinary.com/x/y.jpg"]);
+    assert.deepEqual(a.messages.map(m => m.sender), ["reporter", "support"]);
+    assert.deepEqual([b.status, b.outcome, b.photo], ["resolved", "Fixed on site.", undefined]);
+    assert.equal(require("./load-typescript.cjs")("lib/bookings/work.ts").casesFor(r, "customer").length, 2);
+    assert.equal(flow.flowToRecord(workJob({ supportCases: [caseOf({ status: "weird" })] })).supportCases[0].status, "received");
+    assert.deepEqual(flow.flowToRecord(workJob()).supportCases, []);
+  });
+  await check("Reporting sends the details once per tap, then re-reads the booking; messages and read marks follow the same path", async () => {
+    const calls = [];
+    const c = { mutate: async o => { calls.push(["m", o.variables]); return { data: { reportProblem: { id: "k1" } } }; }, query: async o => { calls.push(["q", o.variables]); return { data: { flowBooking: workJob({ supportCases: [caseOf()] }) } }; } };
+    const out = await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "report", category: "Work quality", description: "The pipe still leaks after the repair.", when: "Today", help: "Send someone", photo: { id: "p", name: "Photo", uri: "https://res.cloudinary.com/x/y.jpg" } });
+    assert.equal(out.supportCases.length, 1); assert.equal(calls[0][0], "m"); assert.equal(calls[1][0], "q");
+    assert.equal(calls[0][1].bookingId, "b1"); assert.equal(calls[0][1].input.photoUrl, "https://res.cloudinary.com/x/y.jpg"); assert.equal(typeof calls[0][1].input.idempotencyKey, "string");
+    await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "report", category: "Other", description: "Another problem here today.", when: "Now", help: "Help", photo: { id: "s", name: "s", uri: "sample://evidence" } });
+    assert.equal(calls[2][1].input.photoUrl, null, "only uploaded photos are sent");
+    // a failed send keeps its key for the retry, a settled one does not reuse it
+    const down = { mutate: async o => { down.calls.push(o.variables.input.idempotencyKey); throw new Error("Network request failed"); }, query: async () => ({ data: {} }), calls: [] };
+    const report = { type: "report", category: "Other", description: "Network will drop here.", when: "Now", help: "Help" };
+    await assert.rejects(flow.runFlowCommand(down, "c1", "customer", workJob(), report)); await assert.rejects(flow.runFlowCommand(down, "c1", "customer", workJob(), report));
+    assert.equal(down.calls[0], down.calls[1]);
+    await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_message", caseId: "k1", text: "Hello" });
+    assert.deepEqual(calls.at(-2)[1], { caseId: "k1", text: "Hello" });
+    await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "mark_case_read", caseId: "k1", throughId: "m2" });
+    assert.deepEqual(calls.at(-2)[1], { caseId: "k1" });
+    await assert.rejects(flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_update", caseId: "k1", status: "resolved" }), /not available in this version/);
   });
   console.log(count + " live request-flow checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -59,6 +59,21 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
   // Coming back from the chat shows anything that changed meanwhile.
   useFocusEffect(useCallback(() => { if (firstFocus.current) { firstFocus.current = false; return; } void load(); }, [load]));
 
+  // While a support case is open, pick up support's replies without the person having to leave and come back.
+  const hasOpenCase = !!payload?.supportCases?.some(c => c.status !== "resolved");
+  useEffect(() => {
+    if (!hasOpenCase) return;
+    const timer = setInterval(() => {
+      client.query({ query: FLOW_BOOKING_QUERY, variables: { id }, fetchPolicy: "no-cache", context: { accountOwnerId: owner, queryDeduplication: false } })
+        .then(result => {
+          const next = (result.data as { flowBooking?: FlowBookingPayload | null } | undefined)?.flowBooking;
+          if (next && current()) { latest.current = next; setPayload(next); }
+        })
+        .catch(() => undefined);
+    }, 20000);
+    return () => clearInterval(timer);
+  }, [hasOpenCase, client, id, owner, current]);
+
   const role: BookingRole | undefined = payload ? (payload.customerId === owner ? "customer" : payload.providerUserId === owner ? "provider" : undefined) : undefined;
   const record = useMemo<BookingRecord | undefined>(() => (payload ? flowToRecord(payload) : undefined), [payload]);
 
@@ -140,12 +155,12 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
   } else if (workFlow || balanceVerified(record) || (!!record.cancelled && inspectionVerified(record))) {
     body = <WorkJourney key={role + ":" + generation + ":work"} record={record} role={role} entry={workEntry} onBookings={toList} onMessage={message} onCommand={onCommand}
       onBookAgain={() => router.push("/book-again")} onEarnings={() => router.push("/provider/earnings")}
-      onSupportChat={conversationId => router.push({ pathname: "/chat/[providerId]", params: { providerId: conversationId } })} />;
+      />;
   } else if (quoteFlow || record.quote) {
     body = <QuoteJourney key={role + ":" + generation + ":quote"} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand} onResumePayment={() => void resumePayment()} onCheckPayment={() => void checkPayment()}
       onProgress={() => soon("Job progress will be available once your repair is booked.")}
       onCancel={() => work("cancel")}
-      onReport={() => soon("Reporting a problem is coming in the next update. Contact support in the meantime.")} />;
+      onReport={() => work("report-category")} />;
   } else {
     body = <InspectionJourney key={role + ":" + generation} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand} onResumePayment={() => void resumePayment()} onCheckPayment={() => void checkPayment()}
       onQuote={() => { setQuoteFlow(true); setWorkFlow(false); }}

@@ -10,7 +10,7 @@
 import { ApolloClient, gql } from "@apollo/client";
 import type { RequestDraft, RequestReceipt } from "@/lib/discovery/model";
 import type {
-  BalancePayment, BookingLedger, BookingListItem, BookingRecord, BookingRole, BookingStage, DateProposal, FinalQuote, Payment,
+  BalancePayment, BookingLedger, BookingListItem, SupportCase, BookingRecord, BookingRole, BookingStage, DateProposal, FinalQuote, Payment,
 } from "./model";
 import { parseMoney, sampleListItem } from "./model";
 
@@ -29,6 +29,7 @@ export const FLOW_BOOKING_FRAGMENT = gql`
     quote { ${QUOTE_FIELDS} }
     acceptedQuote { ${QUOTE_FIELDS} }
     workDate workTime workStartedAt workFinishedAt workFinishedEventId completedAt completionId
+    supportCases { id reference bookingId reporter category description when help photoUrl status outcome unread createdAt messages { id sender text attachmentUrl at } }
     refund { status exposureMinor amountMinor decisionNote reference }
     repayment { dueMinor recoveredMinor outstandingMinor status deadline }
     walletAvailableMinor
@@ -62,6 +63,10 @@ export const FINISH_WORK = mutation("FinishWork", "$bookingId: ID!, $revision: I
 export const CONFIRM_WORK = mutation("ConfirmWork", "$bookingId: ID!, $revision: Int!, $workEventId: ID!", "confirmWork(bookingId: $bookingId, revision: $revision, workEventId: $workEventId)");
 export const CANCEL_PAID_REQUEST = mutation("CancelPaidRequest", "$bookingId: ID!, $revision: Int!, $reason: String!", "cancelPaidRequest(bookingId: $bookingId, revision: $revision, reason: $reason)");
 export const REPAY_FROM_WALLET = mutation("RepayFromWallet", "$bookingId: ID!", "repayFromWallet(bookingId: $bookingId)");
+const SUPPORT_CASE_FIELDS = `id`;
+export const REPORT_PROBLEM = gql`mutation ReportProblem($bookingId: ID!, $input: ReportProblemInput!) { reportProblem(bookingId: $bookingId, input: $input) { ${SUPPORT_CASE_FIELDS} } }`;
+export const SEND_CASE_MESSAGE = gql`mutation SendCaseMessage($caseId: ID!, $text: String!) { sendCaseMessage(caseId: $caseId, text: $text) { ${SUPPORT_CASE_FIELDS} } }`;
+export const MARK_CASE_READ = gql`mutation MarkCaseRead($caseId: ID!) { markCaseRead(caseId: $caseId) { ${SUPPORT_CASE_FIELDS} } }`;
 export const ACCEPT_FINAL_QUOTE = mutation("AcceptFinalQuote", "$bookingId: ID!, $revision: Int!, $version: Int!", "acceptFinalQuote(bookingId: $bookingId, revision: $revision, version: $version)");
 const checkoutMutation = (name: string, args: string, call: string) => gql`
   mutation ${name}(${args}) { ${call} { reference authorizationUrl booking { ...FlowBookingFields } } }
@@ -76,6 +81,7 @@ export const RESPOND_TO_DATE_PROPOSAL = mutation("RespondToDateProposal", "$book
 // ── Server payload ──────────────────────────────────────────────────────────
 
 type PayloadQuote = { id: string; version: number; status: string; scope: string; materialsMinor: number; labourMinor: number; totalMinor: number; depositCreditMinor: number; remainingMinor: number; workDate?: string | null; workTime?: string | null; duration?: string | null };
+type PayloadCase = { id: string; reference: string; bookingId?: string | null; reporter: string; category: string; description: string; when: string; help: string; photoUrl?: string | null; status: string; outcome?: string | null; unread?: boolean; messages: { id: string; sender: string; text: string; attachmentUrl?: string | null; at?: string | null }[] };
 type PayloadPayment = { reference: string; status: string; amountMinor: number; termsVersion?: number | null; quoteVersion?: number | null };
 export type FlowBookingPayload = {
   id: string; revision: number; stage: string; status?: string | null;
@@ -86,6 +92,7 @@ export type FlowBookingPayload = {
   inspectionDate?: string | null; inspectionTime?: string | null; address?: string | null; findings?: string | null;
   quote?: PayloadQuote | null; acceptedQuote?: PayloadQuote | null; workDate?: string | null; workTime?: string | null;
   workStartedAt?: string | null; workFinishedAt?: string | null; workFinishedEventId?: string | null; completedAt?: string | null; completionId?: string | null;
+  supportCases?: PayloadCase[] | null;
   refund?: { status: string; exposureMinor: number; amountMinor?: number | null; decisionNote?: string | null; reference?: string | null } | null;
   repayment?: { dueMinor: number; recoveredMinor: number; outstandingMinor: number; status: string; deadline?: string | null } | null;
   walletAvailableMinor?: number | null;
@@ -160,6 +167,13 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
   const wallet: BookingRecord["wallet"] = f.walletAvailableMinor != null
     ? { id: "wallet:" + f.providerId, bookingId: f.id, ledgerId: "ledger:" + f.id, providerId: f.providerId, currency: "NGN", available: f.walletAvailableMinor, reserved: 0, materialAvailable: f.walletAvailableMinor, materialReserved: 0, materialWithdrawn: 0 }
     : undefined;
+  const supportCases: SupportCase[] = (f.supportCases ?? []).map(c => ({
+    id: c.id, reference: c.reference, bookingId: f.id, reporter: asRole(c.reporter), category: c.category, description: c.description, when: c.when, help: c.help,
+    ...(c.photoUrl ? { photo: { id: c.photoUrl, name: "Photo", uri: c.photoUrl } } : {}),
+    status: (["received", "under_review", "resolved"].includes(c.status) ? c.status : "received") as SupportCase["status"],
+    ...(c.outcome ? { outcome: c.outcome } : {}), unread: !!c.unread,
+    messages: c.messages.map(m => ({ id: m.id, sender: (m.sender === "support" ? "support" : "reporter") as "support" | "reporter", text: m.text, at: m.at ?? "" })),
+  }));
   const p = f.dateProposal;
   const dateProposal: DateProposal | undefined = p && p.status === "proposed"
     ? { id: p.id, version: p.version, purpose: p.purpose === "work" ? "work" : "inspection", status: "proposed", by: asRole(p.by), date: p.date, time: p.time }
@@ -179,7 +193,7 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
     balancePayment: balancePayment ?? noBalance, balancePaymentReference: (balancePayment ?? noBalance)?.status === "verified" ? (balancePayment ?? noBalance)!.reference : undefined,
     inspectionAppointment: f.inspectionDate && f.inspectionTime ? { date: f.inspectionDate, time: f.inspectionTime } : undefined,
     workAppointment: f.workDate && f.workTime ? { date: f.workDate, time: f.workTime } : undefined,
-    dateProposal, ledger, completion, refund, repayment, wallet,
+    dateProposal, ledger, completion, refund, repayment, wallet, supportCases,
     workStartedAt: f.workStartedAt ?? undefined, workFinishedAt: f.workFinishedAt ?? undefined, workFinishedEventId: f.workFinishedEventId ?? undefined,
     commands: [], events, messages: [],
   };
@@ -217,6 +231,25 @@ async function runRaw(client: LiveClient, ownerId: string, document: unknown, va
   const payload = (result.data as Record<string, FlowBookingPayload> | null | undefined)?.[field];
   if (!payload) throw new Error("The server did not confirm that change.");
   return payload;
+}
+const reportKeys = new Map<string, string>();
+/** For actions whose answer is not the booking: run them, then read the booking again. */
+async function runVoid(client: LiveClient, ownerId: string, document: unknown, variables: Record<string, unknown>): Promise<void> {
+  try {
+    await client.mutate({ mutation: document as never, variables, context: scoped(ownerId), fetchPolicy: "no-cache" } as never);
+  } catch (error) {
+    throw friendlyError(error);
+  }
+}
+async function reload(client: LiveClient, ownerId: string, id: string): Promise<FlowBookingPayload> {
+  try {
+    const result = await client.query({ query: FLOW_BOOKING_QUERY as never, variables: { id }, fetchPolicy: "no-cache", context: scoped(ownerId) } as never);
+    const next = (result.data as { flowBooking?: FlowBookingPayload | null } | undefined)?.flowBooking;
+    if (!next) throw new Error("The server did not return this request.");
+    return next;
+  } catch (error) {
+    throw friendlyError(error);
+  }
 }
 export type CheckoutInfo = { reference: string | null; url: string | null };
 async function runCheckout(client: LiveClient, ownerId: string, document: unknown, variables: Record<string, unknown>, field: string): Promise<{ payload: FlowBookingPayload; checkout: CheckoutInfo }> {
@@ -301,6 +334,24 @@ export async function runFlowCommand(
       return runRaw(client, ownerId, FINISH_WORK, base, "finishWork");
     case "confirm_work":
       return runRaw(client, ownerId, CONFIRM_WORK, { ...base, workEventId: String(command.workEventId ?? "") }, "confirmWork");
+    case "report": {
+      // One tap = one key, so a retry after a dropped connection returns the same case.
+      const photo = command.photo as { uri?: string } | undefined;
+      const photoUrl = photo?.uri && /^https:\/\//.test(photo.uri) ? photo.uri : null;
+      const input = { category: String(command.category ?? ""), description: String(command.description ?? ""), when: String(command.when ?? ""), help: String(command.help ?? ""), photoUrl };
+      const signature = JSON.stringify([ownerId, current.id, input]);
+      const key = reportKeys.get(signature) ?? randomKey();
+      reportKeys.set(signature, key);
+      await runVoid(client, ownerId, REPORT_PROBLEM, { bookingId: current.id, input: { ...input, idempotencyKey: key } });
+      reportKeys.delete(signature);
+      return reload(client, ownerId, current.id);
+    }
+    case "case_message":
+      await runVoid(client, ownerId, SEND_CASE_MESSAGE, { caseId: String(command.caseId ?? ""), text: String(command.text ?? "") });
+      return reload(client, ownerId, current.id);
+    case "mark_case_read":
+      await runVoid(client, ownerId, MARK_CASE_READ, { caseId: String(command.caseId ?? "") });
+      return reload(client, ownerId, current.id);
     case "cancel_paid":
       return runRaw(client, ownerId, CANCEL_PAID_REQUEST, { ...base, reason: String(command.reason ?? "") }, "cancelPaidRequest");
     case "recover_materials":
