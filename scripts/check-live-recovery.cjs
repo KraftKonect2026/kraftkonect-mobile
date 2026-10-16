@@ -48,7 +48,21 @@ const questions = () => [1, 2, 3, 4].map(n => ({ id: "q" + n, label: "Question "
   await check("Asking support returns the reference; going back never leaves a step that is waiting on a result", async () => {
     assert.equal(await r.askSupport(client({ requestRecoverySupport: { reference: "KK-REC-AB12CD34" } }), " Tobi ", " tobi@mail.test ", "Help"), "KK-REC-AB12CD34");
     for (const [from, to] of [["email", "choose"], ["email-code", "email"], ["identity", "choose"], ["options", "identity"], ["activity", "options"], ["phone", "choose"], ["phone-code", "phone"], ["support", "choose"], ["failed", "choose"]]) assert.equal(r.backStep(from), to, from);
-    for (const done of ["choose", "recovered", "pending"]) assert.equal(r.backStep(done), null, done);
+    for (const done of ["choose", "recovered"]) assert.equal(r.backStep(done), null, done);
+  });
+  await check("Identity recovery: a new check is started only for accounts that have one, and only the server's answer moves on", async () => {
+    const make = (over = {}) => ({ startIdentityRecovery: { available: true, sessionId: "s9", inquiryId: "inq_1", clientToken: "tok", inquiryUrl: "https://withpersona.com/verify?inquiry-id=inq_1", expiresAt: "x", ...over } });
+    const c = client(make());
+    assert.deepEqual(await r.startIdentity(c, "+2348012345678", " Provider One "), { sessionId: "s9", inquiryId: "inq_1", clientToken: "tok", inquiryUrl: "https://withpersona.com/verify?inquiry-id=inq_1" });
+    assert.deepEqual(c.calls[0].variables, { oldPhone: "+2348012345678", name: "Provider One" });
+    assert.equal(await r.startIdentity(client(make({ available: false, sessionId: null, inquiryId: null, clientToken: null, inquiryUrl: null })), "+2348012345678", "A B"), null);
+    await assert.rejects(r.startIdentity(client(make({ inquiryUrl: "http://insecure.example/x" })), "+2348012345678", "A B"), /could not be started/);
+    await assert.rejects(r.startIdentity(client(make({ inquiryId: null })), "+2348012345678", "A B"));
+    for (const step of ["phone", "pending", "failed"]) assert.equal((await r.checkIdentity(client({ checkIdentityRecovery: { sessionId: "s9", step, reference: null } }), "s9")).step, step);
+    assert.deepEqual(await r.checkIdentity(client({ checkIdentityRecovery: { sessionId: "s9", step: "pending", reference: "KK-REC-ABCD1234" } }), "s9"), { step: "pending", reference: "KK-REC-ABCD1234" });
+    await assert.rejects(r.checkIdentity(client({ checkIdentityRecovery: { sessionId: "s9", step: "verified", reference: null } }), "s9"), /did not return a result/);
+    await assert.rejects(r.checkIdentity(client(apollo(400, "We couldn’t reach the identity service just now. Try again shortly.", "BAD_REQUEST")), "s9"), /identity service/);
+    assert.equal(r.backStep("pending"), "choose");
   });
   console.log(count + " live recovery checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
