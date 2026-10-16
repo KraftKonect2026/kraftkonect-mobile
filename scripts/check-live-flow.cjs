@@ -115,5 +115,16 @@ function fakeClient(result) {
     const other = fakeClient({ createServiceRequest: base() }); await flow.sendServiceRequest(other, "c2", draft);
     assert.equal(other.calls[0].variables.input.listingId, "l1");
   });
+  await check("Server problems arrive as readable sentences, whichever way Apollo reports them", async () => {
+    const apollo = (status, message) => Object.assign(new Error("Response not successful: Received status code " + status), { networkError: { statusCode: status, result: { errors: [{ message }] } } });
+    assert.equal(flow.friendlyError(apollo(409, "This request changed. Refresh and try again.")).message, "This request changed. Refresh and try again.");
+    assert.equal(flow.friendlyError(apollo(400, "Inspection date cannot be in the past.")).message, "Inspection date cannot be in the past.");
+    assert.equal(flow.friendlyError({ message: "x", graphQLErrors: [{ message: "Only the selected provider can do that." }] }).message, "Only the selected provider can do that.");
+    assert.equal(flow.friendlyError(new Error("Network request failed")).message, "Network request failed");
+    assert.equal(flow.friendlyError(new Error("Response not successful: Received status code 500")).message, "Something went wrong. Please try again.", "no raw status text for users");
+    assert.equal(flow.friendlyError(null).message, "Something went wrong. Please try again.");
+    // and a command that hits a conflict surfaces the server's sentence (this is what triggers the screen's refresh)
+    await assert.rejects(flow.runFlowCommand(fakeClient(apollo(409, "This request changed. Refresh and try again.")), "u2", "provider", base(), { type: "complete_inspection", findings: "x".repeat(12) }), /This request changed/);
+  });
   console.log(count + " live request-flow checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

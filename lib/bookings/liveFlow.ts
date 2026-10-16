@@ -134,8 +134,26 @@ export function flowListItem(f: FlowBookingPayload, role: BookingRole): BookingL
 export type LiveClient = Pick<ApolloClient<unknown>, "mutate" | "query">;
 const scoped = (ownerId: string) => ({ accountOwnerId: ownerId, queryDeduplication: false });
 
+/**
+ * The server answers problems with real HTTP statuses (400/403/404/409), which Apollo reports as
+ * a bare "Response not successful: status code 409". The useful sentence ("This request changed.
+ * Refresh and try again.") sits inside the response body, so surface that instead.
+ */
+export function friendlyError(error: unknown): Error {
+  const e = error as { message?: string; graphQLErrors?: { message?: string }[]; networkError?: { result?: { errors?: { message?: string }[] } } } | null;
+  const fromBody = e?.networkError?.result?.errors?.[0]?.message;
+  const fromGraph = e?.graphQLErrors?.[0]?.message;
+  const message = [fromBody, fromGraph].find((m): m is string => typeof m === "string" && !!m.trim()) ?? (e?.message && !/^Response not successful/.test(e.message) ? e.message : "Something went wrong. Please try again.");
+  return new Error(message);
+}
+
 async function runRaw(client: LiveClient, ownerId: string, document: unknown, variables: Record<string, unknown>, field: string): Promise<FlowBookingPayload> {
-  const result = await client.mutate({ mutation: document as never, variables, context: scoped(ownerId), fetchPolicy: "no-cache" } as never);
+  let result;
+  try {
+    result = await client.mutate({ mutation: document as never, variables, context: scoped(ownerId), fetchPolicy: "no-cache" } as never);
+  } catch (error) {
+    throw friendlyError(error);
+  }
   const payload = (result.data as Record<string, FlowBookingPayload> | null | undefined)?.[field];
   if (!payload) throw new Error("The server did not confirm that change.");
   return payload;

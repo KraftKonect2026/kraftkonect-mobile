@@ -69,7 +69,7 @@ export function DiscoveryJourney(props:DiscoveryProps) {
     if(busy.current)return;const invalid=requestError(request.draft,provider);if(invalid){setError(invalid);return;}
     busy.current=true;setSending(true);setError(undefined);
     try {await request.flush();if(!alive.current)return;const proof=confirmedRequest(await props.onSend(request.draft),request.draft);if(!alive.current)return;setReceipt(proof);navigate("sent");}
-    catch {if(alive.current)setError(props.preview ? "The sample send failed. Your draft is kept. Choose Sample in States and retry." : "The request service is unavailable. Your draft is kept. Please retry when the backend is connected.");}
+    catch(e) {if(alive.current)setError(props.preview ? "The sample send failed. Your draft is kept. Choose Sample in States and retry." : (e instanceof Error && e.message ? e.message + " Your draft is kept." : "Couldn’t send your request. Your draft is kept. Please try again."));}
     finally {busy.current=false;if(alive.current)setSending(false);}
   };
   const showSheet=(next:Overlay)=> {setFilterDraft(search.draft);setOverlay(next);setError(undefined);};

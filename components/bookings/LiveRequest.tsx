@@ -13,7 +13,7 @@ import { WorkJourney } from "@/components/bookings/WorkJourney";
 import type { WorkStep } from "@/components/bookings/WorkScreens";
 import Colors from "@/constants/colors";
 import { balanceVerified, BookingRecord, BookingRole } from "@/lib/bookings/model";
-import { FLOW_BOOKING_QUERY, FlowBookingPayload, flowToRecord, runFlowCommand } from "@/lib/bookings/liveFlow";
+import { FLOW_BOOKING_QUERY, FlowBookingPayload, flowToRecord, friendlyError, runFlowCommand } from "@/lib/bookings/liveFlow";
 import { useOpenChat } from "@/lib/useOpenChat";
 import { useToast } from "@/lib/toast";
 import { store, useAppSelector } from "@/store";
@@ -48,7 +48,7 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
       latest.current = next;
       setPayload(next);
     } catch (e) {
-      if (current()) setError(e instanceof Error && e.message ? e.message : "This request could not be loaded.");
+      if (current()) setError(friendlyError(e).message);
     }
   }, [client, current, id, owner]);
 
