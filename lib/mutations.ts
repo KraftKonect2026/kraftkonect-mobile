@@ -123,8 +123,8 @@ export const UPDATE_BOOKING_MUTATION = gql`
 `;
 
 export const REQUEST_PHONE_OTP_MUTATION = gql`
-  mutation RequestPhoneOTP($phone: String!) {
-    requestPhoneOTP(phone: $phone) {
+  mutation RequestPhoneOTP($phone: String!, $purpose: String) {
+    requestPhoneOTP(phone: $phone, purpose: $purpose) {
       pinId
       message
     }
@@ -132,8 +132,8 @@ export const REQUEST_PHONE_OTP_MUTATION = gql`
 `;
 
 export const VERIFY_PHONE_OTP_MUTATION = gql`
-  mutation VerifyPhoneOTP($phone: String!, $pin: String!, $pinId: String!) {
-    verifyPhoneOTP(phone: $phone, pin: $pin, pinId: $pinId) {
+  mutation VerifyPhoneOTP($phone: String!, $pin: String!, $pinId: String!, $role: String) {
+    verifyPhoneOTP(phone: $phone, pin: $pin, pinId: $pinId, role: $role) {
       accessToken
       refreshToken
       user {

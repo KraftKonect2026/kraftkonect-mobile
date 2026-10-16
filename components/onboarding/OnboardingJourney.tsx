@@ -19,7 +19,7 @@ import { useAppDispatch, useAppSelector, store } from "@/store";
 import { setActiveMode, setIsAuthenticated, setTokens, setUser, updateUser } from "@/store/authSlice";
 import { homeForMode, resolveAppMode } from "@/lib/appMode";
 import { normalizedPhone, OnboardingStep, stepAllowed, steps } from "@/lib/onboarding/model";
-import { authFailure, confirmedPhoneSession, failureMessage } from "@/lib/onboarding/phoneAuth";
+import { authFailure, authMessage, confirmedPhoneSession, failureMessage } from "@/lib/onboarding/phoneAuth";
 import { EDIT_PROFILE_MUTATION, REQUEST_PHONE_OTP_MUTATION, VERIFY_PHONE_OTP_MUTATION } from "@/lib/mutations";
 import { MY_PROVIDER_PROFILE_QUERY, USER_PROFILE_QUERY } from "@/lib/queries";
 import { useToast } from "@/lib/toast";
@@ -152,7 +152,7 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
       } else if (__DEV__ && (step === "sign-in" || step === "sign-in-code") && isTestLoginPhone(phone, __DEV__)) {
         setChallenge({ phone, pinId: "local-test-only", testLogin: createTestLoginChallenge(phone, __DEV__, Date.now()) });
       } else {
-        const result = await sendCode({ variables: { phone } });
+        const result = await sendCode({ variables: { phone, purpose: step === "sign-in" || step === "sign-in-code" ? "sign_in" : "sign_up" } });
         if (!alive.current || store.getState().auth.user?.id !== accountAtStart) return;
         const pinId = result.data?.requestPhoneOTP?.pinId;
         if (typeof pinId !== "string" || !pinId.trim()) throw new Error("No code request was confirmed.");
@@ -163,7 +163,9 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
       toast.info(effectivePreview || (__DEV__ && isTestLoginPhone(phone, __DEV__) && (step === "sign-in" || step === "sign-in-code")) ? "Local test: use " + testLoginCode + ". No text message was sent." : "Code requested. Check your phone.");
     } catch (e) {
       if (!alive.current) return;
-      if (authFailure(e) === "account-missing" && (step === "sign-in" || step === "sign-in-code")) go("account-missing");
+      const kind = authFailure(e);
+      if (kind === "account-missing" && (step === "sign-in" || step === "sign-in-code")) go("account-missing");
+      else if (kind === "rate-limited" || kind === "blocked") unavailable(authMessage(e) ?? "We couldn’t send a code right now. Please try again.");
       else unavailable("We couldn’t send a code right now. Please try again.");
     } finally { inFlight.current = false; if (alive.current) setBusy(false); }
   };
@@ -201,7 +203,7 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
         else advanceAfterVerification("name");
         return;
       }
-      const result = await verifyCode({ variables: { phone: challenge.phone, pin: code, pinId: challenge.pinId } });
+      const result = await verifyCode({ variables: { phone: challenge.phone, pin: code, pinId: challenge.pinId, role: step === "phone-code" ? draft.mode : undefined } });
       if (!alive.current || store.getState().auth.user?.id !== accountAtStart) return;
       const session = confirmedPhoneSession(result.data?.verifyPhoneOTP, challenge.phone);
       // Sign-in restores the account's own draft; it must not replace it with the phone-entry form.
@@ -224,7 +226,8 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
       if (kind === "account-missing") go("account-missing");
       else if (kind === "invalid" || kind === "expired") {
         setOtpError(failureMessage(kind)); setCode(""); if (kind === "expired") setRetryAt(0);
-      } else unavailable("We couldn’t verify this code right now. Please try again.");
+      } else if (kind === "blocked" || kind === "rate-limited") unavailable(authMessage(e) ?? "We couldn’t verify this code right now. Please try again.");
+      else unavailable("We couldn’t verify this code right now. Please try again.");
     } finally { inFlight.current = false; if (alive.current) setBusy(false); }
   };
   const home = () => {

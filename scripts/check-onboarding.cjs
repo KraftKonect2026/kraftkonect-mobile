@@ -19,7 +19,7 @@ function loadSource(relative) {
   return mod.exports;
 }
 const { emptyDraft, safeDraft, draftForAccount, nextAfterPhone, normalizedPhone, maskedPhone, validName, priceCents, draftKey, areaKey, stepAllowed } = loadSource("lib/onboarding/model.ts");
-const { confirmedPhoneSession, authFailure } = loadSource("lib/onboarding/phoneAuth.ts");
+const { confirmedPhoneSession, authFailure, authMessage } = loadSource("lib/onboarding/phoneAuth.ts");
 const auth = loadSource("store/authSlice.ts");
 const testLogin = loadSource("lib/onboarding/testLogin.ts");
 let count = 0;
@@ -89,6 +89,14 @@ check("Verified sessions preserve server identity and role, including legacy pho
 check("Network failures never become account-not-found or invalid-code claims", () => {
   assert.equal(authFailure(new Error("Account not found")), "unavailable");
   for (const [code, expected] of [["ACCOUNT_NOT_FOUND","account-missing"],["OTP_EXPIRED","expired"],["INVALID_OTP","invalid"],["INTERNAL_SERVER_ERROR","unavailable"]]) assert.equal(authFailure({ graphQLErrors: [{ extensions: { code } }] }), expected);
+});
+check("The server's real HTTP errors (404/400/429/403) are understood from the response body too", () => {
+  const body = (code, message = "x") => ({ networkError: { result: { errors: [{ message, extensions: { code } }] } } });
+  for (const [code, expected] of [["ACCOUNT_NOT_FOUND","account-missing"],["OTP_EXPIRED","expired"],["OTP_INVALID","invalid"],["RATE_LIMITED","rate-limited"],["FORBIDDEN","blocked"],["BAD_REQUEST","unavailable"]]) assert.equal(authFailure(body(code)), expected, code);
+  assert.equal(authMessage(body("RATE_LIMITED", "Please wait a minute before asking for another code.")), "Please wait a minute before asking for another code.");
+  assert.equal(authMessage(body("FORBIDDEN", "This account is not active. Contact support.")), "This account is not active. Contact support.");
+  assert.equal(authMessage(body("OTP_INVALID", "That code doesn’t match.")), undefined, "only the cases that need the server's words use them");
+  assert.equal(authMessage(new Error("x")), undefined);
 });
 check("Remembered phone survives sign-out and never leaks into another account", () => {
   let state = auth.default(undefined, auth.setUser(proof.user));
