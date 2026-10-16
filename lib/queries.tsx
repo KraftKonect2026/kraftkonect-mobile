@@ -44,6 +44,8 @@ export const MY_PROVIDER_PROFILE_QUERY = gql`
       banner
       kycStatus
       bio
+      portfolio
+      requestDays
     }
   }
 `

@@ -31,12 +31,12 @@ function ResendCode({onResend,busy}:{onResend:()=>void;busy:boolean}){
  const left=Math.max(0,Math.ceil((until-now)/1000));
  return <View style={{gap:4}}><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{textAlign:"center"}}>{"Didn't get the code?"}</AppText><Pressable accessibilityRole="button" accessibilityLabel="Resend code" disabled={busy||left>0} onPress={()=>{onResend();setUntil(Date.now()+60_000);setNow(Date.now());}} hitSlop={{top:13,bottom:13}} style={{minHeight:18,justifyContent:"center"}}><AppText variant="captionEmphasis" color={busy||left>0?Colors.disabled:Colors.primary} style={{textAlign:"center"}}>{left?"Resend in 00:"+String(left).padStart(2,"0"):"Resend code"}</AppText></Pressable></View>;
 }
-export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion,prefs,onPref,contact}:{
+export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion,prefs,onPref,contact,onWorkPhotos}:{
  step:LiveAccountStep;mode:AppMode;account:AccountReadSnapshot;preview?:boolean;busy?:boolean;error?:string;
  onBack:()=>void;onGo:(s:LiveAccountStep)=>void;onUnavailable:(what:string)=>void;onRecovery:()=>void;
  onSaveArea:(value:string)=>Promise<void>;onPhoto:(kind:"personal"|"avatar"|"banner")=>void;onSaveBio:(bio:string)=>Promise<void>;
  onOpen?:(target:string)=>void;onAskDeletionCode?:()=>Promise<void>;onRequestDeletion?:(code:string)=>Promise<void>;
- prefs?:Prefs;onPref?:(key:PrefKey,value:boolean)=>void;contact?:ContactActions;
+ prefs?:Prefs;onPref?:(key:PrefKey,value:boolean)=>void;contact?:ContactActions;onWorkPhotos?:{add:()=>void;remove:(index:number)=>void};
 }) {
  const [code,setCode]=useState(""),[newPhone,setNewPhone]=useState(""),[resendAt,setResendAt]=useState(0),[tick,setTick]=useState(Date.now());
  useEffect(()=>{if(resendAt<=Date.now())return;const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[resendAt]);
@@ -105,7 +105,7 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
   body=<View><SettingsRow title="Terms of use" minHeight={52} onPress={()=>onOpen?onOpen("terms"):onUnavailable("Terms of use")}/><SettingsRow title="Privacy policy" minHeight={52} onPress={()=>onOpen?onOpen("privacy"):onUnavailable("Privacy policy")}/></View>;
  }else if(step==="provider-profile"){
   title="Provider profile";subtitle="The information customers see about your work.";
-  body=<><ProfilePhotos banner={account.providerBanner??""} avatar={account.providerAvatar??""} disabled={busy} onPhoto={kind=>{if(kind==="avatar"||kind==="banner")onPhoto(kind);}}/><Input label="Business or display name" value="" placeholder="Unavailable" editable={false}/><Input label="Short introduction" value={bio} onChangeText={setBio} maxLength={2000} multiline editable={!busy}/><WorkPhotos photos={[]} onAdd={()=>onUnavailable("Work photos")} onRemove={()=>{}}/><AppText variant="captionRegular" color={Colors.textSecondary}>Your public business name and work photos could not be loaded.</AppText></>;
+  body=<><ProfilePhotos banner={account.providerBanner??""} avatar={account.providerAvatar??""} disabled={busy} onPhoto={kind=>{if(kind==="avatar"||kind==="banner")onPhoto(kind);}}/><Input label="Business or display name" value="" placeholder="Unavailable" editable={false}/><Input label="Short introduction" value={bio} onChangeText={setBio} maxLength={2000} multiline editable={!busy}/><WorkPhotos photos={account.providerPortfolio??[]} onAdd={()=>onWorkPhotos&&!busy?onWorkPhotos.add():onUnavailable("Work photos")} onRemove={i=>{if(onWorkPhotos&&!busy)onWorkPhotos.remove(i);}}/><AppText variant="captionRegular" color={Colors.textSecondary}>Your public business name could not be loaded.</AppText></>;
   footer=<Button title="Save changes" loading={busy} disabled={!account.providerId||bio.trim().length<10} onPress={()=>void onSaveBio(bio)}/>;
  }else if(live&&step==="delete"){
   title="Delete your account";subtitle="Your account enters a 30-day notice period before final deletion.";

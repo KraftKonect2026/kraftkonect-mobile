@@ -1,6 +1,6 @@
 // Fast checks for the account settings adapters (no backend needed).
 const assert = require("node:assert/strict"), load = require("./load-typescript.cjs");
-const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts");
+const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts");
 let count = 0;
 async function check(name, run) { await run(); count++; console.log("PASS " + name); }
 const client = result => { const calls = []; return { calls, query: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; }, mutate: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; } }; };
@@ -76,6 +76,28 @@ const all = (over = {}) => ({ bookingUpdates: true, newMessages: true, promotion
     await assert.rejects(help.sendHelp(down, "u2", "feedback", "again")); await assert.rejects(help.sendHelp(down, "u2", "feedback", "again"));
     assert.equal(down.calls[0].variables.idempotencyKey, down.calls[1].variables.idempotencyKey);
     assert.deepEqual(help.LEGAL_LINKS, { terms: "https://kraftkonect.com/terms", privacy: "https://kraftkonect.com/privacy" });
+  });
+  await check("Provider services, availability and work photos send exactly what the server expects", async () => {
+    const draft = { title: " Pipe repair ", description: " Fixes leaks ", price: "5,000", photos: ["https://res.cloudinary.com/x/a.jpg", "file:///local.jpg"] };
+    const c = client({ saveMyService: { id: "s1", active: true } });
+    assert.equal(await manage.saveService(c, "u1", undefined, draft), "s1");
+    assert.deepEqual(c.calls[0].variables, { id: null, input: { title: "Pipe repair", description: "Fixes leaks", priceCents: 500000, photos: ["https://res.cloudinary.com/x/a.jpg"] } });
+    assert.equal(c.calls[0].context.accountOwnerId, "u1");
+    await assert.rejects(manage.saveService(c, "u1", "s1", { ...draft, price: "0" }), /valid starting price/);
+    await assert.rejects(manage.saveService(client({ saveMyService: null }), "u1", "s1", draft), /did not confirm/);
+    await assert.rejects(manage.saveService(client(apollo(400, "You can list up to 20 services.")), "u1", undefined, draft), /up to 20/);
+    await assert.rejects(manage.removeService(client({ removeMyService: false }), "u1", "s1"), /did not confirm/);
+    await manage.removeService(client({ removeMyService: true }), "u1", "s1");
+    assert.deepEqual(manage.parseAvailability({ available: true, requestDays: [] }).days, [0, 1, 2, 3, 4, 5, 6]);
+    assert.deepEqual(manage.parseAvailability({ available: false, requestDays: [] }), { available: false, days: [] });
+    assert.deepEqual(manage.parseAvailability({ available: true, requestDays: [5, 1, 1] }).days, [1, 5]);
+    assert.throws(() => manage.parseAvailability({ available: true, requestDays: [9] }));
+    assert.throws(() => manage.parseAvailability(null));
+    const a = client({ setMyAvailability: { available: true, days: [1, 2] } });
+    assert.deepEqual(await manage.saveAvailability(a, "u1", { available: true, days: [1, 2] }), { available: true, days: [1, 2] });
+    assert.deepEqual(a.calls[0].variables, { available: true, days: [1, 2] });
+    assert.deepEqual(await manage.saveWorkPhotos(client({ saveMyWorkPhotos: ["https://res.cloudinary.com/x/a.jpg"] }), "u1", ["https://res.cloudinary.com/x/a.jpg"]), ["https://res.cloudinary.com/x/a.jpg"]);
+    await assert.rejects(manage.saveWorkPhotos(client(apollo(400, "Add up to 12 photos.")), "u1", []), /up to 12/);
   });
   console.log(count + " live settings checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

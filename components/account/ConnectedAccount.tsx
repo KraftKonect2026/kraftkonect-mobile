@@ -17,6 +17,7 @@ import { liveAccountStep, LiveAccountStep, matchedAvatarUpdate, sameAccountSessi
 import { areaError } from "@/lib/account/model";
 import { EDIT_PROFILE_MUTATION, UPDATE_MY_PROVIDER_PROFILE_MUTATION } from "@/lib/mutations";
 import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { saveWorkPhotos } from "@/lib/provider/liveManage";
 import { askDeletionCode, noticeDay, requestDeletion } from "@/lib/account/liveDeletion";
 import { loadPrefs, PrefKey, Prefs, savePref } from "@/lib/account/livePrefs";
 import { changeName, confirmCheck, confirmEmail, confirmNewPhone, sendEmailCode, sendNewPhoneCode, setProfilePaused, startCheck } from "@/lib/account/liveContact";
@@ -74,6 +75,15 @@ export function ConnectedAccountSettings(){
   }catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save the public photo.");}
   finally{lock.current=false;if(stillOwn(id))setBusy(false);}
  };
+ const workPhotos=async(change:(current:string[])=>Promise<string[]|undefined>)=>{
+  const id=data.ownerId;if(!id||!data.snapshot?.providerId||lock.current||!stillOwn(id))return;if(!data.accountLoaded){setUnavailable("Work photos");return;}
+  lock.current=true;setBusy(true);setError(undefined);
+  try{const next=await change(data.snapshot.providerPortfolio??[]);if(!next||!stillOwn(id))return;await saveWorkPhotos(client,id,next);if(stillOwn(id))await data.refresh();}
+  catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save your work photos.");}
+  finally{lock.current=false;if(stillOwn(id))setBusy(false);}
+ };
+ const addWork=()=>void workPhotos(async current=>{const sel=await ImagePicker.launchImageLibraryAsync({mediaTypes:["images"],quality:0.8});if(sel.canceled)return undefined;return [...current,await uploadImageToCloudinary(sel.assets[0].uri)];});
+ const removeWork=(index:number)=>void workPhotos(async current=>current.filter((_,i)=>i!==index));
  const saveBio=async(bio:string)=>{const id=data.ownerId,providerId=data.snapshot?.providerId;if(!id||!providerId||lock.current||!stillOwn(id))return;if(!data.accountLoaded){setUnavailable("Introduction update");return;}if(bio.trim().length<10||bio.length>2000){setError("Enter an introduction of 10 to 2,000 characters.");return;}lock.current=true;setBusy(true);setError(undefined);try{const result=await editProvider({variables:{input:{bio:bio.trim()}},context:{accountOwnerId:id}});if(!stillOwn(id))return;if(result.data?.updateMyProviderProfile?.id!==providerId||result.data.updateMyProviderProfile.bio!==bio.trim())throw new Error("The introduction update was not confirmed.");await data.refresh();}catch(e){if(stillOwn(id))setError(e instanceof Error?e.message:"Couldn’t save the introduction.");}finally{lock.current=false;if(stillOwn(id))setBusy(false);}};
  const pinId=useRef<string|undefined>(undefined);
  const [hasProof,setHasProof]=useState(false);
@@ -143,5 +153,5 @@ export function ConnectedAccountSettings(){
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
  const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;
- return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref} contact={contact}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+ return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref} contact={contact} onWorkPhotos={{add:addWork,remove:removeWork}}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }
