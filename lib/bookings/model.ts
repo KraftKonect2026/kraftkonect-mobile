@@ -24,7 +24,7 @@ export type VerifiedPayoutBank={id:string;providerId:string;identityReference:st
 export type SamplePayout={id:string;reference:string;providerId:string;walletId:string;currency:"NGN";amount:number;materialAmount:number;bank:VerifiedPayoutBank;authorizationReference:string;status:"pending"|"paid"|"failed";createdAt:string;updatedAt:string};
 export type SampleFinance={approvedIdentity:{providerId:string;name:string;reference:string};bank?:VerifiedPayoutBank;authorization?:{reference:string;providerId:string;walletId:string;bankId:string;amount:number;currency:"NGN"};payouts:SamplePayout[];labourPosted:number;postings:{id:string;ledgerId:string;amount:number;component:"labour";at:string}[]};
 export type BookingRecord = {
-  schema:1; id:string; revision:number; source:"sample"; customerId:string; providerId:string;
+  schema:1; id:string; revision:number; source:"sample"|"live"; customerId:string; providerId:string;
   customerName:string; providerName:string; serviceId:string; serviceTitle:string; area:string;
   preferredDate:string; description:string; serviceMode:"onsite"|"remote"; stage:BookingStage;
   terms?:InspectionTerms; payment?:Payment; inspectionPaymentReference?:string; acceptedTermsVersion?:number; address?:string;

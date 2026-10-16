@@ -30,6 +30,7 @@
     "check:live-bookings": "node scripts/check-live-bookings.cjs",
     "check:public-photo": "node scripts/check-public-photo.cjs",
     "check:live-verification": "node scripts/check-live-verification.cjs",
+    "check:live-flow": "node scripts/check-live-flow.cjs",
     "lint": "expo lint",
     "build:preview": "eas build --platform all --profile preview --non-interactive",
     "build:production": "eas build --platform all --profile production --non-interactive",

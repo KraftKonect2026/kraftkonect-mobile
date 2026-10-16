@@ -7,6 +7,7 @@ import { ADD_TO_FAVOURITES_MUTATION, REMOVE_FROM_FAVOURITES_MUTATION } from "@/l
 import { CompletedJob, discoveryKey, DiscoveryStep, Provider, RequestDraft, SearchDraft } from "@/lib/discovery/model";
 import { secureStorage } from "@/lib/storage";
 import { useToast } from "@/lib/toast";
+import { sendServiceRequest } from "@/lib/bookings/liveFlow";
 import { DiscoveryJourney } from "./Journey";
 
 export function LiveDiscoveryRoute({ entry="what" }: {entry?:DiscoveryStep}) {
@@ -99,6 +100,8 @@ function LiveDiscovery({owner,entry,params}:{owner:string;entry:DiscoveryStep;pa
     providers={Object.values(pool)} resultIds={resultIds} history={bookings.data?.bookingsForUser ?? []} savedIds={favourites.data?.favorites.map(p=>p.id) ?? []} recent={recent}
     loading={loading} error={error} historyLoading={bookings.loading || collectionLoading} historyError={!!bookings.error || collectionError} savedLoading={favourites.loading || collectionLoading} savedError={!!favourites.error || collectionError} providerLoading={providerLoading} providerError={providerError} savingId={savingId}
     onRetry={retry} onSave={id=>void save(id)} onSearch={draft=>void runSearch(draft)} onProvider={id=>void loadProfile(id)} onRememberArea={remember} onLocate={locate} onClose={()=>router.canGoBack() ? router.back() : router.replace("/(app)/(tabs)")}
-    onSend={async(_draft:RequestDraft)=> {throw new Error("Targeted request API contract is not available.");}}/>
+    onSend={(draft:RequestDraft)=>sendServiceRequest(client,owner,draft)}
+    onPending={receipt=>router.replace({pathname:"/request/[id]",params:{id:receipt.id}})}
+    onMessage={receipt=>{if(receipt.conversationId)router.push({pathname:"/chat/[providerId]",params:{providerId:receipt.conversationId}});else router.replace({pathname:"/request/[id]",params:{id:receipt.id}});}}/>
   ;
 }
