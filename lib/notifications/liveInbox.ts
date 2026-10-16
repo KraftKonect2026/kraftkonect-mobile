@@ -9,11 +9,11 @@ export const MY_INBOX_QUERY = gql`
 `;
 export const MARK_INBOX_READ = gql`mutation MarkInboxRead($ids: [ID!], $all: Boolean) { markInboxRead(ids: $ids, all: $all) }`;
 
-export type InboxLink = { type: "booking" | "conversation" | "payout"; id: string };
+export type InboxLink = { type: "booking" | "conversation" | "payout" | "support"; id: string };
 export type InboxItem = { id: string; title: string; body: string; at: string; read: boolean; link?: InboxLink };
 export type InboxPage = { items: InboxItem[]; unread: number };
 
-const LINKS = ["booking", "conversation", "payout"] as const;
+const LINKS = ["booking", "conversation", "payout", "support"] as const;
 export function parseInbox(value: unknown): InboxPage {
   const r = value as { unreadCount?: unknown; items?: unknown } | null;
   if (!r || typeof r !== "object" || !Array.isArray(r.items) || !Number.isSafeInteger(r.unreadCount) || (r.unreadCount as number) < 0) throw new Error("Your notifications could not be loaded.");

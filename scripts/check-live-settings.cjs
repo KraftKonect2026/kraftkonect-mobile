@@ -1,6 +1,6 @@
 // Fast checks for the account settings adapters (no backend needed).
 const assert = require("node:assert/strict"), load = require("./load-typescript.cjs");
-const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts");
+const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts");
 let count = 0;
 async function check(name, run) { await run(); count++; console.log("PASS " + name); }
 const client = result => { const calls = []; return { calls, query: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; }, mutate: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; } }; };
@@ -56,6 +56,26 @@ const all = (over = {}) => ({ bookingUpdates: true, newMessages: true, promotion
     const snap = acct.accountReadSnapshot("u1", { id: "u1", name: "Pat Provider", phone: "+2348012345678", email: "p@x.co", emailVerified: true }, { id: "p1", status: "deactivated", kycStatus: "approved" });
     assert.deepEqual([snap.providerStatus, snap.contactEmail, snap.contactEmailVerified], ["deactivated", "p@x.co", true]);
     for (const s of ["phone-check", "phone-new", "phone-new-code", "email-code", "deactivate-confirm"]) assert.equal(acct.liveAccountStep(s), s);
+  });
+  await check("A help conversation maps to bubbles from you and from support; closed ones show their outcome", () => {
+    const t = help.parseThread({ id: "t1", reference: "KK-HLP-ABC123", status: "under_review", outcome: null, unread: true, messages: [{ id: "a", sender: "reporter", text: "Hi", at: "2030-01-01T10:00:00Z" }, { id: "b", sender: "support", text: "Hello!", at: "2030-01-01T10:05:00Z" }] });
+    assert.deepEqual([t.reference, t.status, t.unread, t.messages.map(m => m.sender)], ["KK-HLP-ABC123", "under_review", true, ["you", "support"]]);
+    assert.equal(help.parseThread({ id: "t2", reference: "R", status: "resolved", outcome: "Sorted.", unread: false, messages: [] }).outcome, "Sorted.");
+    assert.equal(help.parseThread(null), null);
+    for (const bad of [{}, { id: "t", reference: "r", status: "weird", messages: [] }, { id: "t", reference: "r", status: "received", messages: [{ id: "a", sender: "x", text: "y" }] }, { id: "t", reference: "r", status: "received", messages: [{ id: "a", sender: "support", text: "y" }, { id: "a", sender: "support", text: "z" }] }]) assert.throws(() => help.parseThread(bad));
+    assert.deepEqual([help.helpKind("feedback"), help.helpKind("anything"), help.helpKind(undefined)], ["feedback", "help", "help"]);
+  });
+  await check("Writing to support is trimmed, keyed so a retry saves once, and an empty message never leaves the app", async () => {
+    const thread = { id: "t1", reference: "KK-HLP-1", status: "received", outcome: null, unread: false, messages: [{ id: "a", sender: "reporter", text: "Help", at: "2030-01-01T10:00:00Z" }] };
+    const c = client({ sendHelpMessage: thread });
+    const out = await help.sendHelp(c, "u1", "help", "  Help  ");
+    assert.deepEqual([c.calls[0].variables.kind, c.calls[0].variables.text, typeof c.calls[0].variables.idempotencyKey, out.messages.length], ["help", "Help", "string", 1]);
+    await assert.rejects(help.sendHelp(c, "u1", "help", "   "), /Write a message first/);
+    await assert.rejects(help.sendHelp(c, "u1", "help", "x".repeat(1001)), /1,000/);
+    const down = client(new Error("Network request failed"));
+    await assert.rejects(help.sendHelp(down, "u2", "feedback", "again")); await assert.rejects(help.sendHelp(down, "u2", "feedback", "again"));
+    assert.equal(down.calls[0].variables.idempotencyKey, down.calls[1].variables.idempotencyKey);
+    assert.deepEqual(help.LEGAL_LINKS, { terms: "https://kraftkonect.com/terms", privacy: "https://kraftkonect.com/privacy" });
   });
   console.log(count + " live settings checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

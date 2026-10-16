@@ -50,6 +50,7 @@ export function LiveNotifications() {
     if (!link) return;
     if (link.type === "booking") router.push({ pathname: "/request/[id]", params: { id: link.id } });
     else if (link.type === "conversation") router.push({ pathname: "/chat/[providerId]", params: { providerId: link.id } });
+    else if (link.type === "support") router.push({ pathname: "/support", params: { kind: "help" } });
     else router.push({ pathname: "/provider/earnings", params: { step: "payout", payoutId: link.id } });
   };
   const readAll = async () => {

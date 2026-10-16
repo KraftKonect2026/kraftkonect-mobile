@@ -22,6 +22,8 @@ import { loadPrefs, PrefKey, Prefs, savePref } from "@/lib/account/livePrefs";
 import { changeName, confirmCheck, confirmEmail, confirmNewPhone, sendEmailCode, sendNewPhoneCode, setProfilePaused, startCheck } from "@/lib/account/liveContact";
 import { normalizedPhone } from "@/lib/onboarding/model";
 import type { ContactActions } from "./LiveAccountContent";
+import * as WebBrowser from "expo-web-browser";
+import { LEGAL_LINKS } from "@/lib/support/liveHelp";
 import { useToast } from "@/lib/toast";
 import { useAppDispatch, useAppSelector, store } from "@/store";
 import { selectActiveMode, setActiveMode, signOut, updateUser } from "@/store/authSlice";
@@ -131,7 +133,13 @@ export function ConnectedAccountSettings(){
   toast.info("Deletion requested. Your account will be deleted on "+noticeDay(result.noticeEndsAt)+" unless you contact support first.");
   router.replace("/sign-in");
  });
- const open=(target:string)=>{if(target==="bookings")router.push(mode==="provider"?"/provider/(tabs)/jobs":"/(app)/(tabs)/bookings");};
+ const open=(target:string)=>{
+  if(target==="bookings")router.push(mode==="provider"?"/provider/(tabs)/jobs":"/(app)/(tabs)/bookings");
+  else if(target==="support")router.push({pathname:"/support",params:{kind:"help"}});
+  else if(target==="feedback")router.push({pathname:"/support",params:{kind:"feedback"}});
+  else if(target==="terms")void WebBrowser.openBrowserAsync(LEGAL_LINKS.terms);
+  else if(target==="privacy")void WebBrowser.openBrowserAsync(LEGAL_LINKS.privacy);
+ };
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
  const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;

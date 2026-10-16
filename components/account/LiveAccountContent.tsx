@@ -99,10 +99,10 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
   body=<Callout title={title+" unavailable"} message="Your saved records could not be loaded. They have not been removed. Try again later."/>;
  }else if(step==="help"){
   title="Help & support";subtitle="Find an answer or talk to our support team.";
-  body=<><View><SettingsRow title="Message support" icon="support" onPress={()=>onUnavailable("Support")}/><SettingsRow title="Give us feedback" icon="feedback" onPress={()=>onUnavailable("Feedback")}/></View><Callout title="Need help with a booking?" message="Open the booking and choose Report a problem so support can see the job details."/></>;
+  body=<><View><SettingsRow title="Message support" icon="support" onPress={()=>onOpen?onOpen("support"):onUnavailable("Support")}/><SettingsRow title="Give us feedback" icon="feedback" onPress={()=>onOpen?onOpen("feedback"):onUnavailable("Feedback")}/></View><Callout title="Need help with a booking?" message="Open the booking and choose Report a problem so support can see the job details."/></>;
  }else if(step==="legal"){
   title="Legal";subtitle="Keep your bookings, payments and conversations protected.";
-  body=<View><SettingsRow title="Terms of use" minHeight={52} onPress={()=>onUnavailable("Terms of use")}/><SettingsRow title="Privacy policy" minHeight={52} onPress={()=>onUnavailable("Privacy policy")}/></View>;
+  body=<View><SettingsRow title="Terms of use" minHeight={52} onPress={()=>onOpen?onOpen("terms"):onUnavailable("Terms of use")}/><SettingsRow title="Privacy policy" minHeight={52} onPress={()=>onOpen?onOpen("privacy"):onUnavailable("Privacy policy")}/></View>;
  }else if(step==="provider-profile"){
   title="Provider profile";subtitle="The information customers see about your work.";
   body=<><ProfilePhotos banner={account.providerBanner??""} avatar={account.providerAvatar??""} disabled={busy} onPhoto={kind=>{if(kind==="avatar"||kind==="banner")onPhoto(kind);}}/><Input label="Business or display name" value="" placeholder="Unavailable" editable={false}/><Input label="Short introduction" value={bio} onChangeText={setBio} maxLength={2000} multiline editable={!busy}/><WorkPhotos photos={[]} onAdd={()=>onUnavailable("Work photos")} onRemove={()=>{}}/><AppText variant="captionRegular" color={Colors.textSecondary}>Your public business name and work photos could not be loaded.</AppText></>;
