@@ -7,13 +7,14 @@ import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { Callout } from "@/components/Callout";
 import { LogoLoader } from "@/components/LogoLoader";
+import PaystackWebViewModal from "@/components/PaystackWebViewModal";
 import { InspectionJourney } from "@/components/bookings/InspectionJourney";
 import { QuoteJourney } from "@/components/bookings/QuoteJourney";
 import { WorkJourney } from "@/components/bookings/WorkJourney";
 import type { WorkStep } from "@/components/bookings/WorkScreens";
 import Colors from "@/constants/colors";
 import { balanceVerified, BookingRecord, BookingRole } from "@/lib/bookings/model";
-import { FLOW_BOOKING_QUERY, FlowBookingPayload, flowToRecord, friendlyError, runFlowCommand } from "@/lib/bookings/liveFlow";
+import { CheckoutInfo, FLOW_BOOKING_QUERY, FlowBookingPayload, flowToRecord, friendlyError, runFlowCommand } from "@/lib/bookings/liveFlow";
 import { useOpenChat } from "@/lib/useOpenChat";
 import { useToast } from "@/lib/toast";
 import { store, useAppSelector } from "@/store";
@@ -33,6 +34,8 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
   const [workFlow, setWorkFlow] = useState(false);
   const [workEntry, setWorkEntry] = useState<WorkStep>();
   const [generation, setGeneration] = useState(0);
+  const [checkout, setCheckout] = useState<CheckoutInfo | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
   const latest = useRef<FlowBookingPayload | undefined>(undefined);
   const alive = useRef(true);
   const firstFocus = useRef(true);
@@ -63,7 +66,7 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
     const cur = latest.current;
     if (!cur || !role) throw new Error("The request has not loaded yet.");
     try {
-      const next = await runFlowCommand(client, owner, role, cur, command);
+      const next = await runFlowCommand(client, owner, role, cur, command, { onCheckout: c => { setCheckout(c); setPayOpen(!!c.url); } });
       if (current()) { latest.current = next; setPayload(next); }
       return flowToRecord(next);
     } catch (e) {
@@ -71,6 +74,43 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
       if (e instanceof Error && /changed/i.test(e.message)) void load();
       throw e;
     }
+  };
+
+  // The reference of a payment that has been started but not yet confirmed either way.
+  const pendingReference = () => {
+    const cur = latest.current;
+    return [cur?.depositPayment, cur?.balancePayment].find(p => p?.status === "pending")?.reference ?? checkout?.reference ?? null;
+  };
+  const verify = async (reference: string) => {
+    const cur = latest.current;
+    if (!cur || !role) return;
+    try {
+      const next = await runFlowCommand(client, owner, role, cur, { type: "verify_payment", reference });
+      if (current()) { latest.current = next; setPayload(next); }
+    } catch (e) {
+      toast.error(friendlyError(e).message);
+    }
+  };
+  // The checkout window only says it closed. What actually happened is decided by the server.
+  const checkoutClosed = () => { setPayOpen(false); const reference = checkout?.reference ?? pendingReference(); if (reference) void verify(reference); };
+  const resumePayment = async () => {
+    if (checkout?.url) { setPayOpen(true); return; }
+    const cur = latest.current;
+    if (!cur) return;
+    try {
+      // Re-starting returns the same open payment (and, for the deposit, reuses the stored address).
+      const command = cur.stage === "response" ? { type: "checkout", address: "" } : cur.acceptedQuote ? { type: "balance_checkout", version: cur.acceptedQuote.version } : undefined;
+      if (command) await onCommand("resume", command);
+    } catch (e) {
+      toast.error(friendlyError(e).message);
+    }
+  };
+  const checkPayment = async () => {
+    const reference = pendingReference();
+    if (!reference) { toast.info("There is no payment waiting to be confirmed."); return; }
+    await verify(reference);
+    const cur = latest.current;
+    if ([cur?.depositPayment, cur?.balancePayment].some(p => p?.reference === reference && p.status === "pending")) toast.info("Your payment hasn’t been confirmed yet. Please try again shortly.");
   };
 
   const toList = () => router.replace(role === "provider" ? "/provider/(tabs)/jobs" : "/(app)/(tabs)/bookings");
@@ -102,17 +142,20 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
       onBookAgain={() => router.push("/book-again")} onEarnings={() => router.push("/provider/earnings")}
       onSupportChat={conversationId => router.push({ pathname: "/chat/[providerId]", params: { providerId: conversationId } })} />;
   } else if (quoteFlow || record.quote) {
-    body = <QuoteJourney key={role + ":" + generation + ":quote"} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand}
+    body = <QuoteJourney key={role + ":" + generation + ":quote"} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand} onResumePayment={() => void resumePayment()} onCheckPayment={() => void checkPayment()}
       onProgress={() => soon("Job progress will be available once your repair is booked.")}
       onCancel={() => soon("To cancel a paid booking, contact support so any refund can be reviewed.")}
       onReport={() => soon("Reporting a problem is coming in the next update. Contact support in the meantime.")} />;
   } else {
-    body = <InspectionJourney key={role + ":" + generation} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand}
+    body = <InspectionJourney key={role + ":" + generation} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand} onResumePayment={() => void resumePayment()} onCheckPayment={() => void checkPayment()}
       onQuote={() => { setQuoteFlow(true); setWorkFlow(false); }}
       onPaidCancel={() => soon("To cancel a paid inspection, contact support so any refund can be reviewed.")}
       onReschedule={() => work("booking")} onProposal={() => work("proposal")}
       onContext={() => { setWorkFlow(false); setQuoteFlow(false); setGeneration(v => v + 1); }} />;
   }
   // The shared journey frames draw no top inset of their own, so this screen supplies it.
-  return <View style={{ flex: 1, backgroundColor: Colors.surface, paddingTop: insets.top }}>{body}</View>;
+  return <View style={{ flex: 1, backgroundColor: Colors.surface, paddingTop: insets.top }}>
+    {body}
+    <PaystackWebViewModal visible={payOpen && !!checkout?.url} authorizationUrl={checkout?.url ?? ""} onPaymentDone={checkoutClosed} onCancel={() => setPayOpen(false)} />
+  </View>;
 }

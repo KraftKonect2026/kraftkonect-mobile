@@ -87,12 +87,51 @@ function fakeClient(result) {
     assert.deepEqual([a.calls[0].variables.proposalId, a.calls[0].variables.accept], ["d1", true]);
     await assert.rejects(flow.runFlowCommand(q, "u2", "provider", base(), { type: "send_quote", draft: { scope: "x", materials: "bad", labour: "1", date: "d", time: "t", duration: "d" } }), /valid materials/);
   });
-  await check("Accepting a quote and every payment/work step is refused before any server call", async () => {
+  await check("Steps the app does not support yet are refused before any server call", async () => {
     const c = fakeClient({});
-    for (const type of ["accept_quote", "checkout", "payment", "balance_checkout", "balance_payment", "ledger_snapshot", "start_work", "finish_work", "confirm_work", "cancel_paid", "report", "submit_review", "recover_materials", "refund_update"]) {
-      await assert.rejects(flow.runFlowCommand(c, "c1", "customer", base(), { type }), /needs payments/, type);
+    for (const type of ["payment", "balance_payment", "ledger_snapshot", "start_work", "finish_work", "confirm_work", "cancel_paid", "report", "submit_review", "recover_materials", "refund_update", "sample_wallet_credit"]) {
+      await assert.rejects(flow.runFlowCommand(c, "c1", "customer", base(), { type }), /not available in this version/, type);
     }
     assert.equal(c.calls.length, 0, "no request reached the server");
+  });
+  await check("Deposit checkout sends the address once, opens the hosted payment and returns the server's booking", async () => {
+    const out = base({ depositPayment: { reference: "KK-DEP-1", status: "pending", amountMinor: 500000, termsVersion: 1 } });
+    const c = fakeClient({ startInspectionCheckout: { reference: "KK-DEP-1", authorizationUrl: "https://checkout.paystack.test/KK-DEP-1", booking: out } });
+    let opened; const result = await flow.runFlowCommand(c, "c1", "customer", base(), { type: "checkout", address: "  12 Admiralty Way, Lekki " }, { onCheckout: x => { opened = x; } });
+    assert.deepEqual(c.calls[0].variables, { bookingId: "b1", revision: 3, address: "12 Admiralty Way, Lekki" });
+    assert.deepEqual(opened, { reference: "KK-DEP-1", url: "https://checkout.paystack.test/KK-DEP-1" });
+    assert.equal(result, out);
+    assert.equal(flow.flowToRecord(result).payment.status, "pending", "the app shows a pending payment, never a paid one");
+    const resume = fakeClient({ startInspectionCheckout: { reference: "KK-DEP-1", authorizationUrl: "https://x", booking: out } });
+    await flow.runFlowCommand(resume, "c1", "customer", base(), { type: "checkout", address: "" });
+    assert.equal(resume.calls[0].variables.address, null, "resuming does not resend an address");
+  });
+  await check("Balance checkout asks for the quote version; a job with nothing to pay opens no payment window", async () => {
+    const pay = fakeClient({ startBalanceCheckout: { reference: "KK-BAL-1", authorizationUrl: "https://checkout.paystack.test/KK-BAL-1", booking: base() } });
+    let opened; await flow.runFlowCommand(pay, "c1", "customer", base(), { type: "balance_checkout", version: 2 }, { onCheckout: x => { opened = x; } });
+    assert.equal(pay.calls[0].variables.version, 2); assert.equal(opened.reference, "KK-BAL-1");
+    const free = fakeClient({ startBalanceCheckout: { reference: null, authorizationUrl: null, booking: base({ stage: "work_scheduled" }) } });
+    let called = false; const confirmed = await flow.runFlowCommand(free, "c1", "customer", base(), { type: "balance_checkout", version: 1 }, { onCheckout: () => { called = true; } });
+    assert.equal(called, false); assert.equal(confirmed.stage, "work_scheduled");
+  });
+  await check("Accepting the quote and verifying a payment go to the server; a payment is only paid when the server says so", async () => {
+    const acc = fakeClient({ acceptFinalQuote: base() });
+    await flow.runFlowCommand(acc, "c1", "customer", base(), { type: "accept_quote", version: 1 });
+    assert.deepEqual([acc.calls[0].variables.bookingId, acc.calls[0].variables.version], ["b1", 1]);
+    const ver = fakeClient({ verifyFlowPayment: base({ stage: "inspection_scheduled", depositVerified: true, depositPayment: { reference: "KK-DEP-1", status: "verified", amountMinor: 500000, termsVersion: 1 } }) });
+    const out = await flow.runFlowCommand(ver, "c1", "customer", base(), { type: "verify_payment", reference: "KK-DEP-1" });
+    assert.deepEqual(ver.calls[0].variables, { reference: "KK-DEP-1" });
+    assert.equal(model.inspectionVerified(flow.flowToRecord(out)), true);
+    const stillPending = flow.flowToRecord(base({ depositPayment: { reference: "KK-DEP-1", status: "pending", amountMinor: 500000, termsVersion: 1 } }));
+    assert.equal(model.inspectionVerified(stillPending), false);
+  });
+  await check("A repair confirmed with nothing to pay shows as verified to the app's own checks", () => {
+    const paid = { reference: "ref-1", status: "verified", amountMinor: 500000, termsVersion: 1 };
+    const q = quote({ status: "accepted", totalMinor: 500000, materialsMinor: 100000, labourMinor: 400000, remainingMinor: 0 });
+    const r = flow.flowToRecord(base({ stage: "work_scheduled", depositVerified: true, depositPayment: paid, acceptedQuote: q, quote: q, workDate: "2030-01-09", workTime: "09:00" }));
+    assert.equal(r.balancePayment.amount, 0); assert.equal(model.balanceVerified(r), true);
+    const owing = flow.flowToRecord(base({ stage: "quote_sent", depositVerified: true, depositPayment: paid, acceptedQuote: quote({ status: "accepted" }), quote: quote({ status: "accepted" }) }));
+    assert.equal(owing.balancePayment, undefined, "a quote that still needs paying is not shown as paid");
   });
   await check("Messages are not sent through the booking; read receipts are a safe no-op", async () => {
     const c = fakeClient({});

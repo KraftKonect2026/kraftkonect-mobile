@@ -54,6 +54,13 @@ export const CANCEL_REQUEST = mutation("CancelRequest", "$bookingId: ID!, $revis
 export const COMPLETE_INSPECTION = mutation("CompleteInspection", "$bookingId: ID!, $revision: Int!, $findings: String!", "completeInspection(bookingId: $bookingId, revision: $revision, findings: $findings)");
 export const SEND_FINAL_QUOTE = mutation("SendFinalQuote", "$bookingId: ID!, $revision: Int!, $input: FlowQuoteInput!", "sendFinalQuote(bookingId: $bookingId, revision: $revision, input: $input)");
 export const ACCEPT_FINAL_QUOTE = mutation("AcceptFinalQuote", "$bookingId: ID!, $revision: Int!, $version: Int!", "acceptFinalQuote(bookingId: $bookingId, revision: $revision, version: $version)");
+const checkoutMutation = (name: string, args: string, call: string) => gql`
+  mutation ${name}(${args}) { ${call} { reference authorizationUrl booking { ...FlowBookingFields } } }
+  ${FLOW_BOOKING_FRAGMENT}
+`;
+export const START_INSPECTION_CHECKOUT = checkoutMutation("StartInspectionCheckout", "$bookingId: ID!, $revision: Int!, $address: String", "startInspectionCheckout(bookingId: $bookingId, revision: $revision, address: $address)");
+export const START_BALANCE_CHECKOUT = checkoutMutation("StartBalanceCheckout", "$bookingId: ID!, $revision: Int!, $version: Int!", "startBalanceCheckout(bookingId: $bookingId, revision: $revision, version: $version)");
+export const VERIFY_FLOW_PAYMENT = mutation("VerifyFlowPayment", "$reference: String!", "verifyFlowPayment(reference: $reference)");
 export const PROPOSE_DATE = mutation("ProposeDate", "$bookingId: ID!, $revision: Int!, $purpose: String!, $date: String!, $time: String!", "proposeDate(bookingId: $bookingId, revision: $revision, purpose: $purpose, date: $date, time: $time)");
 export const RESPOND_TO_DATE_PROPOSAL = mutation("RespondToDateProposal", "$bookingId: ID!, $revision: Int!, $proposalId: ID!, $accept: Boolean!", "respondToDateProposal(bookingId: $bookingId, revision: $revision, proposalId: $proposalId, accept: $accept)");
 
@@ -101,6 +108,12 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
   const balancePayment: BalancePayment | undefined = bal
     ? { reference: bal.reference, bookingId: f.id, quoteVersion: bal.quoteVersion ?? accepted?.version ?? 0, purpose: "balance", amount: bal.amountMinor, currency: "NGN", status: bal.status as BalancePayment["status"] }
     : undefined;
+  // A job whose deposit already covers the whole price is confirmed with nothing to pay. The app's own
+  // verification expects a balance record, so show the server's confirmation as a zero-amount one.
+  const confirmedStage = ["work_scheduled", "work_in_progress", "work_review", "completed"].includes(stage);
+  const noBalance: BalancePayment | undefined = !bal && accepted && accepted.remaining === 0 && confirmedStage
+    ? { reference: "no-balance:" + f.id, bookingId: f.id, quoteVersion: accepted.version, purpose: "balance", amount: 0, currency: "NGN", status: "verified" }
+    : undefined;
   const p = f.dateProposal;
   const dateProposal: DateProposal | undefined = p && p.status === "proposed"
     ? { id: p.id, version: p.version, purpose: p.purpose === "work" ? "work" : "inspection", status: "proposed", by: asRole(p.by), date: p.date, time: p.time }
@@ -117,7 +130,7 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
     address: f.address || undefined, findings: f.findings || undefined,
     cancelled: f.cancelledBy && f.cancelReason ? { by: asRole(f.cancelledBy), reason: f.cancelReason } : undefined,
     quote: mapQuote(f.acceptedQuote ?? f.quote, serviceTitle), acceptedQuote: accepted,
-    balancePayment, balancePaymentReference: balancePayment?.status === "verified" ? balancePayment.reference : undefined,
+    balancePayment: balancePayment ?? noBalance, balancePaymentReference: (balancePayment ?? noBalance)?.status === "verified" ? (balancePayment ?? noBalance)!.reference : undefined,
     inspectionAppointment: f.inspectionDate && f.inspectionTime ? { date: f.inspectionDate, time: f.inspectionTime } : undefined,
     workAppointment: f.workDate && f.workTime ? { date: f.workDate, time: f.workTime } : undefined,
     dateProposal,
@@ -158,6 +171,19 @@ async function runRaw(client: LiveClient, ownerId: string, document: unknown, va
   if (!payload) throw new Error("The server did not confirm that change.");
   return payload;
 }
+export type CheckoutInfo = { reference: string | null; url: string | null };
+async function runCheckout(client: LiveClient, ownerId: string, document: unknown, variables: Record<string, unknown>, field: string): Promise<{ payload: FlowBookingPayload; checkout: CheckoutInfo }> {
+  let result;
+  try {
+    result = await client.mutate({ mutation: document as never, variables, context: scoped(ownerId), fetchPolicy: "no-cache" } as never);
+  } catch (error) {
+    throw friendlyError(error);
+  }
+  const out = (result.data as Record<string, { reference?: string | null; authorizationUrl?: string | null; booking?: FlowBookingPayload } | null> | null | undefined)?.[field];
+  if (!out?.booking) throw new Error("The server did not confirm that change.");
+  return { payload: out.booking, checkout: { reference: out.reference ?? null, url: out.authorizationUrl ?? null } };
+}
+
 /** Send a targeted request. A retried send of the same draft reuses its key, so it never duplicates. */
 const requestKeys = new Map<string, string>();
 const randomKey = () => "req-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
@@ -174,16 +200,30 @@ export async function sendServiceRequest(client: LiveClient, ownerId: string, dr
 }
 
 type LiveCommand = { type: string; [key: string]: unknown };
-const NOT_CONNECTED = "This step needs payments, which are not connected in this version yet.";
-// Accepting a quote locks it, and the customer pays immediately afterwards. Until
-// checkout is connected, accepting would strand the quote locked and unpayable, so
-// it is held back with the payment step. Flip this when checkout ships.
-const CHECKOUT_CONNECTED = false;
+const NOT_CONNECTED = "This step is not available in this version of the app yet.";
 
 /** Run a screen command against the server and return the server's updated booking. */
-export async function runFlowCommand(client: LiveClient, ownerId: string, role: BookingRole, current: FlowBookingPayload, command: LiveCommand): Promise<FlowBookingPayload> {
+export async function runFlowCommand(
+  client: LiveClient, ownerId: string, role: BookingRole, current: FlowBookingPayload, command: LiveCommand,
+  hooks: { onCheckout?: (checkout: CheckoutInfo) => void } = {},
+): Promise<FlowBookingPayload> {
   const base = { bookingId: current.id, revision: current.revision };
   switch (command.type) {
+    case "checkout": {
+      // Pay the inspection deposit. The address is only needed the first time; resuming reuses it.
+      const done = await runCheckout(client, ownerId, START_INSPECTION_CHECKOUT, { ...base, address: String(command.address ?? "").trim() || null }, "startInspectionCheckout");
+      hooks.onCheckout?.(done.checkout);
+      return done.payload;
+    }
+    case "balance_checkout": {
+      // Paying the balance also accepts the quote. A job with nothing left to pay is confirmed outright.
+      const done = await runCheckout(client, ownerId, START_BALANCE_CHECKOUT, { ...base, version: Number(command.version) }, "startBalanceCheckout");
+      if (done.checkout.url) hooks.onCheckout?.(done.checkout);
+      return done.payload;
+    }
+    case "verify_payment":
+      // Ask the server (which asks Paystack) what happened; this is the only way a payment becomes "paid".
+      return runRaw(client, ownerId, VERIFY_FLOW_PAYMENT, { reference: String(command.reference ?? "") }, "verifyFlowPayment");
     case "respond": {
       const d = command.draft as { minimum: string; maximum: string; deposit: string; date: string; time: string };
       const min = parseMoney(d.minimum), max = parseMoney(d.maximum), deposit = parseMoney(d.deposit);
@@ -203,7 +243,6 @@ export async function runFlowCommand(client: LiveClient, ownerId: string, role: 
       return runRaw(client, ownerId, SEND_FINAL_QUOTE, { ...base, input: { scope: d.scope, materialsMinor: materials, labourMinor: labour, workDate: d.date, workTime: d.time, duration: d.duration } }, "sendFinalQuote");
     }
     case "accept_quote":
-      if (!CHECKOUT_CONNECTED) throw new Error(NOT_CONNECTED);
       return runRaw(client, ownerId, ACCEPT_FINAL_QUOTE, { ...base, version: Number(command.version) }, "acceptFinalQuote");
     case "propose_date":
       return runRaw(client, ownerId, PROPOSE_DATE, { ...base, purpose: String(command.purpose), date: String(command.date), time: String(command.time) }, "proposeDate");
