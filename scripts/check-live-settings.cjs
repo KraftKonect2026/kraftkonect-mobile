@@ -1,6 +1,6 @@
 // Fast checks for the account settings adapters (no backend needed).
 const assert = require("node:assert/strict"), load = require("./load-typescript.cjs");
-const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts"), report = load("lib/provider/liveReport.ts"), cards = load("lib/payments/liveCards.ts");
+const prefs = load("lib/account/livePrefs.ts"), contact = load("lib/account/liveContact.ts"), acct = load("lib/account/liveAccount.ts"), help = load("lib/support/liveHelp.ts"), manage = load("lib/provider/liveManage.ts"), report = load("lib/provider/liveReport.ts"), cards = load("lib/payments/liveCards.ts"), history = load("lib/account/liveHistory.ts");
 let count = 0;
 async function check(name, run) { await run(); count++; console.log("PASS " + name); }
 const client = result => { const calls = []; return { calls, query: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; }, mutate: async o => { calls.push(o); if (result instanceof Error) throw result; return { data: result }; } }; };
@@ -135,6 +135,19 @@ const all = (over = {}) => ({ bookingUpdates: true, newMessages: true, promotion
     assert.deepEqual(cards.paymentChoice.get(), { cardId: "c1", saveCard: false }, "saving only applies to a new card");
     cards.paymentChoice.set({ cardId: null, saveCard: true }); assert.equal(cards.paymentChoice.get().saveCard, true);
     cards.paymentChoice.reset(); assert.deepEqual(cards.paymentChoice.get(), { cardId: null, saveCard: false });
+  });
+  await check("Payment history and my reviews read exactly what the server sends and refuse anything malformed", async () => {
+    const pay = { id: "p1", kind: "deposit", title: "Inspection deposit · Sink repair", amountMinor: 500000, status: "paid", at: "2026-03-01T12:00:00.000Z", bookingId: "b1", reference: "KK-DEP-1" };
+    const c = client({ myPaymentHistory: [pay, { ...pay, id: "p2", kind: "refund", status: "refunded" }] });
+    const list = await history.loadPayments(c, "u1");
+    assert.deepEqual([list.length, list[1].kind, history.paymentStatusLabel(list[1].status), c.calls[0].context.accountOwnerId], [2, "refund", "Refunded", "u1"]);
+    assert.equal(history.paymentStatusLabel("something-new"), "Unknown");
+    for (const bad of [null, [{ ...pay, kind: "gift" }], [{ ...pay, amountMinor: -5 }], [{ ...pay, at: "never" }], [{}]]) assert.throws(() => history.parsePayments(bad));
+    assert.deepEqual(history.parsePayments([]), []);
+    const rev = { id: "r1", bookingId: "b1", providerName: "Pat", serviceTitle: "Sink repair", rating: 4, text: "Tidy work.", createdAt: "2026-03-02T10:00:00.000Z" };
+    assert.equal((await history.loadReviews(client({ myReviews: [rev] }), "u1"))[0].providerName, "Pat");
+    for (const bad of [null, [{ ...rev, rating: 9 }], [{ ...rev, rating: 3.5 }], [{ ...rev, text: 5 }]]) assert.throws(() => history.parseReviews(bad));
+    await assert.rejects(history.loadPayments(client(apollo(401, "Not authenticated")), "u1"), /Not authenticated/);
   });
   console.log(count + " live settings checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,5 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { cardLabel, SavedCard } from "@/lib/payments/liveCards";
+import { MyReview, PaymentItem, paymentStatusLabel } from "@/lib/account/liveHistory";
+import { money } from "@/lib/bookings/model";
 import { View, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { AppText } from "@/components/AppText";
@@ -33,13 +35,14 @@ function ResendCode({onResend,busy}:{onResend:()=>void;busy:boolean}){
  const left=Math.max(0,Math.ceil((until-now)/1000));
  return <View style={{gap:4}}><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{textAlign:"center"}}>{"Didn't get the code?"}</AppText><Pressable accessibilityRole="button" accessibilityLabel="Resend code" disabled={busy||left>0} onPress={()=>{onResend();setUntil(Date.now()+60_000);setNow(Date.now());}} hitSlop={{top:13,bottom:13}} style={{minHeight:18,justifyContent:"center"}}><AppText variant="captionEmphasis" color={busy||left>0?Colors.disabled:Colors.primary} style={{textAlign:"center"}}>{left?"Resend in 00:"+String(left).padStart(2,"0"):"Resend code"}</AppText></Pressable></View>;
 }
+export type HistoryApi={payments?:PaymentItem[];reviews?:MyReview[];error?:string};
 export type CardsApi={cards?:SavedCard[];error?:string;removing?:string;onAdd:()=>void;onRemove:(id:string)=>void};
-export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion,prefs,onPref,contact,onWorkPhotos,cardsApi}:{
+export function LiveAccountContent({step,mode,account,preview=false,busy=false,error,onBack,onGo,onUnavailable,onRecovery,onSaveArea,onPhoto,onSaveBio,onOpen,onAskDeletionCode,onRequestDeletion,prefs,onPref,contact,onWorkPhotos,cardsApi,historyApi}:{
  step:LiveAccountStep;mode:AppMode;account:AccountReadSnapshot;preview?:boolean;busy?:boolean;error?:string;
  onBack:()=>void;onGo:(s:LiveAccountStep)=>void;onUnavailable:(what:string)=>void;onRecovery:()=>void;
  onSaveArea:(value:string)=>Promise<void>;onPhoto:(kind:"personal"|"avatar"|"banner")=>void;onSaveBio:(bio:string)=>Promise<void>;
  onOpen?:(target:string)=>void;onAskDeletionCode?:()=>Promise<void>;onRequestDeletion?:(code:string)=>Promise<void>;
- prefs?:Prefs;onPref?:(key:PrefKey,value:boolean)=>void;contact?:ContactActions;onWorkPhotos?:{add:()=>void;remove:(index:number)=>void};cardsApi?:CardsApi;
+ prefs?:Prefs;onPref?:(key:PrefKey,value:boolean)=>void;contact?:ContactActions;onWorkPhotos?:{add:()=>void;remove:(index:number)=>void};cardsApi?:CardsApi;historyApi?:HistoryApi;
 }) {
  const [code,setCode]=useState(""),[newPhone,setNewPhone]=useState(""),[resendAt,setResendAt]=useState(0),[tick,setTick]=useState(Date.now());
  useEffect(()=>{if(resendAt<=Date.now())return;const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[resendAt]);
@@ -99,7 +102,8 @@ export function LiveAccountContent({step,mode,account,preview=false,busy=false,e
   body=<><Callout title="Secure card authorization" message="Enter card details only through the payment provider’s secure checkout. Your card is saved after confirmed authorization."/>{cardsApi&&<Callout message="To check the card works, Paystack charges a small amount (₦50). It is refunded to the same card straight away."/>}</>;footer=cardsApi?<><Button title="Continue securely" loading={busy} onPress={cardsApi.onAdd}/>{cancel}</>:unavailable("Continue securely");
  }else if(step==="payment-history"||step==="reviews"){
   title=step==="reviews"?"Your reviews":"Payment history";subtitle=step==="reviews"?"Feedback you’ve shared after completed jobs.":"View payments made through KraftKonect.";
-  body=<Callout title={title+" unavailable"} message="Your saved records could not be loaded. They have not been removed. Try again later."/>;
+  const list=historyApi&&(step==="reviews"?historyApi.reviews:historyApi.payments);
+  body=!historyApi?<Callout title={title+" unavailable"} message="Your saved records could not be loaded. They have not been removed. Try again later."/>:historyApi.error?<Callout tone="error" title={title+" unavailable"} message={historyApi.error}/>:!list?<LogoLoader label={"Loading "+title.toLowerCase()}/>:!list.length?<Callout title={step==="reviews"?"No reviews yet":"No payments yet"} message={step==="reviews"?"After a job you confirm is complete, you can leave a review and it will appear here.":"Payments and refunds for your bookings appear here."}/>:step==="reviews"?<View style={{gap:16}}>{historyApi.reviews!.map(r=><View key={r.id} style={{gap:4,paddingBottom:12,borderBottomWidth:1,borderBottomColor:Colors.border}}><AppText variant="labelSupport">{[r.serviceTitle,r.providerName].filter(Boolean).join(" · ")||"Completed job"}</AppText><AppText variant="label" color={Colors.primary}>{"★".repeat(r.rating)+"☆".repeat(5-r.rating)}</AppText>{!!r.text&&<AppText variant="body">{r.text}</AppText>}{r.createdAt&&<AppText variant="captionRegular" color={Colors.textSecondary}>{new Date(r.createdAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</AppText>}</View>)}</View>:<View style={{gap:16}}>{historyApi.payments!.map(p=><View key={p.id} style={{gap:2,paddingBottom:12,borderBottomWidth:1,borderBottomColor:Colors.border}}><View style={{flexDirection:"row",justifyContent:"space-between",gap:12}}><AppText variant="labelSupport" style={{flex:1}}>{p.title}</AppText><AppText variant="labelSupport" color={p.kind==="refund"?Colors.success:undefined}>{(p.kind==="refund"?"+ ":"")+money(p.amountMinor)}</AppText></View><AppText variant="bodySmall" color={p.status==="failed"||p.status==="refund_failed"?Colors.error:Colors.textSecondary}>{paymentStatusLabel(p.status)+" · "+new Date(p.at).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</AppText>{p.reference&&<AppText variant="captionRegular" color={Colors.textSecondary}>{"Ref "+p.reference}</AppText>}</View>)}</View>;
  }else if(step==="help"){
   title="Help & support";subtitle="Find an answer or talk to our support team.";
   body=<><View><SettingsRow title="Message support" icon="support" onPress={()=>onOpen?onOpen("support"):onUnavailable("Support")}/><SettingsRow title="Give us feedback" icon="feedback" onPress={()=>onOpen?onOpen("feedback"):onUnavailable("Feedback")}/></View><Callout title="Need help with a booking?" message="Open the booking and choose Report a problem so support can see the job details."/></>;

@@ -21,6 +21,7 @@ import { saveWorkPhotos } from "@/lib/provider/liveManage";
 import PaystackWebViewModal from "@/components/PaystackWebViewModal";
 import { loadCards, removeCard, SavedCard, startAddCard, verifyCardSetup } from "@/lib/payments/liveCards";
 import type { CardsApi } from "./LiveAccountContent";
+import { loadPayments, loadReviews, MyReview, PaymentItem } from "@/lib/account/liveHistory";
 import { askDeletionCode, noticeDay, requestDeletion } from "@/lib/account/liveDeletion";
 import { loadPrefs, PrefKey, Prefs, savePref } from "@/lib/account/livePrefs";
 import { changeName, confirmCheck, confirmEmail, confirmNewPhone, sendEmailCode, sendNewPhoneCode, setProfilePaused, startCheck } from "@/lib/account/liveContact";
@@ -130,6 +131,15 @@ export function ConnectedAccountSettings(){
   const before=prefs;lock.current=true;setBusy(true);setError(undefined);setPrefs({...prefs,[key]:value});
   savePref(client,id,key,value).then(saved=>{if(stillOwn(id))setPrefs(saved);}).catch(e=>{if(stillOwn(id)){setPrefs(before);setError(e instanceof Error?e.message:"Couldn’t save that setting.");}}).finally(()=>{lock.current=false;if(stillOwn(id))setBusy(false);});
  };
+ // Payment history and the person's reviews are read fresh each time the page opens.
+ const [payments,setPayments]=useState<PaymentItem[]>(),[reviewsList,setReviewsList]=useState<MyReview[]>(),[historyError,setHistoryError]=useState<string>();
+ useEffect(()=>{
+  const id=data.ownerId;if((step!=="payment-history"&&step!=="reviews")||!id)return;
+  let live=true;setHistoryError(undefined);
+  (step==="reviews"?loadReviews(client,id).then(l=>{if(live&&stillOwn(id))setReviewsList(l);}):loadPayments(client,id).then(l=>{if(live&&stillOwn(id))setPayments(l);}))
+   .catch(e=>{if(live&&stillOwn(id))setHistoryError(e instanceof Error?e.message:"Couldn’t load this list.");});
+  return()=>{live=false;};
+ },[step,data.ownerId,client]);
  // Saved cards: shown on the Payments page; adding one goes through Paystack's secure page and a small charge that is refunded.
  const [cards,setCards]=useState<SavedCard[]>(),[cardsError,setCardsError]=useState<string>(),[addCheckout,setAddCheckout]=useState<{reference:string;url:string}>(),[removing,setRemoving]=useState<string>();
  useEffect(()=>{
@@ -180,5 +190,5 @@ export function ConnectedAccountSettings(){
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  const snapshot=data.snapshot;if(!snapshot)return <View><AppText>Restoring account details…</AppText></View>;
  const shown=savedArea&&savedArea.id===snapshot.id?{...snapshot,area:savedArea.label}:snapshot;
- return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref} contact={contact} onWorkPhotos={{add:addWork,remove:removeWork}} cardsApi={cardsApi}/><PaystackWebViewModal visible={!!addCheckout} authorizationUrl={addCheckout?.url??""} onPaymentDone={addDone} onCancel={()=>setAddCheckout(undefined)}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+ return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveAccountContent key={snapshot.id} step={step} mode={mode} account={shown} busy={busy} error={error??data.error} onBack={()=>router.replace(accountPath(mode))} onGo={go} onUnavailable={setUnavailable} onRecovery={()=>router.push("/recovery")} onSaveArea={saveArea} onPhoto={kind=>void photo(kind)} onSaveBio={saveBio} onOpen={open} onAskDeletionCode={askCode} onRequestDeletion={confirmDeletion} prefs={prefs} onPref={changePref} contact={contact} onWorkPhotos={{add:addWork,remove:removeWork}} cardsApi={cardsApi} historyApi={{payments,reviews:reviewsList,error:historyError}}/><PaystackWebViewModal visible={!!addCheckout} authorizationUrl={addCheckout?.url??""} onPaymentDone={addDone} onCancel={()=>setAddCheckout(undefined)}/>{unavailable&&<UnavailableSheet title={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }
