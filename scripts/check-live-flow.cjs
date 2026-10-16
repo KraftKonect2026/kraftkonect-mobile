@@ -89,7 +89,7 @@ function fakeClient(result) {
   });
   await check("Steps the app does not support yet are refused before any server call", async () => {
     const c = fakeClient({});
-    for (const type of ["payment", "balance_payment", "cancel_paid", "report", "submit_review", "recover_materials", "refund_update", "sample_wallet_credit"]) {
+    for (const type of ["payment", "balance_payment", "report", "submit_review", "refund_update", "sample_wallet_credit"]) {
       await assert.rejects(flow.runFlowCommand(c, "c1", "customer", base(), { type }), /not available in this version/, type);
     }
     assert.equal(c.calls.length, 0, "no request reached the server");
@@ -207,6 +207,36 @@ function fakeClient(result) {
     const c = fakeClient({}), cur = workJob();
     for (const type of ["ledger_snapshot", "wallet_snapshot"]) assert.equal(await flow.runFlowCommand(c, "c1", "customer", cur, { type }), cur);
     assert.equal(c.calls.length, 0);
+  });
+  await check("A cancelled paid job shows the refund in review, and what the provider owes back", () => {
+    const r = flow.flowToRecord(workJob({
+      status: "cancelled", cancelledBy: "customer", cancelReason: "Plans changed",
+      refund: { status: "in_review", exposureMinor: 8500000, amountMinor: null, decisionNote: null, reference: null },
+      repayment: null,
+    }));
+    assert.deepEqual(r.cancelled, { by: "customer", reason: "Plans changed" });
+    assert.deepEqual([r.refund.status, r.refund.exposure, r.refund.amount], ["in_review", 8500000, undefined]);
+    assert.equal(model.statusFor(r), "Cancelled · payment review");
+    const done = flow.flowToRecord(workJob({
+      status: "cancelled", cancelledBy: "provider", cancelReason: "Cannot attend",
+      refund: { status: "processing", exposureMinor: 8500000, amountMinor: 8500000, decisionNote: "ok", reference: "rf-1" },
+      repayment: { dueMinor: 4000000, recoveredMinor: 1000000, outstandingMinor: 3000000, status: "due", deadline: "2030-01-10T09:00:00Z" }, walletAvailableMinor: 250000,
+    }));
+    assert.deepEqual([done.refund.amount, done.refund.reference], [8500000, "rf-1"]);
+    assert.deepEqual([done.repayment.due, done.repayment.recovered, done.repayment.outstanding, done.repayment.status], [4000000, 1000000, 3000000, "due"]);
+    assert.equal(done.wallet.available, 250000);
+    const none = flow.flowToRecord(workJob({ refund: { status: "declined", exposureMinor: 8500000, amountMinor: 0 } }));
+    assert.equal(none.refund.status, "declined");
+  });
+  await check("Cancelling a paid booking and repaying from the wallet go to the server; other recovery routes stay closed", async () => {
+    const c = fakeClient({ cancelPaidRequest: workJob() }), r = fakeClient({ repayFromWallet: workJob() });
+    await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "cancel_paid", reason: "Plans changed" });
+    assert.deepEqual(c.calls[0].variables, { bookingId: "b1", revision: 3, reason: "Plans changed" });
+    await flow.runFlowCommand(r, "u2", "provider", workJob(), { type: "recover_materials", method: "balance", amount: 3000000 });
+    assert.deepEqual(r.calls[0].variables, { bookingId: "b1" });
+    const cur = workJob(); assert.equal(await flow.runFlowCommand(r, "u2", "provider", cur, { type: "authorize_repayment" }), cur);
+    for (const type of ["repayment_checkout", "refund_update"]) await assert.rejects(flow.runFlowCommand(r, "u2", "provider", cur, { type }), /not available in this version/, type);
+    await assert.rejects(flow.runFlowCommand(r, "u2", "provider", cur, { type: "recover_materials", method: "automatic", amount: 1 }), /not available in this version/);
   });
   console.log(count + " live request-flow checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

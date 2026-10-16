@@ -29,6 +29,9 @@ export const FLOW_BOOKING_FRAGMENT = gql`
     quote { ${QUOTE_FIELDS} }
     acceptedQuote { ${QUOTE_FIELDS} }
     workDate workTime workStartedAt workFinishedAt workFinishedEventId completedAt completionId
+    refund { status exposureMinor amountMinor decisionNote reference }
+    repayment { dueMinor recoveredMinor outstandingMinor status deadline }
+    walletAvailableMinor
     settlement { grossMinor feeMinor netMinor releasedMinor labourTotalMinor labourReleasedMinor }
     dateProposal { id purpose date time by version status }
     cancelledBy cancelReason conversationId createdAt updatedAt
@@ -57,6 +60,8 @@ export const SEND_FINAL_QUOTE = mutation("SendFinalQuote", "$bookingId: ID!, $re
 export const START_WORK = mutation("StartWork", "$bookingId: ID!, $revision: Int!", "startWork(bookingId: $bookingId, revision: $revision)");
 export const FINISH_WORK = mutation("FinishWork", "$bookingId: ID!, $revision: Int!", "finishWork(bookingId: $bookingId, revision: $revision)");
 export const CONFIRM_WORK = mutation("ConfirmWork", "$bookingId: ID!, $revision: Int!, $workEventId: ID!", "confirmWork(bookingId: $bookingId, revision: $revision, workEventId: $workEventId)");
+export const CANCEL_PAID_REQUEST = mutation("CancelPaidRequest", "$bookingId: ID!, $revision: Int!, $reason: String!", "cancelPaidRequest(bookingId: $bookingId, revision: $revision, reason: $reason)");
+export const REPAY_FROM_WALLET = mutation("RepayFromWallet", "$bookingId: ID!", "repayFromWallet(bookingId: $bookingId)");
 export const ACCEPT_FINAL_QUOTE = mutation("AcceptFinalQuote", "$bookingId: ID!, $revision: Int!, $version: Int!", "acceptFinalQuote(bookingId: $bookingId, revision: $revision, version: $version)");
 const checkoutMutation = (name: string, args: string, call: string) => gql`
   mutation ${name}(${args}) { ${call} { reference authorizationUrl booking { ...FlowBookingFields } } }
@@ -81,6 +86,9 @@ export type FlowBookingPayload = {
   inspectionDate?: string | null; inspectionTime?: string | null; address?: string | null; findings?: string | null;
   quote?: PayloadQuote | null; acceptedQuote?: PayloadQuote | null; workDate?: string | null; workTime?: string | null;
   workStartedAt?: string | null; workFinishedAt?: string | null; workFinishedEventId?: string | null; completedAt?: string | null; completionId?: string | null;
+  refund?: { status: string; exposureMinor: number; amountMinor?: number | null; decisionNote?: string | null; reference?: string | null } | null;
+  repayment?: { dueMinor: number; recoveredMinor: number; outstandingMinor: number; status: string; deadline?: string | null } | null;
+  walletAvailableMinor?: number | null;
   settlement?: { grossMinor: number; feeMinor: number; netMinor: number; releasedMinor: number; labourTotalMinor: number; labourReleasedMinor: number } | null;
   dateProposal?: { id: string; purpose: string; date: string; time: string; by: string; version: number; status: string } | null;
   cancelledBy?: string | null; cancelReason?: string | null; conversationId?: string | null; updatedAt?: string | null;
@@ -142,6 +150,16 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
         };
       })()
     : undefined;
+  const refund: BookingRecord["refund"] = f.refund
+    ? { id: "refund:" + f.id, bookingId: f.id, currency: "NGN", exposure: f.refund.exposureMinor, ...(f.refund.amountMinor != null ? { amount: f.refund.amountMinor } : {}), status: f.refund.status as NonNullable<BookingRecord["refund"]>["status"], ...(f.refund.reference ? { reference: f.refund.reference } : {}) }
+    : undefined;
+  const repayment: BookingRecord["repayment"] = f.repayment
+    ? { id: "repayment:" + f.id, bookingId: f.id, ledgerId: "ledger:" + f.id, currency: "NGN", due: f.repayment.dueMinor, recovered: f.repayment.recoveredMinor, outstanding: f.repayment.outstandingMinor, status: f.repayment.outstandingMinor > 0 ? "due" : "settled", ...(f.repayment.deadline ? { deadline: f.repayment.deadline } : {}) }
+    : undefined;
+  // Only the provider's own screens know their balance.
+  const wallet: BookingRecord["wallet"] = f.walletAvailableMinor != null
+    ? { id: "wallet:" + f.providerId, bookingId: f.id, ledgerId: "ledger:" + f.id, providerId: f.providerId, currency: "NGN", available: f.walletAvailableMinor, reserved: 0, materialAvailable: f.walletAvailableMinor, materialReserved: 0, materialWithdrawn: 0 }
+    : undefined;
   const p = f.dateProposal;
   const dateProposal: DateProposal | undefined = p && p.status === "proposed"
     ? { id: p.id, version: p.version, purpose: p.purpose === "work" ? "work" : "inspection", status: "proposed", by: asRole(p.by), date: p.date, time: p.time }
@@ -161,7 +179,7 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
     balancePayment: balancePayment ?? noBalance, balancePaymentReference: (balancePayment ?? noBalance)?.status === "verified" ? (balancePayment ?? noBalance)!.reference : undefined,
     inspectionAppointment: f.inspectionDate && f.inspectionTime ? { date: f.inspectionDate, time: f.inspectionTime } : undefined,
     workAppointment: f.workDate && f.workTime ? { date: f.workDate, time: f.workTime } : undefined,
-    dateProposal, ledger, completion,
+    dateProposal, ledger, completion, refund, repayment, wallet,
     workStartedAt: f.workStartedAt ?? undefined, workFinishedAt: f.workFinishedAt ?? undefined, workFinishedEventId: f.workFinishedEventId ?? undefined,
     commands: [], events, messages: [],
   };
@@ -283,6 +301,14 @@ export async function runFlowCommand(
       return runRaw(client, ownerId, FINISH_WORK, base, "finishWork");
     case "confirm_work":
       return runRaw(client, ownerId, CONFIRM_WORK, { ...base, workEventId: String(command.workEventId ?? "") }, "confirmWork");
+    case "cancel_paid":
+      return runRaw(client, ownerId, CANCEL_PAID_REQUEST, { ...base, reason: String(command.reason ?? "") }, "cancelPaidRequest");
+    case "recover_materials":
+      // Repaying from the balance is the provider's own explicit action, so no separate approval step is needed.
+      if (command.method !== "balance") throw new Error(NOT_CONNECTED);
+      return runRaw(client, ownerId, REPAY_FROM_WALLET, { bookingId: current.id }, "repayFromWallet");
+    case "authorize_repayment":
+      return current;
     case "ledger_snapshot":
     case "wallet_snapshot":
       return current; // the server posts the ledger and wallet itself; the app never writes them

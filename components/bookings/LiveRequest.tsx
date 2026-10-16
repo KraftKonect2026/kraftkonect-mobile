@@ -13,7 +13,7 @@ import { QuoteJourney } from "@/components/bookings/QuoteJourney";
 import { WorkJourney } from "@/components/bookings/WorkJourney";
 import type { WorkStep } from "@/components/bookings/WorkScreens";
 import Colors from "@/constants/colors";
-import { balanceVerified, BookingRecord, BookingRole } from "@/lib/bookings/model";
+import { balanceVerified, BookingRecord, BookingRole, inspectionVerified } from "@/lib/bookings/model";
 import { CheckoutInfo, FLOW_BOOKING_QUERY, FlowBookingPayload, flowToRecord, friendlyError, runFlowCommand } from "@/lib/bookings/liveFlow";
 import { useOpenChat } from "@/lib/useOpenChat";
 import { useToast } from "@/lib/toast";
@@ -137,19 +137,19 @@ function LiveRequestOwned({ owner, id }: { owner: string; id: string }) {
       <Callout message="This request belongs to other people, so it can’t be shown here." tone="error" />
       <Button title="Back to bookings" onPress={toList} />
     </View>;
-  } else if (workFlow || balanceVerified(record)) {
+  } else if (workFlow || balanceVerified(record) || (!!record.cancelled && inspectionVerified(record))) {
     body = <WorkJourney key={role + ":" + generation + ":work"} record={record} role={role} entry={workEntry} onBookings={toList} onMessage={message} onCommand={onCommand}
       onBookAgain={() => router.push("/book-again")} onEarnings={() => router.push("/provider/earnings")}
       onSupportChat={conversationId => router.push({ pathname: "/chat/[providerId]", params: { providerId: conversationId } })} />;
   } else if (quoteFlow || record.quote) {
     body = <QuoteJourney key={role + ":" + generation + ":quote"} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand} onResumePayment={() => void resumePayment()} onCheckPayment={() => void checkPayment()}
       onProgress={() => soon("Job progress will be available once your repair is booked.")}
-      onCancel={() => soon("To cancel a paid booking, contact support so any refund can be reviewed.")}
+      onCancel={() => work("cancel")}
       onReport={() => soon("Reporting a problem is coming in the next update. Contact support in the meantime.")} />;
   } else {
     body = <InspectionJourney key={role + ":" + generation} record={record} role={role} onBookings={toList} onMessage={message} onCommand={onCommand} onResumePayment={() => void resumePayment()} onCheckPayment={() => void checkPayment()}
       onQuote={() => { setQuoteFlow(true); setWorkFlow(false); }}
-      onPaidCancel={() => soon("To cancel a paid inspection, contact support so any refund can be reviewed.")}
+      onPaidCancel={() => work("cancel")}
       onReschedule={() => work("booking")} onProposal={() => work("proposal")}
       onContext={() => { setWorkFlow(false); setQuoteFlow(false); setGeneration(v => v + 1); }} />;
   }
