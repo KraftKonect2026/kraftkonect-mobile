@@ -247,6 +247,9 @@ function fakeClient(result) {
     const [a, b] = r.supportCases;
     assert.deepEqual([a.reference, a.status, a.reporter, a.unread, a.photo.uri], ["KK-ISS-4F7Q2K", "under_review", "customer", true, "https://res.cloudinary.com/x/y.jpg"]);
     assert.deepEqual(a.messages.map(m => m.sender), ["reporter", "support"]);
+    const withPhoto = flow.flowToRecord(workJob({ supportCases: [caseOf({ messages: [{ id: "m9", sender: "reporter", text: "Photo", attachmentUrl: "https://res.cloudinary.com/x/z.jpg", at: "2030-01-09T10:00:00Z" }] })] }));
+    assert.equal(withPhoto.supportCases[0].messages[0].photoUrl, "https://res.cloudinary.com/x/z.jpg");
+    assert.equal(a.messages[0].photoUrl, undefined);
     assert.deepEqual([b.status, b.outcome, b.photo], ["resolved", "Fixed on site.", undefined]);
     assert.equal(require("./load-typescript.cjs")("lib/bookings/work.ts").casesFor(r, "customer").length, 2);
     assert.equal(flow.flowToRecord(workJob({ supportCases: [caseOf({ status: "weird" })] })).supportCases[0].status, "received");
@@ -267,6 +270,10 @@ function fakeClient(result) {
     assert.equal(down.calls[0], down.calls[1]);
     await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_message", caseId: "k1", text: "Hello" });
     assert.deepEqual(calls.at(-2)[1], { caseId: "k1", text: "Hello" });
+    await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_message", caseId: "k1", text: "Photo", photoUrl: "https://res.cloudinary.com/x/y.jpg" });
+    assert.deepEqual(calls.at(-2)[1], { caseId: "k1", text: "Photo", attachmentUrl: "https://res.cloudinary.com/x/y.jpg" });
+    await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_message", caseId: "k1", text: "Hi", photoUrl: "sample://photo" });
+    assert.equal(calls.at(-2)[1].attachmentUrl, null, "only uploaded photos are sent");
     await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "mark_case_read", caseId: "k1", throughId: "m2" });
     assert.deepEqual(calls.at(-2)[1], { caseId: "k1" });
     await assert.rejects(flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_update", caseId: "k1", status: "resolved" }), /not available in this version/);

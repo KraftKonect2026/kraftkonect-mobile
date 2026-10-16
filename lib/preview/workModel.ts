@@ -18,7 +18,7 @@ export type WorkCommand=
  | {type:"submit_review"|"edit_review";rating:number;text:string}|{type:"delete_review";reviewId:string}
  | {type:"report";category:string;description:string;when:string;help:string;photo?:{id:string;name:string;uri:string}}
  | {type:"case_update";caseId:string;status:"under_review"|"resolved";outcome?:string}
- | {type:"case_message";caseId:string;text:string;incoming?:boolean;attachments?:SamplePhotoAttachment[]}
+ | {type:"case_message";caseId:string;text:string;photoUrl?:string;incoming?:boolean;attachments?:SamplePhotoAttachment[]}
  | {type:"mark_case_read";caseId:string;throughId:string};
 export type WorkBookingCommand=BookingCommand|WorkCommand;
 const workTypes=new Set(["propose_date","respond_date","start_work","finish_work","confirm_work","cancel_paid","wallet_snapshot","sample_wallet_credit","authorize_repayment","recover_materials","repayment_checkout","repayment_result","refund_update","submit_review","edit_review","delete_review","report","case_update","case_message","mark_case_read"]);

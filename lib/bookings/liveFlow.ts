@@ -65,7 +65,7 @@ export const CANCEL_PAID_REQUEST = mutation("CancelPaidRequest", "$bookingId: ID
 export const REPAY_FROM_WALLET = mutation("RepayFromWallet", "$bookingId: ID!", "repayFromWallet(bookingId: $bookingId)");
 const SUPPORT_CASE_FIELDS = `id`;
 export const REPORT_PROBLEM = gql`mutation ReportProblem($bookingId: ID!, $input: ReportProblemInput!) { reportProblem(bookingId: $bookingId, input: $input) { ${SUPPORT_CASE_FIELDS} } }`;
-export const SEND_CASE_MESSAGE = gql`mutation SendCaseMessage($caseId: ID!, $text: String!) { sendCaseMessage(caseId: $caseId, text: $text) { ${SUPPORT_CASE_FIELDS} } }`;
+export const SEND_CASE_MESSAGE = gql`mutation SendCaseMessage($caseId: ID!, $text: String!, $attachmentUrl: String) { sendCaseMessage(caseId: $caseId, text: $text, attachmentUrl: $attachmentUrl) { ${SUPPORT_CASE_FIELDS} } }`;
 export const MARK_CASE_READ = gql`mutation MarkCaseRead($caseId: ID!) { markCaseRead(caseId: $caseId) { ${SUPPORT_CASE_FIELDS} } }`;
 export const ACCEPT_FINAL_QUOTE = mutation("AcceptFinalQuote", "$bookingId: ID!, $revision: Int!, $version: Int!", "acceptFinalQuote(bookingId: $bookingId, revision: $revision, version: $version)");
 const checkoutMutation = (name: string, args: string, call: string) => gql`
@@ -172,7 +172,7 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
     ...(c.photoUrl ? { photo: { id: c.photoUrl, name: "Photo", uri: c.photoUrl } } : {}),
     status: (["received", "under_review", "resolved"].includes(c.status) ? c.status : "received") as SupportCase["status"],
     ...(c.outcome ? { outcome: c.outcome } : {}), unread: !!c.unread,
-    messages: c.messages.map(m => ({ id: m.id, sender: (m.sender === "support" ? "support" : "reporter") as "support" | "reporter", text: m.text, at: m.at ?? "" })),
+    messages: c.messages.map(m => ({ id: m.id, sender: (m.sender === "support" ? "support" : "reporter") as "support" | "reporter", text: m.text, at: m.at ?? "", ...(m.attachmentUrl ? { photoUrl: m.attachmentUrl } : {}) })),
   }));
   const p = f.dateProposal;
   const dateProposal: DateProposal | undefined = p && p.status === "proposed"
@@ -347,7 +347,7 @@ export async function runFlowCommand(
       return reload(client, ownerId, current.id);
     }
     case "case_message":
-      await runVoid(client, ownerId, SEND_CASE_MESSAGE, { caseId: String(command.caseId ?? ""), text: String(command.text ?? "") });
+      await runVoid(client, ownerId, SEND_CASE_MESSAGE, { caseId: String(command.caseId ?? ""), text: String(command.text ?? ""), attachmentUrl: typeof command.photoUrl === "string" && /^https:\/\//.test(command.photoUrl) ? command.photoUrl : null });
       return reload(client, ownerId, current.id);
     case "mark_case_read":
       await runVoid(client, ownerId, MARK_CASE_READ, { caseId: String(command.caseId ?? "") });
