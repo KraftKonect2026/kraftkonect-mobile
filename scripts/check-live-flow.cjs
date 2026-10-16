@@ -269,7 +269,7 @@ function fakeClient(result) {
     await assert.rejects(flow.runFlowCommand(down, "c1", "customer", workJob(), report)); await assert.rejects(flow.runFlowCommand(down, "c1", "customer", workJob(), report));
     assert.equal(down.calls[0], down.calls[1]);
     await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_message", caseId: "k1", text: "Hello" });
-    assert.deepEqual(calls.at(-2)[1], { caseId: "k1", text: "Hello" });
+    assert.deepEqual(calls.at(-2)[1], { caseId: "k1", text: "Hello", attachmentUrl: null });
     await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_message", caseId: "k1", text: "Photo", photoUrl: "https://res.cloudinary.com/x/y.jpg" });
     assert.deepEqual(calls.at(-2)[1], { caseId: "k1", text: "Photo", attachmentUrl: "https://res.cloudinary.com/x/y.jpg" });
     await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_message", caseId: "k1", text: "Hi", photoUrl: "sample://photo" });
