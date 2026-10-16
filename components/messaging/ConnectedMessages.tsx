@@ -1,4 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
+import { useApolloClient } from "@apollo/client";
+import { uploadImageToCloudinary } from "@/utils/cloudinary";
+import { markRead, sendChat } from "@/lib/messaging/liveChat";
+import { sameAccountSession } from "@/lib/account/liveAccount";
+import { store } from "@/store";
 import { View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,8 +40,28 @@ export function ConnectedChat() {
 }
 function OwnedChat({conversationId}:{conversationId:string}) {
   const data=useOwnedMessagesRead(conversationId),router=useRouter(),mode=useAppSelector(selectActiveMode);
-  const [text,setText]=useState(""),[unavailable,setUnavailable]=useState<string>();
+  const client=useApolloClient(),[text,setText]=useState(""),[unavailable,setUnavailable]=useState<string>(),[photoUrl,setPhotoUrl]=useState<string>(),[busy,setBusy]=useState(false),[sendError,setSendError]=useState<string>();
+  const ownerId=data.ownerId,lock=useRef(false),alive=useRef(true),refreshRef=useRef(data.refresh);refreshRef.current=data.refresh;
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+  const still=()=>{const a=store.getState().auth;return alive.current&&!!ownerId&&sameAccountSession(ownerId,a.user?.id,a.isAuthenticated&&!!a.accessToken);};
+  // New messages arrive without leaving the screen.
+  useEffect(()=>{const t=setInterval(()=>{void refreshRef.current(true);},8000);return()=>clearInterval(t);},[]);
+  // Opening a conversation reads what is waiting for you in it.
+  const unread=data.conversation?.unread??0;
+  useEffect(()=>{if(!ownerId||!unread)return;void markRead(client,ownerId,conversationId).then(()=>refreshRef.current(true)).catch(()=>undefined);},[ownerId,conversationId,unread,client]);
+  const onSend=async()=>{
+    if(lock.current||!ownerId||!still())return;lock.current=true;setBusy(true);setSendError(undefined);
+    try{await sendChat(client,ownerId,conversationId,text,photoUrl);if(!still())return;setText("");setPhotoUrl(undefined);await data.refresh(true);}
+    catch(e){if(still())setSendError(e instanceof Error?e.message:"The message could not be sent.");}
+    finally{lock.current=false;if(alive.current)setBusy(false);}
+  };
+  const onAttach=async()=>{
+    if(lock.current||!ownerId||!still())return;lock.current=true;setBusy(true);setSendError(undefined);
+    try{const pick=await ImagePicker.launchImageLibraryAsync({mediaTypes:["images"],quality:0.8});if(pick.canceled||!still())return;const url=await uploadImageToCloudinary(pick.assets[0].uri,still);if(still())setPhotoUrl(url);}
+    catch(e){if(still())setSendError(e instanceof Error?e.message:"The photo could not be uploaded.");}
+    finally{lock.current=false;if(alive.current)setBusy(false);}
+  };
   if(!data.signedIn)return <Redirect href="/sign-in"/>;
   const back=()=>{if(router.canGoBack())router.back();else router.replace(messagesPath(mode));};
-  return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveChatContent conversation={data.conversation} messages={data.messages} text={text} onText={setText} onUnavailable={setUnavailable} loading={data.loading} error={data.error} onRetry={()=>void data.refresh()} onBack={back}/>{unavailable&&<ServiceBoundary action={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
+  return <View style={{flex:1,width:"100%",maxWidth:600,alignSelf:"center",backgroundColor:Colors.surface}}><LiveChatContent conversation={data.conversation} messages={data.messages} text={text} onText={setText} onUnavailable={setUnavailable} loading={data.loading} error={data.error} onRetry={()=>void data.refresh()} onBack={back} send={{onSend:()=>void onSend(),onAttach:()=>void onAttach(),onRemovePhoto:()=>setPhotoUrl(undefined),photoUrl,busy,error:sendError}}/>{unavailable&&<ServiceBoundary action={unavailable} onClose={()=>setUnavailable(undefined)}/>}</View>;
 }

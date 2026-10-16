@@ -14,6 +14,7 @@ export type LiveMessage = {
   at?: string;
   own: boolean;
   read: boolean;
+  photoUrl?: string;
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -72,8 +73,9 @@ export function ownedLiveMessages(ownerId: string, conversation: LiveConversatio
       throw new Error("The message does not match this owned conversation.");
     }
     seen.add(messageId);
-    const body = text(row.text, 10000);
-    if (!body) throw new Error("The saved message text could not be loaded.");
-    return { id: messageId, text: body, at: timestamp(row.createdAt), own, read: row.read === true };
+    const body = text(row.text, 10000), photoUrl = publicImage(row.attachmentUrl);
+    // A message is words, a photo, or both; never nothing.
+    if (!body && !photoUrl) throw new Error("The saved message text could not be loaded.");
+    return { id: messageId, text: body ?? "", at: timestamp(row.createdAt), own, read: row.read === true, ...(photoUrl ? { photoUrl } : {}) };
   });
 }

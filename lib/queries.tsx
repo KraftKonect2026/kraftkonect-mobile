@@ -290,6 +290,7 @@ export const GET_MESSAGES_QUERY = gql`
       text
       read
       createdAt
+      attachmentUrl
     }
   }
 `

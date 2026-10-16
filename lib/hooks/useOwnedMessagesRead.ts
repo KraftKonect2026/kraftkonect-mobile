@@ -23,14 +23,15 @@ export function useOwnedMessagesRead(conversationId?: string) {
   const signedIn = useAppSelector(s => s.auth.isAuthenticated && !!s.auth.accessToken && !!s.auth.user);
   const generation = useRef(0);
   const [saved, setSaved] = useState<ReadState>();
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (silent: boolean | unknown = false) => {
     if (!ownerId || !signedIn) return;
     const revision = ++generation.current;
     const owns = () => {
       const auth = store.getState().auth;
       return generation.current === revision && sameAccountSession(ownerId, auth.user?.id, auth.isAuthenticated && !!auth.accessToken);
     };
-    setSaved(previous => ({ ...((previous?.ownerId === ownerId && previous.conversationId === conversationId) ? previous : {}), ownerId, conversationId, loading: true, error: undefined }));
+    // A background refresh keeps what is on screen; only a first or manual load shows the spinner.
+    if (silent !== true) setSaved(previous => ({ ...((previous?.ownerId === ownerId && previous.conversationId === conversationId) ? previous : {}), ownerId, conversationId, loading: true, error: undefined }));
     try {
       const context = { accountOwnerId: ownerId, queryDeduplication: false };
       const result = await readOwnedMessages(ownerId, conversationId, {
@@ -40,7 +41,7 @@ export function useOwnedMessagesRead(conversationId?: string) {
       });
       if (owns()) setSaved({ ownerId, conversationId, ...result, loading: false });
     } catch (e) {
-      if (owns()) setSaved({ ownerId, conversationId, loading: false, error: e instanceof Error ? e.message : "Couldn’t refresh messages. Try again later." });
+      if (owns() && silent !== true) setSaved({ ownerId, conversationId, loading: false, error: e instanceof Error ? e.message : "Couldn’t refresh messages. Try again later." });
     }
   }, [client, ownerId, signedIn, conversationId]);
   useFocusEffect(useCallback(() => { void refresh(); return () => { generation.current++; }; }, [refresh]));
