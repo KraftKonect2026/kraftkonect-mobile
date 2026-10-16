@@ -17,8 +17,7 @@ import { parseMoney, sampleListItem } from "./model";
 // ── GraphQL documents ───────────────────────────────────────────────────────
 
 const QUOTE_FIELDS = `id version status scope materialsMinor labourMinor totalMinor depositCreditMinor remainingMinor workDate workTime duration`;
-export const FLOW_BOOKING_FRAGMENT = gql`
-  fragment FlowBookingFields on FlowBooking {
+const BOOKING_FIELDS = `
     id revision stage status customerId customerName providerId providerName providerUserId
     serviceId serviceTitle area preferredDate description serviceMode
     terms { version minimumMinor maximumMinor depositMinor date time mode }
@@ -29,13 +28,25 @@ export const FLOW_BOOKING_FRAGMENT = gql`
     quote { ${QUOTE_FIELDS} }
     acceptedQuote { ${QUOTE_FIELDS} }
     workDate workTime workStartedAt workFinishedAt workFinishedEventId completedAt completionId
-    supportCases { id reference bookingId reporter category description when help photoUrl status outcome unread createdAt messages { id sender text attachmentUrl at } }
     refund { status exposureMinor amountMinor decisionNote reference }
     repayment { dueMinor recoveredMinor outstandingMinor status deadline }
     walletAvailableMinor
     settlement { grossMinor feeMinor netMinor releasedMinor labourTotalMinor labourReleasedMinor }
     dateProposal { id purpose date time by version status }
     cancelledBy cancelReason conversationId createdAt updatedAt
+
+`;
+/** One request, with its support cases and review. List screens use the lighter fragment below. */
+export const FLOW_BOOKING_FRAGMENT = gql`
+  fragment FlowBookingFields on FlowBooking {
+    ${BOOKING_FIELDS}
+    supportCases { id reference bookingId reporter category description when help photoUrl status outcome unread createdAt messages { id sender text attachmentUrl at } }
+    review { id bookingId rating text updatedAt }
+  }
+`;
+export const FLOW_BOOKING_LIST_FRAGMENT = gql`
+  fragment FlowBookingListFields on FlowBooking {
+    ${BOOKING_FIELDS}
   }
 `;
 
@@ -44,8 +55,8 @@ export const FLOW_BOOKING_QUERY = gql`
   ${FLOW_BOOKING_FRAGMENT}
 `;
 export const MY_FLOW_BOOKINGS_QUERY = gql`
-  query MyFlowBookings($role: FlowRole!) { myFlowBookings(role: $role, limit: 100) { ...FlowBookingFields } }
-  ${FLOW_BOOKING_FRAGMENT}
+  query MyFlowBookings($role: FlowRole!) { myFlowBookings(role: $role, limit: 100) { ...FlowBookingListFields } }
+  ${FLOW_BOOKING_LIST_FRAGMENT}
 `;
 
 const mutation = (name: string, args: string, call: string) => gql`
@@ -67,6 +78,9 @@ const SUPPORT_CASE_FIELDS = `id`;
 export const REPORT_PROBLEM = gql`mutation ReportProblem($bookingId: ID!, $input: ReportProblemInput!) { reportProblem(bookingId: $bookingId, input: $input) { ${SUPPORT_CASE_FIELDS} } }`;
 export const SEND_CASE_MESSAGE = gql`mutation SendCaseMessage($caseId: ID!, $text: String!, $attachmentUrl: String) { sendCaseMessage(caseId: $caseId, text: $text, attachmentUrl: $attachmentUrl) { ${SUPPORT_CASE_FIELDS} } }`;
 export const MARK_CASE_READ = gql`mutation MarkCaseRead($caseId: ID!) { markCaseRead(caseId: $caseId) { ${SUPPORT_CASE_FIELDS} } }`;
+export const SUBMIT_FLOW_REVIEW = mutation("SubmitFlowReview", "$bookingId: ID!, $rating: Int!, $text: String", "submitFlowReview(bookingId: $bookingId, rating: $rating, text: $text)");
+export const EDIT_FLOW_REVIEW = mutation("EditFlowReview", "$bookingId: ID!, $rating: Int!, $text: String", "editFlowReview(bookingId: $bookingId, rating: $rating, text: $text)");
+export const DELETE_FLOW_REVIEW = mutation("DeleteFlowReview", "$bookingId: ID!", "deleteFlowReview(bookingId: $bookingId)");
 export const ACCEPT_FINAL_QUOTE = mutation("AcceptFinalQuote", "$bookingId: ID!, $revision: Int!, $version: Int!", "acceptFinalQuote(bookingId: $bookingId, revision: $revision, version: $version)");
 const checkoutMutation = (name: string, args: string, call: string) => gql`
   mutation ${name}(${args}) { ${call} { reference authorizationUrl booking { ...FlowBookingFields } } }
@@ -93,6 +107,7 @@ export type FlowBookingPayload = {
   quote?: PayloadQuote | null; acceptedQuote?: PayloadQuote | null; workDate?: string | null; workTime?: string | null;
   workStartedAt?: string | null; workFinishedAt?: string | null; workFinishedEventId?: string | null; completedAt?: string | null; completionId?: string | null;
   supportCases?: PayloadCase[] | null;
+  review?: { id: string; bookingId: string; rating: number; text: string; updatedAt?: string | null } | null;
   refund?: { status: string; exposureMinor: number; amountMinor?: number | null; decisionNote?: string | null; reference?: string | null } | null;
   repayment?: { dueMinor: number; recoveredMinor: number; outstandingMinor: number; status: string; deadline?: string | null } | null;
   walletAvailableMinor?: number | null;
@@ -194,6 +209,7 @@ export function flowToRecord(f: FlowBookingPayload): BookingRecord {
     inspectionAppointment: f.inspectionDate && f.inspectionTime ? { date: f.inspectionDate, time: f.inspectionTime } : undefined,
     workAppointment: f.workDate && f.workTime ? { date: f.workDate, time: f.workTime } : undefined,
     dateProposal, ledger, completion, refund, repayment, wallet, supportCases,
+    ...(f.review ? { review: { id: f.review.id, bookingId: f.id, customerId: f.customerId, rating: f.review.rating, text: f.review.text, updatedAt: f.review.updatedAt ?? "" } } : {}),
     workStartedAt: f.workStartedAt ?? undefined, workFinishedAt: f.workFinishedAt ?? undefined, workFinishedEventId: f.workFinishedEventId ?? undefined,
     commands: [], events, messages: [],
   };
@@ -334,6 +350,11 @@ export async function runFlowCommand(
       return runRaw(client, ownerId, FINISH_WORK, base, "finishWork");
     case "confirm_work":
       return runRaw(client, ownerId, CONFIRM_WORK, { ...base, workEventId: String(command.workEventId ?? "") }, "confirmWork");
+    case "submit_review":
+    case "edit_review":
+      return runRaw(client, ownerId, command.type === "submit_review" ? SUBMIT_FLOW_REVIEW : EDIT_FLOW_REVIEW, { bookingId: current.id, rating: Number(command.rating), text: String(command.text ?? "") }, command.type === "submit_review" ? "submitFlowReview" : "editFlowReview");
+    case "delete_review":
+      return runRaw(client, ownerId, DELETE_FLOW_REVIEW, { bookingId: current.id }, "deleteFlowReview");
     case "report": {
       // One tap = one key, so a retry after a dropped connection returns the same case.
       const photo = command.photo as { uri?: string } | undefined;

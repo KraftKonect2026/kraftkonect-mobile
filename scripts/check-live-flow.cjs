@@ -89,7 +89,7 @@ function fakeClient(result) {
   });
   await check("Steps the app does not support yet are refused before any server call", async () => {
     const c = fakeClient({});
-    for (const type of ["payment", "balance_payment", "submit_review", "refund_update", "sample_wallet_credit"]) {
+    for (const type of ["payment", "balance_payment", "refund_update", "sample_wallet_credit"]) {
       await assert.rejects(flow.runFlowCommand(c, "c1", "customer", base(), { type }), /not available in this version/, type);
     }
     assert.equal(c.calls.length, 0, "no request reached the server");
@@ -277,6 +277,28 @@ function fakeClient(result) {
     await flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "mark_case_read", caseId: "k1", throughId: "m2" });
     assert.deepEqual(calls.at(-2)[1], { caseId: "k1" });
     await assert.rejects(flow.runFlowCommand(c, "c1", "customer", workJob(), { type: "case_update", caseId: "k1", status: "resolved" }), /not available in this version/);
+  });
+  await check("A review maps onto the completed job; only completed jobs can carry one", () => {
+    const done = workJob({ stage: "completed", status: "completed", workFinishedEventId: "w-fin", workFinishedAt: "2030-01-09T12:00:00Z", completedAt: "2030-01-09T13:00:00Z", completionId: "w-done", settlement: { grossMinor: 9000000, feeMinor: 450000, netMinor: 8550000, releasedMinor: 8550000, labourTotalMinor: 4075000, labourReleasedMinor: 4075000 },
+      review: { id: "r1", bookingId: "b1", rating: 4, text: "Quick and tidy.", updatedAt: "2030-01-10T09:00:00Z" } });
+    const r = flow.flowToRecord(done);
+    assert.deepEqual([r.review.id, r.review.rating, r.review.text, r.review.customerId, r.review.bookingId], ["r1", 4, "Quick and tidy.", "c1", "b1"]);
+    assert.equal(require("./load-typescript.cjs")("lib/bookings/work.ts").reviewError(r, 4, "Quick"), null, "the app's own rules accept a review on a confirmed job");
+    assert.equal(flow.flowToRecord(workJob()).review, undefined);
+    assert.match(require("./load-typescript.cjs")("lib/bookings/work.ts").reviewError(flow.flowToRecord(workJob()), 4, "x"), /confirmed completed work/);
+  });
+  await check("Review commands go to the server by booking; the list view does not load details it does not show", async () => {
+    const mk = field => fakeClient({ [field]: workJob() });
+    const a = mk("submitFlowReview"), b = mk("editFlowReview"), d = mk("deleteFlowReview");
+    await flow.runFlowCommand(a, "c1", "customer", workJob(), { type: "submit_review", rating: 5, text: "Great" });
+    await flow.runFlowCommand(b, "c1", "customer", workJob(), { type: "edit_review", rating: 3, text: "" });
+    await flow.runFlowCommand(d, "c1", "customer", workJob(), { type: "delete_review", reviewId: "r1" });
+    assert.deepEqual(a.calls[0].variables, { bookingId: "b1", rating: 5, text: "Great" });
+    assert.deepEqual(b.calls[0].variables, { bookingId: "b1", rating: 3, text: "" });
+    assert.deepEqual(d.calls[0].variables, { bookingId: "b1" });
+    const text = n => JSON.stringify(n.definitions.map(x => x.name.value)) + n.loc.source.body;
+    assert.ok(!/supportCases|review \{/.test(flow.MY_FLOW_BOOKINGS_QUERY.loc.source.body + flow.FLOW_BOOKING_LIST_FRAGMENT.loc.source.body), "list screens skip support cases and reviews");
+    assert.ok(/supportCases/.test(flow.FLOW_BOOKING_FRAGMENT.loc.source.body) && /review \{/.test(flow.FLOW_BOOKING_FRAGMENT.loc.source.body));
   });
   console.log(count + " live request-flow checks passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
