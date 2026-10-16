@@ -40,7 +40,7 @@ export function InspectionJourney({record,role,onBookings,onCommand,initialMessa
     catch(e){if(alive.current)setError(e instanceof Error?e.message:"Couldn’t save this change.");}
     finally{locked.current=false;if(alive.current)setBusy(false);}
   };
-  const view=sampleParticipantView(record,role);const avatar=role==="provider"?require("@/assets/bookings/6cc70.png"):require("@/assets/discovery/2543d.png");
+  const view=sampleParticipantView(record,role);const avatar=role==="provider"?require("@/assets/bookings/6cc70.jpg"):require("@/assets/discovery/2543d.png");
   const cancel=()=>{if(inspectionVerified(record)&&onPaidCancel)onPaidCancel();else setDialog(record.payment?.status==="pending"?"paid-cancel":"cancel");};
   const currentDeposit=["details","review"].includes(step)?parseMoney(draft.response.deposit):record.terms?.deposit;
   const breakdown=currentDeposit!==null && currentDeposit!==undefined?sampleDepositBreakdown(currentDeposit):undefined;

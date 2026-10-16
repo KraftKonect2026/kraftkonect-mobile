@@ -3,11 +3,11 @@ import type { ProviderArt } from "@/components/discovery/Parts";
 
 export const previewArt:Record<string,ProviderArt> = {
   tobi: { cover:require("@/assets/design/1b9df.png"),resultSubtitle:"Plumbing and leak repair",avatar:require("@/assets/discovery/2543d.png"),
-    gallery:[require("@/assets/discovery/70d86.png"),require("@/assets/discovery/43d3e.png"),require("@/assets/discovery/4bd4a.png"),require("@/assets/discovery/bbe0b.png")],
+    gallery:[require("@/assets/discovery/70d86.jpg"),require("@/assets/discovery/43d3e.jpg"),require("@/assets/discovery/4bd4a.jpg"),require("@/assets/discovery/bbe0b.jpg")],
     galleryBases:[require("@/assets/discovery/d8c1e.png"),require("@/assets/discovery/d65fd.png"),require("@/assets/discovery/5a905.png"),require("@/assets/discovery/bb673.png")],
-    fullGallery:[require("@/assets/discovery/fe85c.png"),require("@/assets/design/1b9df.png"),require("@/assets/discovery/3e99e.png"),require("@/assets/discovery/bbe0b.png")],
+    fullGallery:[require("@/assets/discovery/fe85c.png"),require("@/assets/design/1b9df.png"),require("@/assets/discovery/3e99e.png"),require("@/assets/discovery/bbe0b.jpg")],
     thumbnails:[require("@/assets/discovery/269cf.png"),require("@/assets/discovery/c868d.png"),require("@/assets/discovery/1fe84.png"),require("@/assets/discovery/b2890.png")] },
-  kola:{cover:require("@/assets/design/eba1f.png"),bookAgainCover:require("@/assets/discovery/930fb.png"),gallery:[]},ade:{cover:require("@/assets/design/c73f3.png"),gallery:[]},
+  kola:{cover:require("@/assets/design/eba1f.png"),bookAgainCover:require("@/assets/discovery/930fb.jpg"),gallery:[]},ade:{cover:require("@/assets/design/c73f3.png"),gallery:[]},
   amara:{cover:require("@/assets/design/631d0.png"),gallery:[]},coolair:{cover:require("@/assets/design/c73f3.png"),gallery:[]},
   "kola-electric":{cover:require("@/assets/design/77163.png"),gallery:[]},
 };

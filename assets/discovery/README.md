@@ -11,7 +11,7 @@ Source: KraftKonect file `r9tDEePO6S96nPWlE2fw2c`. Downloaded locally through th
 | 793:2 | Review stars and the sort glyph (root 26 × 26 preserved inside the touch target) |
 | 809:4 | Full gallery photos and 80 × 60 thumbnails. The approved 82 × 7 carousel artwork remains unchanged; wrapper clipping selects its approved active/inactive shapes for the dynamic photo count. |
 | 753:473; 827:1426; 753:507; 753:541 | Request service cover, back/close controls and 32px confirmation check |
-| 826:65; 467:381 | Book again / Saved covers and stars. Kola's Book again cover uses the separate `930fb.png`, rather than his result cover. |
+| 826:65; 467:381 | Book again / Saved covers and stars. Kola's Book again cover uses the separate `930fb.jpg`, rather than his result cover. |
 
 SVG files retain their exported bytes, root dimensions and aspect ratios. PNG crops follow the source slots; the 345 × 228 provider card crops a 363 × 272 cover at (-9,-22). Native layouts adapt to screen width and use OS safe areas. API-supplied imagery remains dynamic; Figma's illustrative people, reviews and prices occur only in the development preview.
 

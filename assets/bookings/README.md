@@ -16,7 +16,7 @@ Figma file `r9tDEePO6S96nPWlE2fw2c`, current customer/provider inspection frames
 
 | File | Figma frame / use | Root dimensions and slot |
 | --- | --- | --- |
-| 6cc70.png | 1332:6470, 1332:6553; sample customer avatar | Dynamic imagery; circle 32px in Jobs/chat, 48px in detail |
+| 6cc70.jpg | 1332:6470, 1332:6553; sample customer avatar | Dynamic imagery; circle 32px in Jobs/chat, 48px in detail |
 | 995c1.svg | 1332:6470; request area | 9.92785 × 12, centred in 16px slot |
 | fece3.svg | 1332:6553, 469:437; appointment calendar | 20.8 × 20.8 at (1.2, 1.2) in 24px slot, including the source stroke bounds |
 | f57a9.svg | 469:437, 469:483, 1334:6153; provider fee help | 14 × 14 |

@@ -12,5 +12,5 @@ export const previewJobs: HomeJob[] = [
   { id: "preview-job-2", title: "Bathroom pipe repair", customer: "Terry Jon", date: "Sep 12", address: "123 Chiey Way, Ajah", image: require("@/assets/design/1b9df.png") },
 ];
 export const previewRequests: HomeJob[] = [
-  { id: "preview-request-1", title: "Plumbing repair", customer: "James Gun", date: "Sep 14", address: "Ikoyi, Lagos", description: "Water leaks under the cabinet when the tap is on.", avatar: require("@/assets/design/2cea7.png") },
+  { id: "preview-request-1", title: "Plumbing repair", customer: "James Gun", date: "Sep 14", address: "Ikoyi, Lagos", description: "Water leaks under the cabinet when the tap is on.", avatar: require("@/assets/design/2cea7.jpg") },
 ];
