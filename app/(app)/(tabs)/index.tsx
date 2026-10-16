@@ -71,7 +71,7 @@ function OwnedHome() {
   };
 
   return <View style={homeStyles.screen}>
-    <ModeHeader mode={mode} onModeChange={switchMode} onNotifications={() => toast.info("Notifications are unavailable right now. Please try again later.")} />
+    <ModeHeader mode={mode} onModeChange={switchMode} onNotifications={() => router.push("/notifications")} />
     <CustomerHomeView query={query} onQueryChange={setQuery} onSearch={onSearch} onSearchFocus={onSearch}
       previous={previous} recommended={publicProviders.map(toProviderCard)}
       previousLoading={history.loading || providers.loading} recommendedLoading={providers.loading}

@@ -40,7 +40,7 @@ function OwnedDashboard() {
     else router.push("/provider/verification-status");
   };
   return <View style={homeStyles.screen}>
-    <ModeHeader mode={mode} onModeChange={switchMode} onNotifications={() => toast.info("Notifications are unavailable right now. Please try again later.")} />
+    <ModeHeader mode={mode} onModeChange={switchMode} onNotifications={() => router.push("/notifications")} />
     {profile.loading || profile.error || (profile.data?.myProviderProfile && (listings.loading || listings.error))
       ? <View style={{ margin: Space.page }}><DataStatus loading={profile.loading || listings.loading} error={!!profile.error || !!listings.error} onRetry={onRefresh} /></View>
       : stage !== "ready"

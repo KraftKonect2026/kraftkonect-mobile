@@ -35,6 +35,7 @@
     "check:live-recovery": "node scripts/check-live-recovery.cjs",
     "check:live-deletion": "node scripts/check-live-deletion.cjs",
     "check:live-chat": "node scripts/check-live-chat.cjs",
+    "check:live-inbox": "node scripts/check-live-inbox.cjs",
     "lint": "expo lint",
     "build:preview": "eas build --platform all --profile preview --non-interactive",
     "build:production": "eas build --platform all --profile production --non-interactive",
