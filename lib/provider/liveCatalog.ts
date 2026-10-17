@@ -8,7 +8,8 @@ function object(value:unknown):Record<string,unknown>{if(!value||typeof value!==
 function publicText(value:unknown,max:number){return typeof value==="string"&&value.trim()&&value.length<=max&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)?value:undefined;}
 function recordId(value:unknown){const result=publicText(value,200);if(!result||/\s/.test(result))throw new Error("The provider or service identity could not be confirmed.");return result;}
 function amount(value:unknown){if(value===null||value===undefined)return undefined;if(!Number.isSafeInteger(value)||(value as number)<0)throw new Error("The recorded starting price could not be confirmed.");return value as number;}
-function currency(value:unknown){if(typeof value!=="string"||! /^[A-Z]{3}$/.test(value))return undefined;try{new Intl.NumberFormat("en-NG",{style:"currency",currency:value});return value;}catch{return undefined;}}
+/** Services saved by earlier app versions store the code in lowercase ("ngn"), so compare it case-insensitively. */
+function currency(value:unknown){if(typeof value!=="string")return undefined;const code=value.trim().toUpperCase();if(!/^[A-Z]{3}$/.test(code))return undefined;try{new Intl.NumberFormat("en-NG",{style:"currency",currency:code});return code;}catch{return undefined;}}
 export function publicServicePhoto(value:unknown):value is string{return typeof value==="string"&&value.length<=2048&&/^https?:\/\/\S+$/i.test(value);}
 
 /** Legacy read fields do not establish the new weekday, lifecycle or archive contracts. */

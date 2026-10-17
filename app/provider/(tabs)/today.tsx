@@ -45,7 +45,7 @@ function OwnedDashboard() {
       ? <View style={{ margin: Space.page }}><DataStatus loading={profile.loading || listings.loading} error={!!profile.error || !!listings.error} onRetry={onRefresh} /></View>
       : stage !== "ready"
         ? <ProviderSetupView stage={stage} hasProfile={!!profile.data?.myProviderProfile} hasService={hasService}
-          onSetup={onSetup} onServices={() => router.push("/provider/(tabs)/services")}
+          onSetup={onSetup} onServices={() => router.push("/provider/services")}
           onVerification={() => profile.data?.myProviderProfile ? router.push("/provider/verification-status") : onSetup()} />
         : <ProviderHomeView available={profile.data?.myProviderProfile?.available}
           onManage={() => setAvailabilityOpen(true)} onEarnings={() => router.push("/provider/earnings")}
