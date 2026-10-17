@@ -1,7 +1,7 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Smartphone } from "lucide-react-native";
 import React, { useState, useRef, useEffect } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator,  } from "react-native";
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator,  } from "react-native";
 import { PressableOpacity as TouchableOpacity } from "@/components/PressableOpacity";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation } from "@apollo/client";
@@ -140,7 +140,7 @@ export default function VerifyPhoneScreen() {
       <ScreenBackground>
         <SafeAreaView style={styles.container} edges={["top"]}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior="padding"
             style={styles.keyboardView}
           >
             <ScrollView
@@ -215,7 +215,7 @@ export default function VerifyPhoneScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior="padding"
         >
           <ScrollView
             contentContainerStyle={styles.scrollContent}

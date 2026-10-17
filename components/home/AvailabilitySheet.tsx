@@ -48,7 +48,7 @@ export function AvailabilitySheet({ available, providerId, onClose, onSaved, onD
     } catch { if(current())toast.error("Couldn’t save request status. Your selection is kept."); }
     finally { locked.current=false;if(current())setSaving(false); }
   };
-  return <Modal visible transparent animationType="slide" onRequestClose={() => { if (!saving) onClose(); }}>
+  return <Modal visible transparent animationType="slide" onRequestClose={() => { if (!saving) onClose(); }} statusBarTranslucent navigationBarTranslucent>
     <View style={styles.overlay}>
       <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Close availability" onPress={onClose} disabled={saving} />
       <ScrollView style={styles.sheet} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]} keyboardShouldPersistTaps="handled">

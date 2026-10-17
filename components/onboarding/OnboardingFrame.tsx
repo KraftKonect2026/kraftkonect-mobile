@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardSafeView, useKeyboardVisible } from "@/components/KeyboardSafeView";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { AppText } from "@/components/AppText";
@@ -13,8 +14,8 @@ export function TextAction({ title, onPress, disabled = false }: { title: string
 export function OnboardingFrame({ title, description, children, actions, onBack, previewBar }: {
   title: string; description?: string; children?: ReactNode; actions?: ReactNode; onBack: () => void; previewBar?: ReactNode;
 }) {
-  const insets = useSafeAreaInsets();
-  return <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+  const insets = useSafeAreaInsets(), typing = useKeyboardVisible();
+  return <KeyboardSafeView style={styles.screen}>
     {previewBar}
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.scroll}
       contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Space.xxl }]}>
@@ -32,8 +33,8 @@ export function OnboardingFrame({ title, description, children, actions, onBack,
         {children}
       </View>
     </ScrollView>
-    {actions ? <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, Space.xxxl) }]}>{actions}</View> : null}
-  </KeyboardAvoidingView>;
+    {actions ? <View style={[styles.actions, { paddingBottom: typing ? Space.md : Math.max(insets.bottom, Space.xxxl) }]}>{actions}</View> : null}
+  </KeyboardSafeView>;
 }
 export const onboardingStyles = StyleSheet.create({
   stack: { gap: Space.xl }, tight: { gap: Space.sm }, fields: { gap: Space.xl },

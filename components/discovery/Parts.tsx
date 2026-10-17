@@ -1,7 +1,8 @@
 import { ReactNode, useState } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { Image, ImageSource } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardSafeView, useKeyboardVisible } from "@/components/KeyboardSafeView";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
 import { LogoLoader } from "@/components/LogoLoader";
@@ -33,27 +34,27 @@ export function IconButton({ name, label, onPress, compact=false, quietSmall=fal
   </Pressable>;
 }
 export function Frame({ children, header, subheader, topSpacing=10, footer, scroll=true, contentStyle, safeAreaTop=true, headerGap=8, headerHeight, footerBottomPadding=40,footerStyle }: { children:ReactNode; header?:ReactNode; subheader?:ReactNode; topSpacing?:number; footer?:ReactNode; scroll?:boolean; contentStyle?:StyleProp<ViewStyle>; safeAreaTop?:boolean; headerGap?:number; headerHeight?:number;footerBottomPadding?:number;footerStyle?:StyleProp<ViewStyle> }) {
-  const insets=useSafeAreaInsets();
-  return <KeyboardAvoidingView style={[ds.screen,{paddingTop:safeAreaTop ? insets.top : 0}]} behavior={Platform.OS==="ios" ? "padding" : undefined}>
+  const insets=useSafeAreaInsets(),typing=useKeyboardVisible();
+  return <KeyboardSafeView style={[ds.screen,{paddingTop:safeAreaTop ? insets.top : 0}]}>
     {header && <View style={[ds.topBar,{marginTop:topSpacing,gap:headerGap},headerHeight!==undefined&&{height:undefined,minHeight:headerHeight}]}>{header}</View>}
     {subheader && <View style={{paddingHorizontal:24,paddingTop:15,paddingBottom:8,borderBottomWidth:1,borderBottomColor:Colors.border}}>{subheader}</View>}
     {scroll ? <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[ds.content,contentStyle]}>{children}</ScrollView> : <View style={[ds.flex,contentStyle]}>{children}</View>}
-    {footer && <View style={[ds.footer,footerStyle,{paddingBottom:Math.max(footerBottomPadding,insets.bottom+12)}]}>{footer}</View>}
-  </KeyboardAvoidingView>;
+    {footer && <View style={[ds.footer,footerStyle,{paddingBottom:typing?12:Math.max(footerBottomPadding,insets.bottom+12)}]}>{footer}</View>}
+  </KeyboardSafeView>;
 }
 export function TopBar({ onBack, onClose, children, onFilter }: { onBack?:()=>void; onClose?:()=>void; children?:ReactNode; onFilter?:()=>void }) {
   return <><View style={{width:44}}>{onBack && <IconButton name="back" label="Back" onPress={onBack}/>}</View><View style={ds.flex}>{children}</View>{onClose ? <IconButton name="close" label="Close" onPress={onClose}/> : onFilter ? <IconButton name="filter" label="Filters" onPress={onFilter}/> : <View style={{width:44}}/>}</>;
 }
 export function Sheet({ children, title, description, onClose, showClose=false, showHandle=true, minimumHeight, topPadding=28, bodyPadding=10, bodyGap=12, titleVariant="h2" }: { children:ReactNode;title:string;description?:string;onClose:()=>void;showClose?:boolean;showHandle?:boolean;minimumHeight?:number;topPadding?:number;bodyPadding?:number;bodyGap?:number;titleVariant?:TypographyVariant }) {
-  const insets=useSafeAreaInsets();
-  return <Modal transparent animationType="none" onRequestClose={onClose}><KeyboardAvoidingView behavior={Platform.OS==="ios" ? "padding" : undefined} style={ds.overlay}>
+  const insets=useSafeAreaInsets(),typing=useKeyboardVisible();
+  return <Modal transparent animationType="none" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent><KeyboardSafeView style={ds.overlay}>
     <Pressable accessibilityRole="button" accessibilityLabel="Dismiss sheet" onPress={onClose} style={StyleSheet.absoluteFill}/>
-    <View accessibilityViewIsModal style={[ds.sheet,{minHeight:minimumHeight,paddingTop:topPadding,paddingBottom:Math.max(40,insets.bottom+12)}]}>
+    <View accessibilityViewIsModal style={[ds.sheet,{minHeight:minimumHeight,paddingTop:topPadding,paddingBottom:typing?16:Math.max(40,insets.bottom+12)}]}>
       {showHandle && <View style={ds.handle}/>}<View style={ds.row}><AppText variant={titleVariant} style={ds.flex}>{title}</AppText>{showClose && <IconButton name="close" label={"Close "+title} onPress={onClose}/>}</View>
       {description && <AppText variant="body" color={Colors.textSecondary}>{description}</AppText>}
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{gap:bodyGap,paddingTop:bodyPadding}} showsVerticalScrollIndicator={false}>{children}</ScrollView>
     </View>
-  </KeyboardAvoidingView></Modal>;
+  </KeyboardSafeView></Modal>;
 }
 export function SummaryRow({ label,value,onPress }: { label:string;value:string;onPress:()=>void }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={label+": "+value} onPress={onPress} style={ds.summary}><AppText variant="bodyLarge" color={Colors.textSecondary}>{label}</AppText><AppText variant="label" style={[ds.flex,{textAlign:"right"}]}>{value}</AppText></Pressable>;
