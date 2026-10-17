@@ -180,7 +180,11 @@ let cacheAccountId = store.getState().auth.user?.id;
 store.subscribe(() => {
   const nextAccountId = store.getState().auth.user?.id;
   if (nextAccountId !== cacheAccountId) {
+    const hadAccount = !!cacheAccountId;
     cacheAccountId = nextAccountId;
-    void client.clearStore().catch(() => {});
+    // Sign-out already cleared the store, so a fresh login (no previous account) starts empty.
+    // Clearing then would reject the home queries that start right after login
+    // ("Store reset while query was in flight").
+    if (hadAccount) void client.clearStore().catch(() => {});
   }
 });
