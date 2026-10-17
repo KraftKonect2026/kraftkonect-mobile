@@ -33,6 +33,7 @@ import { useToast } from "@/lib/toast";
 import { useAppDispatch, useAppSelector, store } from "@/store";
 import { selectActiveMode, setActiveMode, signOut, updateUser } from "@/store/authSlice";
 import { AppMode } from "@/lib/appMode";
+import { unregisterPush } from "@/lib/push/push";
 import Colors from "@/constants/colors";
 
 const accountPath=(mode:AppMode)=>mode==="provider"?"/provider/(tabs)/profile" as const:"/(app)/(tabs)/profile" as const;
@@ -50,7 +51,7 @@ export function ConnectedAccountHub({mode}:{mode:AppMode}) {
   else if(target==="earnings")router.push("/provider/earnings");
   else router.push({pathname:"/account-settings",params:{step:liveAccountStep(target)}});
  };
- const leave=async()=>{if(busy)return;setBusy(true);dispatch(signOut());try{await client.clearStore();}finally{if(alive.current){setBusy(false);setExit(false);}router.replace("/sign-in");}};
+ const leave=async()=>{if(busy)return;setBusy(true);await unregisterPush(client);dispatch(signOut());try{await client.clearStore();}finally{if(alive.current){setBusy(false);setExit(false);}router.replace("/sign-in");}};
  if(!data.signedIn)return <Redirect href="/sign-in"/>;
  return <View style={{flex:1,backgroundColor:Colors.surface}}><ModeHeader mode={mode} onModeChange={switchMode} onNotifications={()=>router.push("/notifications")} showNotifications={mode==="customer"} showBorder={mode==="customer"}/>{data.error&&<View style={{paddingHorizontal:24,paddingVertical:12,gap:8}}><Callout tone="error" message={data.error}/><Button title="Refresh account" size="compact" variant="outline" disabled={data.loading} onPress={()=>void data.refresh()}/></View>}{data.snapshot&&<AccountHub mode={mode} account={{firstName:data.snapshot.firstName,lastName:data.snapshot.lastName,avatarUrl:data.snapshot.avatarUrl,profile:{avatar:false},verificationLabel:data.snapshot.verificationLabel}} onOpen={open}/>}
  {exit&&<ConfirmDialog provider title="Sign out of KraftKonect?" description="Your bookings and messages stay on your account. Sign in again with your phone number and a one-time code." onClose={()=>{if(!busy)setExit(false);}}><Button title="Sign out" loading={busy} style={{backgroundColor:Colors.error}} onPress={()=>void leave()}/><Button title="Stay signed in" variant="outline" disabled={busy} onPress={()=>setExit(false)}/></ConfirmDialog>}

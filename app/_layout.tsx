@@ -10,6 +10,7 @@ import { ApolloProvider } from "@apollo/client/react";
 import { store, persistor, useAppSelector } from "@/store";
 import apolloClient from "@/lib/apolloClient";
 import { ToastProvider } from "@/lib/toast";
+import { usePushNotifications } from "@/lib/push/usePushNotifications";
 import { interFontMap, applyGlobalInterFont } from "@/lib/fonts";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { StatusBar } from "react-native";
@@ -28,6 +29,7 @@ function RootLayoutNav() {
   const [fontsLoaded] = useFonts(interFontMap);
 
   const ready = isRehydrated && fontsLoaded;
+  usePushNotifications(!!ready);
 
   // Hide splash screen once state is rehydrated and fonts are loaded
   useEffect(() => {
