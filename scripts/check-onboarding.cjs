@@ -68,7 +68,7 @@ check("Returning to registration preserves the verified account's existing provi
   assert.equal(nextAfterPhone({ ...bound, mode: "customer" }, true), "location");
 });
 check("An anonymous deep link cannot skip phone verification", () => {
-  for (const step of ["name","profile","first-service","complete","verification-pending"]) assert.equal(stepAllowed(step, false, false), "phone");
+  for (const step of ["profile","first-service","complete","verification-pending","work","location"]) assert.equal(stepAllowed(step, false, false), "phone");
   assert.equal(stepAllowed("profile", true, false), "profile"); assert.equal(stepAllowed("profile", false, true), "profile");
 });
 check("Customer matching preferences never overwrite the provider's service area", () => {
@@ -130,5 +130,16 @@ check("Expired test challenges require a new request; malformed clocks cannot gr
   for (const now of [challenge.expiresAt, challenge.expiresAt + 1, NaN]) assert.equal(testLogin.checkTestLoginCode(challenge, challenge.phone, testLogin.testLoginCode, true, now), "expired");
   assert.throws(() => testLogin.createTestLoginChallenge(testLogin.testLoginPhone, true, NaN));
   assert.equal(testLogin.checkTestLoginCode({ ...challenge, expiresAt: NaN }, challenge.phone, testLogin.testLoginCode, true, 1001), "expired");
+});
+check("Onboarding starts with the name, before role and phone, and anyone may open those first steps", () => {
+  assert.equal(emptyDraft().resumeStep, "name");
+  for (const step of ["name","role","phone","phone-code"]) assert.equal(stepAllowed(step, false, false), step);
+});
+check("A name typed at the start is kept in the draft and a new account carries straight on to its branch", () => {
+  const draft = { ...emptyDraft(), firstName: "Ada", lastName: "Obi", phone, mode: "customer" };
+  const kept = safeDraft(draft); assert.equal(kept.firstName, "Ada"); assert.equal(kept.lastName, "Obi");
+  assert.equal(nextAfterPhone(draft, true), "location");
+  assert.equal(nextAfterPhone({ ...draft, mode: "provider" }, true), "work");
+  assert.equal(nextAfterPhone(draft, false), "name"); // no name anywhere: ask
 });
 console.log("\nOnboarding/auth regression checks passed: " + count + ".");

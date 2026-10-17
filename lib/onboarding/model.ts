@@ -11,7 +11,7 @@ export type OnboardingDraft = {
   serviceName: string; serviceDescription: string; startingPrice: string;
 };
 export function emptyDraft(): OnboardingDraft {
-  return { version: 1, mode: "customer", resumeStep: "role", phone: "", firstName: "", lastName: "",
+  return { version: 1, mode: "customer", resumeStep: "name", phone: "", firstName: "", lastName: "",
     customerArea: "", area: "", workType: "", category: "", workingDays: [1,2,3,4,5,6,0], remote: false,
     businessName: "", introduction: "", banner: "", avatar: "", gallery: [], servicePhoto: "",
     serviceName: "", serviceDescription: "", startingPrice: "" };
@@ -69,5 +69,6 @@ export function draftKey(owner: string) { return "kk-onboarding-v1-" + storageOw
 export function areaKey(accountId: string) { return "kk-service-area-v1-" + storageOwner(accountId); }
 export function stepAllowed(step: OnboardingStep, signedIn: boolean, preview: boolean) {
   if (preview || signedIn) return step;
-  return ["name","location","manual-location","work","service-area","profile","gallery","first-service","complete","verification-intro","verification-documents","verification-pending"].includes(step) ? "phone" as const : step;
+  // Your name is the first step, before anyone has an account: it is kept in the draft and saved once the account exists.
+  return ["location","manual-location","work","service-area","profile","gallery","first-service","complete","verification-intro","verification-documents","verification-pending"].includes(step) ? "phone" as const : step;
 }

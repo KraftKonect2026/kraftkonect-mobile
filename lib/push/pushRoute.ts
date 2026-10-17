@@ -6,6 +6,7 @@ export function routeForPush(data: unknown): PushRoute | null {
   const type = typeof d.linkType === "string" ? d.linkType : "";
   const id = typeof d.linkId === "string" ? d.linkId : "";
   if (type === "support") return { pathname: "/support", params: { kind: "help" } };
+  if (type === "verification") return { pathname: "/provider/verification-status" };
   if (!id) return type ? { pathname: "/notifications" } : null;
   if (type === "booking") return { pathname: "/request/[id]", params: { id } };
   if (type === "conversation") return { pathname: "/chat/[providerId]", params: { providerId: id } };

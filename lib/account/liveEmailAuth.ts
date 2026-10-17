@@ -40,9 +40,9 @@ export async function signInWithEmail(client: Client, email: string, password: s
   if (!password) throw new Error("Enter your password.");
   return parseSession((await call(client, SIGN_IN_MUTATION, { email: cleanEmail(email), password })).signIn);
 }
-export async function signUpWithEmail(client: Client, input: { name: string; email: string; password: string }): Promise<EmailSession> {
+export async function signUpWithEmail(client: Client, input: { name: string; email: string; password: string; role?: "customer" | "provider" }): Promise<EmailSession> {
   const bad = nameError(input.name) ?? emailError(input.email) ?? passwordError(input.password); if (bad) throw new Error(bad);
-  return parseSession((await call(client, SIGN_UP_MUTATION, { name: input.name.trim(), email: cleanEmail(input.email), password: input.password })).signUp);
+  return parseSession((await call(client, SIGN_UP_MUTATION, { name: input.name.trim(), email: cleanEmail(input.email), password: input.password, ...(input.role ? { role: input.role } : {}) })).signUp);
 }
 export async function verifyEmailCode(client: Client, email: string, code: string): Promise<EmailSession> {
   if (!/^\d{6}$/.test(code)) throw new Error("Enter the 6-digit code from your email.");

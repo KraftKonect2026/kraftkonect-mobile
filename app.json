@@ -31,7 +31,8 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.kraftkonect",
-      "versionCode": 3
+      "versionCode": 3,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

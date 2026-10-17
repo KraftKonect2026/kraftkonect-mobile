@@ -1,6 +1,5 @@
 import { Platform } from "react-native";
-import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
+import { Device, Notifications } from "@/lib/push/native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gql, type ApolloClient } from "@apollo/client";
@@ -17,7 +16,7 @@ let configured = false;
  * so nothing is announced twice; when the app is in the background the system shows it as usual.
  */
 export function configurePush(): void {
-  if (configured) return;
+  if (configured || !Notifications) return;
   configured = true;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({ shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: true }),
@@ -41,7 +40,7 @@ export type PushStatus = "registered" | "denied" | "unavailable";
  */
 export async function registerForPush(client: Pick<ApolloClient<unknown>, "mutate">): Promise<PushStatus> {
   try {
-    if (!Device.isDevice) return "unavailable"; // simulators cannot receive push
+    if (!Notifications || !Device?.isDevice) return "unavailable"; // no native module (older install) or a simulator
     let { status, canAskAgain } = await Notifications.getPermissionsAsync();
     if (status !== "granted" && canAskAgain) ({ status } = await Notifications.requestPermissionsAsync());
     if (status !== "granted") return "denied";

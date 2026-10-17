@@ -26,8 +26,9 @@ export const SIGN_UP_MUTATION = gql`
     $password: String!
     $name: String
     $phone: String
+    $role: String
   ) {
-    signUp(email: $email, password: $password, name: $name, phone: $phone) {
+    signUp(email: $email, password: $password, name: $name, phone: $phone, role: $role) {
       accessToken
       refreshToken
       user {

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useApolloClient } from "@apollo/client";
 import { useRouter } from "expo-router";
-import * as Notifications from "expo-notifications";
+import { Notifications } from "@/lib/push/native";
 import { useAppSelector } from "@/store";
 import { useToast } from "@/lib/toast";
 import { configurePush, registerForPush } from "@/lib/push/push";
@@ -24,6 +24,7 @@ export function usePushNotifications(ready: boolean) {
 
   // A push arriving while the app is open: show it as the in-app toast.
   useEffect(() => {
+    if (!Notifications) return;
     const sub = Notifications.addNotificationReceivedListener((n) => {
       const { title, body } = n.request.content;
       if (title || body) toast.info(title ?? "KraftKonect", body ?? undefined);
@@ -32,7 +33,9 @@ export function usePushNotifications(ready: boolean) {
   }, [toast]);
 
   // A tap, from the background or from a closed app (the hook also returns the one that launched the app).
-  const last = Notifications.useLastNotificationResponse();
+  // Whether the native module exists is fixed for a given install, so this hook is always or never called.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const last = Notifications ? Notifications.useLastNotificationResponse() : undefined;
   useEffect(() => {
     if (!ready || !userId || !last) return;
     const id = last.notification.request.identifier + ":" + last.actionIdentifier;

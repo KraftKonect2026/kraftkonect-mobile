@@ -2,7 +2,7 @@
 // not use a phone number. Built from the same frame, fields and buttons as the phone sign-in.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApolloClient } from "@apollo/client";
 import { AppText } from "@/components/AppText";
 import { Button } from "@/components/Button";
@@ -14,7 +14,7 @@ import Colors from "@/constants/colors";
 import { homeForMode, resolveAppMode } from "@/lib/appMode";
 import { askPasswordReset, cleanEmail, EmailSession, emailError, nameError, passwordError, resendEmailCode, resetPassword, signInWithEmail, signUpWithEmail, verifyEmailCode } from "@/lib/account/liveEmailAuth";
 import { store, useAppDispatch, useAppSelector } from "@/store";
-import { setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
+import { setActiveMode, setIsAuthenticated, setTokens, setUser } from "@/store/authSlice";
 import { useToast } from "@/lib/toast";
 import type { User } from "@/types";
 
@@ -108,7 +108,9 @@ export function EmailSignUpScreen() {
 
 /** Confirm the email with the 6-digit code. A code is sent as soon as this screen opens. */
 export function EmailVerifyScreen() {
-  const router = useRouter(), client = useApolloClient(), start = useStartSession(), { showToast } = useToast();
+  const router = useRouter(), client = useApolloClient(), start = useStartSession(), { showToast } = useToast(), dispatch = useAppDispatch();
+  // Set when the person signed up inside onboarding: after the code they carry on with setup instead of landing on home.
+  const params = useLocalSearchParams<{ continue?: string }>();
   const email = useAppSelector(s => s.auth.user?.email) ?? "";
   const [code, setCode] = useState(""), [wait, setWait] = useState(0);
   const { busy, error, run, setError } = useAction();
@@ -116,7 +118,16 @@ export function EmailVerifyScreen() {
   useEffect(() => { if (wait <= 0) return; const t = setTimeout(() => setWait(wait - 1), 1000); return () => clearTimeout(t); }, [wait]);
   const send = (quiet = false) => run(async () => { await resendEmailCode(client, email); setWait(60); if (!quiet) showToast("success", "A new code is on its way."); });
   useEffect(() => { if (sent.current || !email) return; sent.current = true; void send(true); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [email]);
-  const confirm = (value = code) => run(async () => { const session = await verifyEmailCode(client, email, value); start(session, { confirmed: true }); });
+  const confirm = (value = code) => run(async () => {
+    const session = await verifyEmailCode(client, email, value);
+    if (params.continue !== "onboarding") { start(session, { confirmed: true }); return; }
+    const mode = (session.user as { role?: string }).role === "provider" ? "provider" : "customer";
+    dispatch(setUser(session.user as unknown as User));
+    dispatch(setTokens({ accessToken: session.accessToken, refreshToken: session.refreshToken }));
+    dispatch(setIsAuthenticated(true));
+    dispatch(setActiveMode(mode));
+    router.replace({ pathname: "/onboarding", params: { step: mode === "provider" ? "work" : "location" } } as never);
+  });
   const back = () => { setError(undefined); router.replace("/email-sign-in" as never); };
   return <OnboardingFrame title="Check your email" description={email ? `Enter the 6-digit code we sent to ${cleanEmail(email)}.` : "Sign in again to get a new code."} onBack={back}
     actions={<>

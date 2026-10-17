@@ -16,6 +16,7 @@ import { Corners, Space } from "@/constants/layout";
 import { maskedPhone, normalizedPhone, OnboardingDraft, OnboardingStep, priceCents, validName } from "@/lib/onboarding/model";
 import type { AppMode } from "@/lib/appMode";
 import { testLoginCode, testLoginFieldPhone } from "@/lib/onboarding/testLogin";
+import { emailError, passwordError } from "@/lib/account/liveEmailAuth";
 
 export type OnboardingScreenProps = {
   step: OnboardingStep; draft: OnboardingDraft; update: (patch: Partial<OnboardingDraft>) => void;
@@ -29,7 +30,24 @@ export type OnboardingScreenProps = {
   testLoginAvailable?: boolean; localTest?: boolean;
   /** Offered on the phone sign-in: sign in with an email and password instead. */
   onEmailSignIn?: () => void;
+  /** Sign-up phone step: a phone number, or an email and password. */
+  signUpMethod?: "number" | "email"; onSignUpMethod?: (method: "number" | "email") => void;
+  email?: string; password?: string; confirmPassword?: string;
+  onEmailFields?: (patch: { email?: string; password?: string; confirmPassword?: string }) => void;
 };
+
+/** Two-way switch used at the top of the sign-up step (design: "By number" | "By Email"). */
+function MethodTabs({ value, onChange, disabled }: { value: "number" | "email"; onChange: (value: "number" | "email") => void; disabled?: boolean }) {
+  return <View accessibilityRole="tablist" style={styles.tabs}>
+    {([["number", "By number"], ["email", "By Email"]] as const).map(([key, label]) => {
+      const selected = value === key;
+      return <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected, disabled }} accessibilityLabel={label} disabled={disabled} onPress={() => onChange(key)}
+        style={[styles.tab, selected && styles.tabSelected]}>
+        <AppText variant="label" color={selected ? Colors.textOnPrimary : Colors.textPrimary}>{label}</AppText>
+      </Pressable>;
+    })}
+  </View>;
+}
 export function OnboardingScreen(p: OnboardingScreenProps) {
   const { step, draft: d, busy } = p;
   const field = (key: "firstName" | "lastName" | "customerArea" | "area" | "businessName" | "introduction" | "serviceName" | "serviceDescription" | "startingPrice", label: string, placeholder: string, multiline = false) =>
@@ -49,16 +67,31 @@ export function OnboardingScreen(p: OnboardingScreenProps) {
         <AppText variant="captionMedium" color={Colors.textSecondary} style={ui.centered}>One account. Both sides of KraftKonect.</AppText></>;
       actions = <AppText variant="footnote" color={Colors.textSecondary} style={ui.centered}>By continuing, you agree to our Terms and Privacy Policy.</AppText>; break;
     case "sign-in":
-    case "phone":
-      title = step === "sign-in" ? "Welcome back" : "What's your phone number?";
-      description = step === "sign-in" ? "Enter the phone number linked to your KraftKonect account." : "We use your number to create and secure your KraftKonect account.";
-      body = <>{phone}{step === "sign-in" ? <><View style={styles.phoneInfo}><AppText variant="captionRelaxed" color={Colors.textSecondary}>{p.localTest ? "Use the local test code. No SMS will be sent." : "We’ll text you a one-time sign-in code."}</AppText></View>
+    case "phone": {
+      const viaEmail = step === "phone" && p.signUpMethod === "email";
+      const email = p.email ?? "", password = p.password ?? "", confirmPassword = p.confirmPassword ?? "";
+      const emailOk = !emailError(email) && !passwordError(password) && confirmPassword === password;
+      title = step === "sign-in" ? "Welcome back" : viaEmail ? "What's your email?" : "What's your phone number?";
+      description = step === "sign-in" ? "Enter the phone number linked to your KraftKonect account."
+        : viaEmail ? "We use your email to create and secure your KraftKonect account." : "We use your number to create and secure your KraftKonect account.";
+      const emailFields = <>
+        <Input label="Email" placeholder="you@mail.com" value={email} onChangeText={value => p.onEmailFields?.({ email: value })} autoCapitalize="none" autoCorrect={false}
+          keyboardType="email-address" inputMode="email" autoComplete="email" textContentType="emailAddress" editable={!busy} maxLength={254}
+          error={email && emailError(email) ? emailError(email) : undefined} />
+        <Input label="Create password" placeholder="At least 8 characters" value={password} onChangeText={value => p.onEmailFields?.({ password: value })} secureTextEntry
+          autoComplete="new-password" textContentType="newPassword" editable={!busy} maxLength={72} error={password && passwordError(password) ? passwordError(password) : undefined} />
+        <Input label="Confirm password" placeholder="Type it again" value={confirmPassword} onChangeText={value => p.onEmailFields?.({ confirmPassword: value })} secureTextEntry
+          autoComplete="new-password" textContentType="newPassword" editable={!busy} maxLength={72} error={confirmPassword.length > 0 && confirmPassword !== password ? "The passwords don’t match." : undefined} />
+        <View style={styles.sms}><AppText variant="footnote" style={{ width: 38, textAlign: "center" }}>Email</AppText><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{ flex: 1 }}>We’ll email you a 6-digit verification code.</AppText></View></>;
+      body = <>{step === "phone" && p.onSignUpMethod ? <MethodTabs value={p.signUpMethod ?? "number"} onChange={p.onSignUpMethod} disabled={busy} /> : null}
+        {viaEmail ? emailFields : <>{phone}{step === "sign-in" ? <><View style={styles.phoneInfo}><AppText variant="captionRelaxed" color={Colors.textSecondary}>{p.localTest ? "Use the local test code. No SMS will be sent." : "We’ll text you a one-time sign-in code."}</AppText></View>
         <TextAction title="No longer have access to this number?" onPress={() => p.onGo("recovery")} /></> :
-        <View style={styles.sms}><AppText variant="footnote" style={{ width: 38, textAlign: "center" }}>SMS</AppText><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{ flex: 1 }}>We’ll send a 6-digit verification code.</AppText></View>}
+        <View style={styles.sms}><AppText variant="footnote" style={{ width: 38, textAlign: "center" }}>SMS</AppText><AppText variant="captionRelaxed" color={Colors.textSecondary} style={{ flex: 1 }}>We’ll send a 6-digit verification code.</AppText></View>}</>}
         {__DEV__ && p.testLoginAvailable ? <Callout title="Local test account" message={"Enter " + testLoginFieldPhone + " and use code " + testLoginCode + ". Opens sample data in development only. No SMS is sent."} /> : null}</>;
-      actions = <>{next(step === "sign-in" ? "Send code" : "Continue", !!normalizedPhone(d.phone))}
+      actions = <>{next(step === "sign-in" ? "Send code" : "Continue", viaEmail ? emailOk : !!normalizedPhone(d.phone))}
         {step === "sign-in" && p.onEmailSignIn ? <TextAction title="Use email and password instead" onPress={p.onEmailSignIn} disabled={busy} /> : null}
-        {step === "sign-in" ? <TextAction title="New to KraftKonect? Get started" onPress={() => p.onGo("role")} /> : null}</>; break;
+        {step === "sign-in" ? <TextAction title="New to KraftKonect? Get started" onPress={() => p.onGo("name")} /> : null}</>; break;
+    }
     case "sign-in-code":
     case "phone-code":
       title = step === "sign-in-code" ? "Enter your sign-in code" : "Enter the code";
@@ -145,7 +178,7 @@ export function OnboardingScreen(p: OnboardingScreenProps) {
     case "account-missing":
       title = "We couldn't find that account"; description = "Check the phone number or choose what you want to do next.";
       body = <Callout title="No account is linked to this number" message="Try another number, create a new account, or recover an account tied to an old number." tone="warning" />;
-      actions = <><Button title="Recover existing account" onPress={() => p.onGo("recovery")} /><Button title="Create new account" variant="outline" onPress={() => p.onGo("role")} /></>; break;
+      actions = <><Button title="Recover existing account" onPress={() => p.onGo("recovery")} /><Button title="Create new account" variant="outline" onPress={() => p.onGo("name")} /></>; break;
     case "recovery":
       title = "Recover your account"; description = "Choose the safest recovery option you can still access.";
       body = <><View style={styles.phoneInfo}><AppText variant="captionRelaxed" color={Colors.textSecondary}>No recovery email on file? Choose Verify your identity instead.</AppText></View>
@@ -171,6 +204,9 @@ export function OnboardingScreen(p: OnboardingScreenProps) {
   </OnboardingFrame>;
 }
 const styles = StyleSheet.create({
+  tabs: { flexDirection: "row", alignSelf: "flex-start", padding: 4, gap: 4, borderRadius: Corners.control, backgroundColor: Colors.background },
+  tab: { minHeight: 36, paddingHorizontal: Space.lg, borderRadius: Corners.control, alignItems: "center", justifyContent: "center" },
+  tabSelected: { backgroundColor: Colors.textPrimary },
   phoneInfo: { borderRadius: Corners.control, backgroundColor: Colors.background, padding: Space.md, minHeight: 54, justifyContent: "center" },
   sms: { flexDirection: "row", gap: 10, alignItems: "center", minHeight: 44, borderRadius: Corners.control, backgroundColor: Colors.primarySoft, paddingHorizontal: Space.md },
   location: { borderRadius: Corners.large, backgroundColor: Colors.background, paddingHorizontal: Space.xl, paddingVertical: Space.page, gap: 18, alignItems: "center" },

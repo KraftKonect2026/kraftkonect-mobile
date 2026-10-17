@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "977652275248",
+    "project_id": "kraftkonect-aa6a2",
+    "storage_bucket": "kraftkonect-aa6a2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:977652275248:android:5f26428ace7e007c1075f5",
+        "android_client_info": {
+          "package_name": "com.kraftkonect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrDWowYIpvc1S4kg5BV5HaUlgElohEc4Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

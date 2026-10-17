@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { useMutation, useQuery } from "@apollo/client";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
@@ -18,11 +18,13 @@ import { useProviderVerification } from "@/lib/hooks/useProviderVerification";
 import { useAppDispatch, useAppSelector, store } from "@/store";
 import { setActiveMode, setIsAuthenticated, setTokens, setUser, updateUser } from "@/store/authSlice";
 import { homeForMode, resolveAppMode } from "@/lib/appMode";
-import { normalizedPhone, OnboardingStep, stepAllowed, steps } from "@/lib/onboarding/model";
+import { normalizedPhone, OnboardingStep, stepAllowed, steps, validName } from "@/lib/onboarding/model";
 import { authFailure, authMessage, confirmedPhoneSession, failureMessage } from "@/lib/onboarding/phoneAuth";
 import { EDIT_PROFILE_MUTATION, REQUEST_PHONE_OTP_MUTATION, VERIFY_PHONE_OTP_MUTATION } from "@/lib/mutations";
 import { MY_PROVIDER_PROFILE_QUERY, USER_PROFILE_QUERY } from "@/lib/queries";
 import { useToast } from "@/lib/toast";
+import { signUpWithEmail } from "@/lib/account/liveEmailAuth";
+import type { User } from "@/types";
 import Colors from "@/constants/colors";
 import { Corners, Space } from "@/constants/layout";
 import type { ProviderProfile } from "@/lib/homeData";
@@ -37,7 +39,7 @@ const previewStepLabels: Partial<Record<OnboardingStep, string>> = {
   complete: "Setup complete", "verification-intro": "Verification intro", "verification-documents": "Identity documents",
   "verification-pending": "Verification pending", recovery: "Recovery",
 };
-export function OnboardingJourney({ initialStep = "role", preview = false }: { initialStep?: OnboardingStep; preview?: boolean }) {
+export function OnboardingJourney({ initialStep = "name", preview = false }: { initialStep?: OnboardingStep; preview?: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const dispatch = useAppDispatch();
@@ -63,6 +65,9 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
   const [recoveryMethod, setRecoveryMethod] = useState<"email" | "identity">("email");
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [recoveryName, setRecoveryName] = useState("");
+  const client = useApolloClient();
+  const [signUpMethod, setSignUpMethod] = useState<"number" | "email">("number");
+  const [emailFields, setEmailFields] = useState({ email: "", password: "", confirmPassword: "" });
   const initialized = useRef(false);
   const alive = useRef(true);
   const inFlight = useRef(false);
@@ -90,7 +95,7 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
   useEffect(() => {
     if (!ready || initialized.current) return;
     initialized.current = true;
-    if (initialStep === "role" && ["phone","name","location","manual-location","work","service-area","profile","gallery","first-service","verification-intro","verification-documents"].includes(draft.resumeStep)) setStep(stepAllowed(draft.resumeStep, signedIn, effectivePreview));
+    if ((initialStep === "role" || initialStep === "name") && ["role","phone","name","location","manual-location","work","service-area","profile","gallery","first-service","verification-intro","verification-documents"].includes(draft.resumeStep)) setStep(stepAllowed(draft.resumeStep, signedIn, effectivePreview));
     else if (["work","service-area","profile","gallery","first-service","complete","verification-intro","verification-documents","verification-pending"].includes(initialStep)) {
       update({ mode: "provider" });
       if (initialStep === "work" && ["work","service-area","profile","gallery","first-service","verification-intro","verification-documents"].includes(draft.resumeStep)) setStep(stepAllowed(draft.resumeStep, signedIn, effectivePreview));
@@ -200,14 +205,16 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
         if (scenario === "Expired code") { setOtpError("Your code has expired. Request a new code."); setCode(""); setRetryAt(0); return; }
         if (scenario === "Invalid code" || code !== "123456") { setOtpError("That code doesn’t match. Please try again."); setCode(""); return; }
         if (step === "sign-in-code") { toast.info("Preview sign-in complete. Your real account is unchanged."); home(); }
-        else advanceAfterVerification("name");
+        else advanceAfterVerification(draft.mode === "provider" ? "work" : "location");
         return;
       }
       const result = await verifyCode({ variables: { phone: challenge.phone, pin: code, pinId: challenge.pinId, role: step === "phone-code" ? draft.mode : undefined } });
       if (!alive.current || store.getState().auth.user?.id !== accountAtStart) return;
       const session = confirmedPhoneSession(result.data?.verifyPhoneOTP, challenge.phone);
       // Sign-in restores the account's own draft; it must not replace it with the phone-entry form.
-      const bound = step === "phone-code" ? await draftState.bindToAccount(session.user.id, !!session.user.name?.trim()) : undefined;
+      // The name asked for at the start is already in the draft, so a new account does not need to be asked again.
+      const draftName = validName(draft.firstName) && validName(draft.lastName) ? draft.firstName.trim() + " " + draft.lastName.trim() : undefined;
+      const bound = step === "phone-code" ? await draftState.bindToAccount(session.user.id, !!session.user.name?.trim() || !!draftName) : undefined;
       if (!alive.current || store.getState().auth.user?.id !== accountAtStart) return;
       dispatch(setUser(session.user));
       dispatch(setTokens({ accessToken: session.accessToken!, refreshToken: session.refreshToken! }));
@@ -218,7 +225,17 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
         if (result.data?.me?.id === store.getState().auth.user?.id) dispatch(updateUser(result.data.me));
       }).catch(() => {});
       if (step === "sign-in-code") router.replace(homeForMode(resolveAppMode(store.getState().auth)));
-      else advanceAfterVerification(bound!.resumeStep);
+      else {
+        let resume = bound!.resumeStep;
+        if (step === "phone-code" && draftName && !session.user.name?.trim()) {
+          try {
+            const saved = await editProfile({ variables: { name: draftName } });
+            if (saved.data?.editProfile?.id === session.user.id) dispatch(updateUser({ name: saved.data.editProfile.name }));
+            else resume = "name";
+          } catch { resume = "name"; } // fall back to asking, with the name already filled in
+        }
+        advanceAfterVerification(resume);
+      }
     } catch (e) {
       if (!alive.current) return;
       if (challenge.testLogin) { unavailable(e instanceof Error ? e.message : "We couldn’t open the local test account. Please try again."); return; }
@@ -295,13 +312,34 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
     identityCompleted.current = false;
     void verification.start();
   };
+  /** Sign up with an email and password instead of a phone number; the name already asked for goes with it. */
+  const emailSignUp = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); setError(undefined);
+    try {
+      if (effectivePreview) { unavailable("Preview: sign-up by email isn’t available here."); return; }
+      const name = draft.firstName.trim() + " " + draft.lastName.trim();
+      const session = await signUpWithEmail(client, { name, email: emailFields.email, password: emailFields.password, role: draft.mode });
+      if (!alive.current) return;
+      dispatch(setUser(session.user as unknown as User));
+      dispatch(setTokens({ accessToken: session.accessToken, refreshToken: session.refreshToken }));
+      router.replace({ pathname: "/email-verify", params: { continue: "onboarding" } } as never);
+    } catch (e) {
+      if (!alive.current) return;
+      const message = e instanceof Error ? e.message : "We couldn’t create your account. Please try again.";
+      setError(message); toast.error(message);
+    } finally { inFlight.current = false; if (alive.current) setBusy(false); }
+  };
   const next = async () => {
+    if (step === "phone" && signUpMethod === "email") { await emailSignUp(); return; }
     if (step === "sign-in" || step === "phone") { await send(); return; }
     if (step === "sign-in-code" || step === "phone-code") { await confirm(); return; }
     if (inFlight.current) return;
     setError(undefined);
     switch (step) {
       case "name": {
+        // Before there is an account the name is only kept in the draft; it is saved once the phone or email is verified.
+        if (!effectivePreview && !auth.user?.id) { go("role"); return; }
         if (!effectivePreview) {
           if (auth.user?.name?.trim()) { go(draft.mode === "provider" ? "work" : "location"); return; }
           const id = auth.user?.id;
@@ -361,6 +399,9 @@ export function OnboardingJourney({ initialStep = "role", preview = false }: { i
   if (!ready) return <OnboardingFrame title="Your setup" onBack={back} previewBar={previewBar}><LogoLoader label="Restoring your progress" /></OnboardingFrame>;
   return <View style={styles.screen}>
     <OnboardingScreen step={safeStep} draft={draft} update={update} onBack={back} onNext={() => { void next(); }}
+      signUpMethod={signUpMethod} onSignUpMethod={method => { setError(undefined); setSignUpMethod(method); }}
+      email={emailFields.email} password={emailFields.password} confirmPassword={emailFields.confirmPassword}
+      onEmailFields={patch => setEmailFields(previous => ({ ...previous, ...patch }))}
       onEmailSignIn={!effectivePreview && initialStep === "sign-in" ? () => router.push("/email-sign-in" as never) : undefined}
       testLoginAvailable={__DEV__ && !effectivePreview && initialStep === "sign-in"}
       localTest={__DEV__ && !effectivePreview && (step === "sign-in" ? isTestLoginPhone(draft.phone, __DEV__) : !!challenge?.testLogin)}
